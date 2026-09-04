@@ -69,7 +69,7 @@ describe("onboarding no-flood invariant", () => {
 
   it("every baseline job predates a subscription made afterwards, and is flagged pre-existing", async () => {
     const user = await prisma.user.create({
-      data: { name: "Late Joiner", email: `${SLUG}@example.test`, passwordHash: "x" },
+      data: { name: "Late Joiner", email: `${SLUG}@example.test`, clerkUserId: `clerk-${SLUG}` },
     });
     const subscription = await prisma.userCompanySubscription.create({
       data: { userId: user.id, companyId },

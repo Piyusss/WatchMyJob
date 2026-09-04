@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, AlertCircle } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
+import AccountLoadError from "@/components/AccountLoadError";
 import WhyThisMatches from "@/components/WhyThisMatches";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError, type JobDetail } from "@/lib/api";
@@ -16,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function JobDetailPage() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, loading: userLoading, error: userError } = useCurrentUser();
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -34,6 +35,15 @@ export default function JobDetailPage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this job. Please try again."))
       .finally(() => setLoading(false));
   }, [user, params.id, retryCount]);
+
+  if (userError) {
+    return (
+      <>
+        <AuthNav />
+        <AccountLoadError message={userError} />
+      </>
+    );
+  }
 
   if (userLoading) return null;
 

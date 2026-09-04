@@ -61,7 +61,7 @@ describe("SES/SNS delivery-feedback webhook", () => {
 
     const suffix = Date.now();
     const user = await prisma.user.create({
-      data: { name: "Webhook Test", email: `webhook-${suffix}@example.test`, passwordHash: "x" },
+      data: { name: "Webhook Test", email: `webhook-${suffix}@example.test`, clerkUserId: `clerk-webhook-${suffix}` },
     });
     userId = user.id;
     const company = await prisma.company.create({

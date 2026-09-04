@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
+import AccountLoadError from "@/components/AccountLoadError";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError, type Preferences, type WorkMode, type OpportunityType } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -85,7 +86,7 @@ function OptionTile({
 }
 
 export default function PreferencesClient() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, loading: userLoading, error: userError } = useCurrentUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get("onboarding") === "1";
@@ -173,6 +174,15 @@ export default function PreferencesClient() {
       return;
     }
     if (await save()) router.push("/companies?onboarding=1");
+  }
+
+  if (userError) {
+    return (
+      <>
+        <AuthNav />
+        <AccountLoadError message={userError} />
+      </>
+    );
   }
 
   if (userLoading || !loaded) {

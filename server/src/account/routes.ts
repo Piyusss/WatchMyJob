@@ -1,13 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { clerkClient } from "../auth/clerkClient.js";
 import { prisma } from "../db/prisma.js";
-import { env } from "../config/env.js";
 import { requireAuth } from "../auth/authenticate.js";
-import { verifyPassword } from "../auth/password.js";
-
-const deleteAccountSchema = z.object({
-  password: z.string().min(1, "Password is required"),
-});
 
 const notificationsSchema = z.object({
   paused: z.boolean(),
@@ -75,26 +70,22 @@ export async function accountRoutes(fastify: FastifyInstance) {
   });
 
   fastify.delete("/", { preHandler: requireAuth }, async (request, reply) => {
-    const parsed = deleteAccountSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "Password is required to delete your account" });
-    }
-
     const user = await prisma.user.findUnique({ where: { id: request.userId } });
-    if (!user) {
+    if (!user || !request.clerkUserId) {
       return reply.code(401).send({ error: "Not authenticated" });
     }
 
-    const valid = await verifyPassword(parsed.data.password, user.passwordHash);
-    if (!valid) {
-      return reply.code(401).send({ error: "Incorrect password" });
-    }
+    // Clerk owns the actual account; deleting only the local row would let
+    // it silently reappear (see resolveLocalUser in auth/authenticate.ts,
+    // which recreates it on the very next authenticated request). Delete
+    // the Clerk account first: if this fails, nothing local has changed
+    // yet, so the request can just be retried.
+    await clerkClient.users.deleteUser(request.clerkUserId);
 
-    // Cascades to preferences, subscriptions, and verification tokens --
-    // all declared onDelete: Cascade in the schema.
+    // Cascades to preferences and subscriptions -- both declared
+    // onDelete: Cascade in the schema.
     await prisma.user.delete({ where: { id: user.id } });
 
-    reply.clearCookie(env.COOKIE_NAME, { path: "/" });
     return reply.code(204).send();
   });
 }

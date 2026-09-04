@@ -1,28 +1,60 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export class ApiError extends Error {
+  // The HTTP status is load-bearing, not just diagnostic: callers have to be
+  // able to tell "you are not signed in" (401) apart from "the server broke"
+  // (500) or "you're being throttled" (429). Conflating them is what turned a
+  // single server error into an unbounded redirect loop -- see useCurrentUser.
+  status: number;
   details?: Record<string, string[] | undefined>;
-  constructor(message: string, details?: Record<string, string[] | undefined>) {
+  constructor(message: string, status: number, details?: Record<string, string[] | undefined>) {
     super(message);
+    this.status = status;
     this.details = details;
   }
 }
 
+// apiFetch is a plain function called from many places, not a hook, so it
+// can't use useAuth()'s getToken() directly -- window.Clerk is the
+// documented escape hatch for reaching the same session token outside a
+// component. Every real caller renders after ClerkProvider has mounted
+// (see useCurrentUser, which every authenticated page goes through first),
+// so window.Clerk is populated by the time this actually needs a token.
+async function getAuthToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const clerk = (window as unknown as { Clerk?: { session?: { getToken(): Promise<string | null> } } }).Clerk;
+  if (!clerk?.session) return null;
+  try {
+    return await clerk.session.getToken();
+  } catch {
+    return null;
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...options.headers,
-    },
-  });
+  const token = await getAuthToken();
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // The API being unreachable (down, DNS, CORS rejection) is emphatically
+    // not an auth failure -- status 0 keeps it from ever being mistaken for
+    // a 401 by callers that branch on status.
+    throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
+  }
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await res.json().catch(() => null) : null;
 
   if (!res.ok) {
-    throw new ApiError(body?.error || `Request failed (${res.status})`, body?.details);
+    throw new ApiError(body?.error || `Request failed (${res.status})`, res.status, body?.details);
   }
 
   return body as T;
