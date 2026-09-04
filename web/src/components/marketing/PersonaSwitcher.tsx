@@ -8,7 +8,7 @@ const PERSONAS = [
   {
     emoji: "💻",
     name: "Software Engineers",
-    body: "Watch the companies you'd actually leave for. JobDrop matches on role family, seniority and years of experience, so a staff-level posting never lands because a number happened to overlap.",
+    body: "Watch the companies you'd actually leave for. GettingShortlisted.com matches on role family, seniority and years of experience, so a staff-level posting never lands because a number happened to overlap.",
   },
   {
     emoji: "📊",
@@ -18,7 +18,7 @@ const PERSONAS = [
   {
     emoji: "🎨",
     name: "Product Designers",
-    body: "Design openings move fast and close quietly. JobDrop tells you the hour one appears, and drops it from your list once the company takes it down.",
+    body: "Design openings move fast and close quietly. GettingShortlisted.com tells you the hour one appears, and drops it from your list once the company takes it down.",
   },
   {
     emoji: "🧭",
@@ -55,7 +55,7 @@ export default function PersonaSwitcher() {
       onMouseLeave={() => setPaused(false)}
     >
       <h2 className="text-[2rem] font-bold leading-tight tracking-[-0.03em] text-lp-text sm:text-[2.6rem]">
-        JobDrop for
+        GettingShortlisted.com for
       </h2>
 
       <div>

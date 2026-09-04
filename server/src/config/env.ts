@@ -31,11 +31,11 @@ const envSchema = z.object({
   // works before anyone here owns a domain.
   BREVO_API_KEY: optional(z.string()),
   BREVO_FROM_EMAIL: optional(z.string().email()),
-  BREVO_FROM_NAME: z.string().default("JobDrop"),
+  BREVO_FROM_NAME: z.string().default("GettingShortlisted.com"),
 
   RESEND_API_KEY: optional(z.string()),
   // Deliberately not .email() -- Resend accepts a display-name form too,
-  // e.g. "JobDrop <onboarding@resend.dev>".
+  // e.g. "GettingShortlisted.com <onboarding@resend.dev>".
   RESEND_FROM_EMAIL: optional(z.string()),
 
   SES_FROM_EMAIL: optional(z.string().email()),

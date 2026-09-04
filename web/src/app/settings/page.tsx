@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, BadgeCheck, Clock } from "lucide-react";
+import { toast } from "sonner";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
@@ -71,8 +72,10 @@ export default function SettingsPage() {
       await apiFetch("/api/account/notifications", { method: "PATCH", body: JSON.stringify({ paused }) });
       setNotificationsPaused(paused);
       invalidateCurrentUser();
+      toast.success(paused ? "Notifications paused" : "Notifications resumed");
     } catch {
       // leave the displayed state as it was -- nothing changed server-side
+      toast.error("Couldn't update your notification setting. Please try again.");
     } finally {
       setTogglingNotifications(false);
     }
@@ -87,11 +90,14 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "jobdrop-data.json";
+      a.download = "gettingshortlisted-data.json";
       a.click();
       URL.revokeObjectURL(url);
+      toast.success("Account data exported");
     } catch (err) {
-      setExportError(err instanceof ApiError ? err.message : "Couldn't export your data. Please try again.");
+      const message = err instanceof ApiError ? err.message : "Couldn't export your data. Please try again.";
+      setExportError(message);
+      toast.error(message);
     } finally {
       setExporting(false);
     }
@@ -106,6 +112,7 @@ export default function SettingsPage() {
       // deletes the underlying Clerk account.
       await apiFetch("/api/account", { method: "DELETE" });
       invalidateCurrentUser();
+      toast.success("Account deleted");
       router.push("/");
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : "Couldn't delete your account. Please try again.");
@@ -192,7 +199,7 @@ export default function SettingsPage() {
           <SettingsGroup title="Data">
             <SettingRow
               title="Export your data"
-              description="Everything JobDrop holds about you — profile, preferences and watchlist — as a JSON file."
+              description="Everything GettingShortlisted.com holds about you — profile, preferences and watchlist — as a JSON file."
               control={
                 <Button variant="outline" size="sm" onClick={downloadExport} disabled={exporting}>
                   {exporting ? "Preparing…" : "Download"}

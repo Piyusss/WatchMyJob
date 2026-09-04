@@ -131,9 +131,9 @@ export default function HomePage() {
         <div className="container-wide flex h-16 items-center justify-between gap-4">
           <span className="flex shrink-0 items-center gap-2 text-[1rem] font-bold tracking-tight text-lp-text">
             <span className="grid size-6 place-items-center rounded-md bg-white text-[0.68rem] font-bold text-black">
-              J
+              G
             </span>
-            JobDrop
+            GettingShortlisted.com
           </span>
 
           <div className="hidden items-center gap-8 md:flex">
@@ -180,7 +180,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Factual counts rather than review-site badges -- JobDrop has
+            {/* Factual counts rather than review-site badges -- GettingShortlisted.com has
                 no G2/Capterra presence, and inventing rating stars would be
                 fabricated social proof. */}
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
@@ -208,7 +208,7 @@ export default function HomePage() {
             </h1>
 
             <p className="mx-auto mt-8 max-w-xl text-[1rem] leading-[1.7] text-lp-muted">
-              JobDrop watches company career pages directly and emails you the moment a role appears that matches your
+              GettingShortlisted.com watches company career pages directly and emails you the moment a role appears that matches your
               experience, location and preferences. Every alert is checked against six criteria before it&apos;s sent.
             </p>
 
@@ -261,7 +261,7 @@ export default function HomePage() {
               word="Watch"
               number="01"
               title="Company career pages, checked continuously"
-              body="Pick the companies you'd actually move for. JobDrop polls each one's board directly at the source — no aggregator middle-man, no weekly scrape — and knows within minutes when something appears or disappears."
+              body="Pick the companies you'd actually move for. GettingShortlisted.com polls each one's board directly at the source — no aggregator middle-man, no weekly scrape — and knows within minutes when something appears or disappears."
             />
           </motion.div>
 
@@ -345,7 +345,7 @@ export default function HomePage() {
               Thirteen companies, watched at the source.
             </h2>
             <p className="mt-4 text-[0.95rem] leading-[1.7] text-lp-muted">
-              Each of these publishes a public job board that JobDrop reads directly and re-checks continuously. More
+              Each of these publishes a public job board that GettingShortlisted.com reads directly and re-checks continuously. More
               are added as their boards become reliably readable.
             </p>
           </motion.div>
@@ -384,7 +384,7 @@ export default function HomePage() {
             Stop refreshing career pages.
           </h2>
           <p className="mx-auto mt-5 max-w-md text-[0.98rem] leading-[1.7] text-lp-muted">
-            Set your preferences once. JobDrop watches from there — and only writes when it&apos;s worth reading.
+            Set your preferences once. GettingShortlisted.com watches from there — and only writes when it&apos;s worth reading.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-2.5">
             <PrimaryCta>Create your free account</PrimaryCta>
@@ -397,9 +397,9 @@ export default function HomePage() {
         <div className="container-wide flex flex-col items-center justify-between gap-4 py-9 sm:flex-row">
           <span className="flex items-center gap-2 text-[0.9rem] font-semibold text-lp-text">
             <span className="grid size-5 place-items-center rounded bg-white text-[0.6rem] font-bold text-black">
-              J
+              G
             </span>
-            JobDrop
+            GettingShortlisted.com
           </span>
           <div className="flex items-center gap-7 text-[0.85rem] text-lp-muted">
             <a href="#how-it-works" className="transition-colors hover:text-lp-text">

@@ -26,8 +26,8 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
 
         <div className="relative">
           <Link href="/" className="flex w-fit items-center gap-2 text-[1.05rem] font-bold tracking-tight text-white">
-            <span className="grid size-6 place-items-center rounded-md bg-white/15 text-[0.7rem] font-bold">J</span>
-            JobDrop
+            <span className="grid size-6 place-items-center rounded-md bg-white/15 text-[0.7rem] font-bold">G</span>
+            GettingShortlisted.com
           </Link>
 
           <h2 className="mt-8 hidden max-w-md font-display text-[2.1rem] leading-[1.15] text-white lg:block">

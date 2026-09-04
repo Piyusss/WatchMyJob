@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, Check, Plus, Search, Building2 } from "lucide-react";
+import { toast } from "sonner";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
@@ -44,6 +45,7 @@ export default function CompaniesClient() {
   async function toggleWatch(slug: string, currentlyWatching: boolean) {
     setError(null);
     setPending((prev) => new Set(prev).add(slug));
+    const name = companies.find((c) => c.slug === slug)?.name ?? "Company";
     try {
       if (currentlyWatching) {
         await apiFetch(`/api/subscriptions/${slug}`, { method: "DELETE" });
@@ -52,12 +54,15 @@ export default function CompaniesClient() {
           next.delete(slug);
           return next;
         });
+        toast.success(`${name} removed from your watchlist`);
       } else {
         await apiFetch("/api/subscriptions", { method: "POST", body: JSON.stringify({ companySlug: slug }) });
         setWatchedSlugs((prev) => new Set(prev).add(slug));
+        toast.success(`Now watching ${name}`);
       }
     } catch {
       setError("Something went wrong updating your watchlist. Please try again.");
+      toast.error("Something went wrong updating your watchlist. Please try again.");
     } finally {
       setPending((prev) => {
         const next = new Set(prev);
@@ -111,7 +116,7 @@ export default function CompaniesClient() {
                 preferences wizard -- see TOTAL_ONBOARDING_STEPS there. */}
             <p className="eyebrow">Step 6 of 6</p>
             <h1 className="mt-2.5 text-[1.6rem] font-semibold tracking-tight text-ink">
-              Which companies should JobDrop watch?
+              Which companies should GettingShortlisted.com watch?
             </h1>
             <p className="mt-2 max-w-xl text-[0.9rem] leading-relaxed text-ink-muted">
               Watching starts monitoring from right now — roles already open won&apos;t email you, only ones that
@@ -155,7 +160,7 @@ export default function CompaniesClient() {
             <EmptyState
               icon={Building2}
               title="No companies available yet"
-              body="JobDrop isn't monitoring any company boards right now. Check back shortly."
+              body="GettingShortlisted.com isn't monitoring any company boards right now. Check back shortly."
             />
           </div>
         ) : visible.length === 0 ? (

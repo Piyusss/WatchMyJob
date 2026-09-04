@@ -143,23 +143,6 @@ export default function CompanyDetailPage() {
           </Button>
         </header>
 
-        {company.roleFamilies.length > 0 && (
-          <section className="mt-8">
-            <h2 className="eyebrow">What they&apos;re hiring for</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {company.roleFamilies.map((r) => (
-                <span
-                  key={r.roleFamily}
-                  className="rounded-full border border-line bg-surface px-2.5 py-1 text-[0.78rem] text-ink-secondary"
-                >
-                  {r.roleFamily}
-                  <span className="ml-1.5 text-ink-faint">{r.count}</span>
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
         <section className="mt-8">
           <h2 className="eyebrow">Recent roles</h2>
           <div className="mt-3">
@@ -167,7 +150,7 @@ export default function CompanyDetailPage() {
               <EmptyState
                 icon={Briefcase}
                 title="No open roles right now"
-                body={`JobDrop is watching ${company.name}. New openings will appear here as they're posted.`}
+                body={`GettingShortlisted.com is watching ${company.name}. New openings will appear here as they're posted.`}
               />
             ) : (
               <div className="space-y-px">
@@ -195,6 +178,23 @@ export default function CompanyDetailPage() {
             )}
           </div>
         </section>
+
+        {company.roleFamilies.length > 0 && (
+          <section className="mt-8">
+            <h2 className="eyebrow">What they&apos;re hiring for</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {company.roleFamilies.map((r) => (
+                <span
+                  key={r.roleFamily}
+                  className="rounded-full border border-line bg-surface px-2.5 py-1 text-[0.78rem] text-ink-secondary"
+                >
+                  {r.roleFamily}
+                  <span className="ml-1.5 text-ink-faint">{r.count}</span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </>
   );

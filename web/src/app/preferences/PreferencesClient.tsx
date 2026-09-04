@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { toast } from "sonner";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
@@ -154,9 +155,12 @@ export default function PreferencesClient() {
       // The first save flips hasPreferences true, which the dashboard's
       // notification gate banner reads.
       invalidateCurrentUser();
+      toast.success("Preferences saved");
       return true;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't save your preferences. Please try again.");
+      const message = err instanceof ApiError ? err.message : "Couldn't save your preferences. Please try again.";
+      setError(message);
+      toast.error(message);
       return false;
     } finally {
       setSaving(false);

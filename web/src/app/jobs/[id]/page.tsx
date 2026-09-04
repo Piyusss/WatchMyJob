@@ -143,14 +143,27 @@ function JobDetailContent({ job }: { job: JobDetail }) {
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
+          {/* A closed job keeps a de-emphasized, differently-worded link
+              rather than the normal Apply CTA -- the "No longer open" badge
+              above is easy to miss, and a prominent brand-colored "Apply"
+              button would contradict it regardless. */}
           <a href={job.sourceUrl} target="_blank" rel="noreferrer">
-            <Button size="lg" className="h-10 gap-2 px-5 shadow-brand">
-              Apply on company site
-              <ExternalLink className="size-3.5" />
-            </Button>
+            {job.status === "CLOSED" ? (
+              <Button size="lg" variant="outline" className="h-10 gap-2 px-5">
+                View closed posting
+                <ExternalLink className="size-3.5" />
+              </Button>
+            ) : (
+              <Button size="lg" className="h-10 gap-2 px-5 shadow-brand">
+                Apply on company site
+                <ExternalLink className="size-3.5" />
+              </Button>
+            )}
           </a>
           <JobStateActions jobId={job.id} state={userState} onChange={setUserState} />
-          <span className="text-[0.78rem] text-ink-faint">Opens {job.company.name}&apos;s own careers page</span>
+          <span className="text-[0.78rem] text-ink-faint">
+            {job.status === "CLOSED" ? "This role is no longer accepting applications" : `Opens ${job.company.name}'s own careers page`}
+          </span>
         </div>
       </header>
 

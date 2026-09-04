@@ -3,7 +3,7 @@ import { Bell, Bookmark, Briefcase, Building2, ChevronRight, Search, SlidersHori
 // Company marks are letter tiles in each brand's rough hue rather than real
 // brand logo files: at this size they read identically, and it avoids
 // shipping third-party trademarks into the bundle or implying any of these
-// companies endorse JobDrop.
+// companies endorse GettingShortlisted.com.
 const JOBS = [
   {
     title: "Senior Software Engineer, Payments",
@@ -64,11 +64,11 @@ export default function AppPreviewDark() {
       <div className="flex">
         {/* sidebar */}
         <aside className="hidden w-[8.5rem] shrink-0 border-r border-lp-line bg-lp-bg-2 p-3 sm:block">
-          <div className="flex items-center gap-1.5 px-1 pb-3">
-            <span className="grid size-4 place-items-center rounded bg-lp-accent text-[0.5rem] font-bold text-white">
-              J
+          <div className="flex min-w-0 items-center gap-1.5 px-1 pb-3">
+            <span className="grid size-4 shrink-0 place-items-center rounded bg-lp-accent text-[0.5rem] font-bold text-white">
+              G
             </span>
-            <span className="text-[0.68rem] font-semibold text-lp-text">JobDrop</span>
+            <span className="truncate text-[0.68rem] font-semibold text-lp-text">GettingShortlisted.com</span>
           </div>
           <ul className="space-y-0.5">
             {NAV.map((item) => (

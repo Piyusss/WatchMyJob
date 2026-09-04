@@ -27,7 +27,7 @@ const caveat = Caveat({ subsets: ["latin"], weight: ["600"], variable: "--font-h
 const pixelify = Pixelify_Sans({ subsets: ["latin"], weight: ["500", "700"], variable: "--font-pixel" });
 
 export const metadata: Metadata = {
-  title: "JobDrop",
+  title: "GettingShortlisted.com",
   description: "Never miss a relevant job opening from the companies you care about.",
 };
 

@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 .
               </>
             ) : (
-              "Pick some companies to watch and JobDrop will start monitoring them for you."
+              "Pick some companies to watch and GettingShortlisted.com will start monitoring them for you."
             )}
           </p>
         </header>
@@ -398,7 +398,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon={Building2}
                 title="You're not watching any companies yet"
-                body="Choose the companies you care about and JobDrop will email you when a matching role opens."
+                body="Choose the companies you care about and GettingShortlisted.com will email you when a matching role opens."
                 action={
                   <Link href="/companies">
                     <Button>Pick companies</Button>

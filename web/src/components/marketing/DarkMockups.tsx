@@ -88,13 +88,13 @@ export function NotifyMock() {
       <div className="px-4 py-4">
         <div className="flex items-start gap-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-lp-accent text-[0.7rem] font-bold text-white">
-            J
+            G
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[0.75rem] font-semibold text-lp-text">
               New role at Stripe matches your preferences
             </p>
-            <p className="mt-0.5 text-[0.65rem] text-lp-faint">JobDrop · just now</p>
+            <p className="mt-0.5 truncate text-[0.65rem] text-lp-faint">GettingShortlisted.com · just now</p>
           </div>
         </div>
 
