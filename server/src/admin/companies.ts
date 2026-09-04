@@ -11,6 +11,7 @@
 import { parseArgs } from "node:util";
 import { prisma } from "../db/prisma.js";
 import { AccessBasis, CompanyStatus } from "@prisma/client";
+import { deactivateSubscriptionsForCompany } from "../subscriptions/deactivateForCompany.js";
 
 const ACCESS_BASIS_VALUES = Object.values(AccessBasis);
 
@@ -83,6 +84,16 @@ async function setStatus(argv: string[], status: CompanyStatus) {
   if (!company) fail(`No company with slug "${values.slug}"`);
 
   await prisma.company.update({ where: { slug: values.slug }, data: { status } });
+
+  // A disabled company must stop counting as "watched" -- left alone, a
+  // subscriber's active subscription row would keep feeding the dashboard
+  // job query and the matching engine, neither of which checks the
+  // company's own status (see subscriptions/deactivateForCompany.ts).
+  if (status === "INACTIVE") {
+    const count = await deactivateSubscriptionsForCompany(company.id);
+    if (count > 0) console.log(`Deactivated ${count} subscriber(s) who were watching ${company.name}.`);
+  }
+
   console.log(`${company.name} is now ${status}.`);
 }
 

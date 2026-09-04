@@ -8,6 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 
 const MAX_LOCATIONS = 10;
+// Base UI's Select decides controlled-vs-uncontrolled from whether `value`
+// is `undefined` on its FIRST render, and errors if that ever flips later.
+// countryCode/stateCode/cityName start out `null` (nothing picked yet), and
+// `null ?? undefined` evaluates to `undefined` -- so on first render every
+// Select here was uncontrolled, then became controlled the moment a real
+// code was picked, tripping exactly that check. Passing `countryCode`
+// itself (typed string | null, never actually undefined) keeps each Select
+// controlled from the very first render onward -- `null` is a real,
+// distinct value Base UI's Select understands as "nothing selected" (its
+// own hasSelectedValue check is `value == null`), which is what makes the
+// placeholder text show correctly; a non-null sentinel string here instead
+// (tried first) made Select think something WAS selected and render that
+// sentinel's own raw text since no item matches it.
 
 function locationLabel(loc: PreferenceLocation): string {
   return [loc.cityName, loc.stateName, loc.countryName].filter(Boolean).join(", ");
@@ -89,9 +102,9 @@ export default function LocationPicker({
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <Select
-          value={countryCode ?? undefined}
+          value={countryCode}
           onValueChange={(v) => {
-            setCountryCode(v ?? null);
+            setCountryCode(v);
             setStateCode(null);
             setCityName(null);
           }}
@@ -109,10 +122,10 @@ export default function LocationPicker({
         </Select>
 
         <Select
-          value={stateCode ?? undefined}
+          value={stateCode}
           disabled={!country}
           onValueChange={(v) => {
-            setStateCode(v ?? null);
+            setStateCode(v);
             setCityName(null);
           }}
         >
@@ -128,7 +141,7 @@ export default function LocationPicker({
           </SelectContent>
         </Select>
 
-        <Select value={cityName ?? undefined} disabled={!state} onValueChange={(v) => setCityName(v ?? null)}>
+        <Select value={cityName} disabled={!state} onValueChange={setCityName}>
           <SelectTrigger className="w-full bg-surface" aria-label="City">
             <SelectValue placeholder={state ? "Select city" : "Select state first"} />
           </SelectTrigger>

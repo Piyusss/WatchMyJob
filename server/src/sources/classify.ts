@@ -156,13 +156,23 @@ function classifyExperience(descriptionText: string) {
 // differently-shaped record -- e.g. admin/reclassify.ts backfilling from
 // already-stored Job rows -- don't need to fake the rest of the interface.
 export function classifyJob(
-  job: Pick<NormalizedJob, "title" | "description"> & Partial<Pick<NormalizedJob, "opportunityTypeHint">>,
+  job: Pick<NormalizedJob, "title" | "description"> &
+    Partial<Pick<NormalizedJob, "opportunityTypeHint" | "roleFamilyHint" | "levelHint" | "experienceHint">>,
 ): JobClassification {
-  const { roleFamily, level } = classifyLevelAndRoleFamily(job.title);
-  // A source-supplied structured signal (Lever's commitment field) beats
-  // title parsing when available -- see NormalizedJob.opportunityTypeHint.
+  const parsed = classifyLevelAndRoleFamily(job.title);
+  // A source-supplied structured signal beats parsing/guessing when
+  // available -- the same rule opportunityTypeHint already established,
+  // extended to role/level/experience for the CUSTOM_TEST adapter (see
+  // NormalizedJob's hint fields).
+  const roleFamily = job.roleFamilyHint ?? parsed.roleFamily;
+  const level = job.levelHint !== undefined ? job.levelHint : parsed.level;
   const opportunityType = job.opportunityTypeHint ?? classifyOpportunityType(job.title);
-  const experience = classifyExperience(htmlToText(job.description));
+  // A hint never carries a preferred-experience split -- it comes from a
+  // structured admin form (required min/max only), not a description with
+  // "nice to have" language to find a preferred SECTION within.
+  const experience = job.experienceHint
+    ? { ...job.experienceHint, preferredMin: null, preferredMax: null }
+    : classifyExperience(htmlToText(job.description));
 
   return {
     roleFamily,

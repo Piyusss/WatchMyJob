@@ -18,6 +18,20 @@ export interface NormalizedJob {
   // title-based inference whenever it's absent, so this is additive, not a
   // second competing classification path.
   opportunityTypeHint?: OpportunityType | null;
+  // Same "structured signal beats title parsing" precedent as
+  // opportunityTypeHint above, for a source whose jobs never had a title to
+  // parse in the first place -- currently only the CUSTOM_TEST adapter
+  // (see adapters/customTest.ts), whose admin-authored jobs pick role/level
+  // from the same controlled dropdowns real user preferences use, so
+  // there's a clean structured value to hand over directly instead of
+  // reverse-engineering it out of a composed title string.
+  roleFamilyHint?: string | null;
+  levelHint?: string | null;
+  experienceHint?: {
+    status: "KNOWN" | "UNKNOWN";
+    requiredMin: number | null;
+    requiredMax: number | null;
+  } | null;
   description: string | null;
   sourceUrl: string;
   postedAt: Date | null;

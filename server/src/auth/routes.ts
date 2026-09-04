@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db/prisma.js";
-import { requireAuth } from "./authenticate.js";
+import { requireAuth, isAdminEmail } from "./authenticate.js";
 
 function toPublicUser(
   user: {
@@ -25,6 +25,10 @@ function toPublicUser(
     // UserPreferences row (see matching/engine.ts), so this just surfaces
     // that same fact to the UI instead of leaving it silent.
     hasPreferences,
+    // Drives whether AuthNav shows the admin/test-companies link. Purely a
+    // UI convenience -- the actual boundary is requireAdmin on the server,
+    // checked fresh on every admin request, not trusted from this field.
+    isAdmin: isAdminEmail(user.email),
   };
 }
 

@@ -1,0 +1,1189 @@
+# GettingShortlisted.com — Custom Test Company & Job Notification
+
+Implement a **development/staging-only Custom Test Company and Job Posting feature** inside the existing **GettingShortlisted.com** application.
+
+The purpose of this feature is to allow me, as the administrator/developer, to create a fake/custom company and publish a fake job opening so that I can perform a complete end-to-end test of the existing job-alert system.
+
+The most important requirement is:
+
+> **The custom company/job-posting interface must be a separate tab/page inside the SAME GettingShortlisted.com application. It must NOT be a separate application, separate frontend, separate backend, or separate notification system.**
+
+---
+
+## 1. Overall Concept
+
+The application should support two logical areas:
+
+```text
+GETTINGSHORTLISTED.COM
+│
+├── User-facing area
+│   ├── Job Preferences
+│   ├── Companies Watched
+│   ├── Job Dashboard
+│   └── Notifications
+│
+└── Admin/Test area
+    ├── Custom/Test Companies
+    ├── Create Custom Company
+    ├── Create Test Job
+    └── Publish Test Job
+```
+
+I should be able to have **two browser tabs open simultaneously**:
+
+### Tab 1 — Normal user interface
+
+For example:
+
+```text
+Company: TestCorp
+Role: Software Engineer
+Level: SDE1
+Country: India
+State: Maharashtra
+City: Pune
+```
+
+The user subscribes to/watches TestCorp.
+
+### Tab 2 — Admin/Test interface
+
+I open the admin/test tab and:
+
+```text
+Create TestCorp
+        ↓
+Create Job Opening
+        ↓
+Software Engineer
+SDE1
+India
+Maharashtra
+Pune
+        ↓
+Publish
+```
+
+When I publish the job from Tab 2, the backend must process it through the **same job ingestion → normalization → deduplication → matching → notification → queue → email pipeline** used for real jobs.
+
+If the user in Tab 1 matches the job, that user must receive the email notification.
+
+---
+
+# 2. DO NOT Build a Separate System
+
+This requirement is critical.
+
+Do NOT create:
+
+* a separate test application
+* a separate test backend
+* a separate database
+* a separate notification mechanism
+* a separate matching engine
+* a separate email sender
+* a separate subscription system
+* a separate Job model
+* a shortcut that directly sends an email from the admin UI
+
+The custom/test functionality is simply **another controlled source of jobs**.
+
+The architecture should conceptually be:
+
+```text
+Admin/Test UI
+      ↓
+Create/Publish Custom Job
+      ↓
+Existing Job Creation/Ingestion Pipeline
+      ↓
+Normalize
+      ↓
+Deduplicate
+      ↓
+Persist Job
+      ↓
+JOB_CREATED event
+      ↓
+Existing Matching Engine
+      ↓
+Find Matching Users
+      ↓
+Create Notifications
+      ↓
+Existing Queue
+      ↓
+Existing Notification Worker
+      ↓
+Existing Email Provider
+      ↓
+User Email
+```
+
+---
+
+# 3. Custom/Test Company
+
+Add support for a custom/test company entity.
+
+Reuse the existing Company model wherever possible.
+
+If fields do not already exist, support appropriate fields such as:
+
+```text
+company_id
+name
+slug
+logo_url
+description
+website_url
+source_type
+is_test_company
+status
+created_at
+updated_at
+```
+
+For example:
+
+```text
+name = TestCorp
+slug = testcorp
+source_type = CUSTOM_TEST
+is_test_company = true
+status = ACTIVE
+```
+
+Do not introduce unnecessary duplication if the existing Company entity can already represent this.
+
+---
+
+# 4. Admin/Test Company Tab
+
+Inside the existing GettingShortlisted.com application, add an admin/test section.
+
+For example:
+
+```text
+/admin/test-companies
+```
+
+or an equivalent route consistent with the existing application.
+
+The exact route is flexible.
+
+The important requirement is that it is a **separate tab/page within the same application**.
+
+The UI should allow the administrator to:
+
+### Create Test Company
+
+Fields:
+
+* Company Name
+* Slug
+* Logo URL — optional
+* Website URL — optional
+* Description — optional
+* Status
+
+The system should automatically mark the company as:
+
+```text
+is_test_company = true
+source_type = CUSTOM_TEST
+```
+
+---
+
+# 5. Test Company List
+
+Provide an admin page showing existing custom/test companies.
+
+Example:
+
+```text
+Custom Test Companies
+
+------------------------------------------------
+Company       Status       Jobs       Actions
+------------------------------------------------
+TestCorp      ACTIVE       3         View
+DemoBank      ACTIVE       1         View
+------------------------------------------------
+```
+
+Actions can include:
+
+* View
+* Edit
+* Disable
+* Create Job
+
+Do not expose this functionality to normal users unless the existing application architecture explicitly requires it.
+
+---
+
+# 6. Create Test Job
+
+From the Test Company page, provide:
+
+```text
+Create Job Opening
+```
+
+The form must use the application's existing job fields and existing dropdown/selection components wherever possible.
+
+Example:
+
+```text
+Company
+TestCorp
+
+Job Title
+Software Engineer
+
+Role
+Software Engineer
+
+Level
+SDE1
+
+Country
+India
+
+State
+Maharashtra
+
+City
+Pune
+
+Work Mode
+Hybrid
+
+Employment Type
+Full-time
+
+Years of Experience
+0–2
+
+Job Description
+...
+
+Application URL
+...
+```
+
+### Important UI rule
+
+Follow the existing GettingShortlisted.com location-selection requirements:
+
+```text
+Country
+   ↓
+State
+   ↓
+City
+```
+
+Do NOT make City selectable before Country/State.
+
+Where the existing product requires dropdowns, use dropdown/select components rather than free-text fields.
+
+For example:
+
+* Country → dropdown
+* State → dependent dropdown
+* City → dependent dropdown
+* Role → dropdown
+* Level → dropdown
+
+Do not create an independent set of values for test jobs if the existing application's canonical values can be reused.
+
+---
+
+# 7. Multiple Locations
+
+If the existing Job model supports multiple locations, the test-job form must support them as well.
+
+For example:
+
+```text
+Country: India
+
+Locations:
+[Maharashtra → Pune]
+[Karnataka → Bangalore]
+```
+
+The test feature must exercise the same multi-location data model and matching logic used by production jobs.
+
+Do not implement a test-only simplified location representation.
+
+---
+
+# 8. Publishing a Test Job
+
+The administrator must have a clear action:
+
+```text
+Publish Job
+```
+
+Optionally:
+
+```text
+Publish & Test Notification
+```
+
+The second option is useful for development/testing.
+
+However, even `Publish & Test Notification` must ultimately invoke the **normal production-like pipeline**.
+
+It must NOT do:
+
+```text
+Admin clicks button
+        ↓
+Directly send email
+```
+
+Instead:
+
+```text
+Admin clicks Publish
+        ↓
+Create/publish Job
+        ↓
+JOB_CREATED
+        ↓
+Normal processing
+```
+
+---
+
+# 9. Job Metadata
+
+When a test job is published, it should have the appropriate metadata.
+
+For example:
+
+```text
+source_type = CUSTOM_TEST
+is_test_job = true
+status = ACTIVE
+first_seen_at = current timestamp
+posted_at = current timestamp
+```
+
+Use the existing job lifecycle and timestamps wherever possible.
+
+The job should behave like a newly discovered job from the perspective of the notification system.
+
+---
+
+# 10. Existing Matching Engine MUST Be Reused
+
+This is one of the most important requirements.
+
+Do NOT implement matching logic specifically for test jobs.
+
+The existing matching engine must determine whether a user matches the test job based on their normal preferences.
+
+For example:
+
+```text
+User preferences:
+
+Company = TestCorp
+Role = Software Engineer
+Level = SDE1
+Country = India
+State = Maharashtra
+City = Pune
+```
+
+Test job:
+
+```text
+Company = TestCorp
+Role = Software Engineer
+Level = SDE1
+Country = India
+State = Maharashtra
+City = Pune
+```
+
+Result:
+
+```text
+MATCH
+```
+
+Therefore:
+
+```text
+Notification created
+        ↓
+Queued
+        ↓
+Email sent
+```
+
+---
+
+# 11. Subscription Behavior
+
+Reuse the existing company subscription mechanism.
+
+For example:
+
+```text
+UserCompanySubscription
+```
+
+A user must explicitly watch/subscribe to the custom company just like a real company.
+
+Do NOT create:
+
+```text
+TestCompanySubscription
+```
+
+or any second subscription mechanism.
+
+---
+
+# 12. Critical Existing-vs-New Job Behavior
+
+Preserve the existing GettingShortlisted.com behavior:
+
+### Scenario A — Job existed before subscription
+
+```text
+10:00 AM
+TestCorp job is published
+
+10:05 AM
+User subscribes to TestCorp
+```
+
+The user must **NOT** receive an onboarding notification for the already-existing job.
+
+The job may appear on the user's dashboard according to the existing product behavior.
+
+---
+
+### Scenario B — User subscribes before job is published
+
+```text
+10:00 AM
+User subscribes to TestCorp
+
+10:05 AM
+Admin publishes new TestCorp job
+```
+
+If the job matches the user's preferences:
+
+```text
+User receives notification
+```
+
+This scenario is the primary end-to-end test.
+
+Use the existing subscription timestamp / job first-seen semantics rather than introducing test-specific rules.
+
+---
+
+# 13. Notification Pipeline
+
+The test job must go through the existing notification architecture:
+
+```text
+CUSTOM_TEST Job
+       ↓
+Job Created
+       ↓
+Normalization
+       ↓
+Deduplication
+       ↓
+Persist
+       ↓
+JOB_CREATED
+       ↓
+Matching Engine
+       ↓
+Matching Users
+       ↓
+Notification Record
+       ↓
+Queue
+       ↓
+Notification Worker
+       ↓
+Email Provider
+       ↓
+User
+```
+
+Reuse existing:
+
+* event publishing
+* queue
+* notification service
+* notification worker
+* email service
+* email provider
+* retry mechanism
+* idempotency mechanism
+* delivery status
+* webhook handling
+* failure handling
+
+---
+
+# 14. Do Not Bypass the Queue
+
+If the current architecture uses a queue/event system, publishing a test job must put the notification work through the same queue.
+
+Do not implement:
+
+```text
+Admin UI → Email API
+```
+
+Implement:
+
+```text
+Admin UI
+   ↓
+Backend
+   ↓
+Job created
+   ↓
+Event
+   ↓
+Queue
+   ↓
+Worker
+   ↓
+Email provider
+```
+
+This is important because the purpose of this feature is to test the **real end-to-end notification system**.
+
+---
+
+# 15. Deduplication
+
+Test jobs must use the same deduplication logic as real jobs.
+
+If the same test job is accidentally processed twice:
+
+```text
+JOB_CREATED
+JOB_CREATED
+```
+
+the system must not send two emails to the same user.
+
+The notification system should remain idempotent.
+
+---
+
+# 16. Admin Authentication / Authorization
+
+The Custom Test Company section must be protected by the application's existing authentication/authorization mechanism.
+
+Only authorized administrators/developers should be able to:
+
+* create test companies
+* edit test companies
+* create test jobs
+* publish test jobs
+* trigger test notifications
+
+Do not expose job publishing controls to normal users.
+
+Reuse the existing admin authorization system if one already exists.
+
+---
+
+# 17. Environment Safety
+
+This functionality is primarily intended for:
+
+```text
+development
+staging
+testing
+```
+
+It must be safely gated.
+
+For example:
+
+```text
+ALLOW_TEST_COMPANIES=true
+```
+
+in development/staging.
+
+Production should default to:
+
+```text
+ALLOW_TEST_COMPANIES=false
+```
+
+unless explicitly enabled.
+
+Do not allow test data to accidentally generate real production notifications.
+
+If the existing project has an environment/configuration mechanism, integrate with it rather than inventing a second configuration system.
+
+---
+
+# 18. Test Company Identification
+
+Test companies/jobs should be clearly identifiable internally.
+
+For example:
+
+```text
+is_test_company = true
+is_test_job = true
+source_type = CUSTOM_TEST
+```
+
+This is useful for:
+
+* admin UI
+* debugging
+* filtering
+* test cleanup
+* preventing accidental production use
+
+Do not alter the normal matching/notification behavior merely because the job is marked as test data.
+
+---
+
+# 19. Optional "Publish & Test Notification"
+
+Provide an optional admin action:
+
+```text
+Publish & Test Notification
+```
+
+Expected behavior:
+
+```text
+Create/Persist Job
+        ↓
+Publish Job
+        ↓
+Emit normal JOB_CREATED event
+        ↓
+Normal matching
+        ↓
+Normal notification creation
+        ↓
+Normal queue
+        ↓
+Normal worker
+        ↓
+Normal email provider
+```
+
+The UI can display useful debugging information afterward, such as:
+
+```text
+Job Published Successfully
+
+Job ID: ...
+Matched Users: 1
+Notifications Created: 1
+Queued: 1
+```
+
+If available from the existing notification system, also show:
+
+```text
+Notification Status: QUEUED / SENT / FAILED
+```
+
+But do not create a second notification execution path merely to provide this information.
+
+---
+
+# 20. Automated Tests
+
+Add automated tests for the complete functionality.
+
+At minimum test:
+
+### Test 1 — Matching user receives email
+
+```text
+User subscribes to TestCorp
+User preferences match job
+
+Admin publishes matching TestCorp job
+
+Expected:
+Notification created
+Email queued
+Email eventually sent
+```
+
+---
+
+### Test 2 — Wrong role
+
+```text
+User:
+Software Engineer
+
+Job:
+Product Manager
+```
+
+Expected:
+
+```text
+No notification
+```
+
+---
+
+### Test 3 — Wrong location
+
+```text
+User:
+Pune
+
+Job:
+Bangalore
+```
+
+Expected:
+
+```text
+No notification
+```
+
+---
+
+### Test 4 — Non-subscriber
+
+```text
+User preferences match job
+User does NOT subscribe to TestCorp
+```
+
+Expected:
+
+```text
+No notification
+```
+
+---
+
+### Test 5 — Existing job before subscription
+
+```text
+Publish job
+↓
+User subscribes afterward
+```
+
+Expected:
+
+```text
+No notification for the existing job
+```
+
+---
+
+### Test 6 — New job after subscription
+
+```text
+User subscribes
+↓
+Admin publishes new matching job
+```
+
+Expected:
+
+```text
+Exactly one notification
+```
+
+---
+
+### Test 7 — Duplicate processing
+
+Process the same job event multiple times.
+
+Expected:
+
+```text
+Exactly one notification per matching user
+```
+
+---
+
+### Test 8 — Multiple matching users
+
+Create several users:
+
+```text
+User A → matches
+User B → matches
+User C → does not match
+```
+
+Publish one matching job.
+
+Expected:
+
+```text
+User A → notification
+User B → notification
+User C → no notification
+```
+
+---
+
+# 21. End-to-End Manual Test
+
+The final implementation must make this workflow possible entirely within GettingShortlisted.com:
+
+### Browser Tab 1
+
+Login as a test user.
+
+Select:
+
+```text
+Company:
+TestCorp
+
+Role:
+Software Engineer
+
+Level:
+SDE1
+
+Country:
+India
+
+State:
+Maharashtra
+
+City:
+Pune
+```
+
+Subscribe/watch TestCorp.
+
+---
+
+### Browser Tab 2
+
+Open the admin/test section of the **same GettingShortlisted.com application**.
+
+Create:
+
+```text
+TestCorp
+```
+
+Then create:
+
+```text
+Job Title:
+Software Engineer
+
+Role:
+Software Engineer
+
+Level:
+SDE1
+
+Country:
+India
+
+State:
+Maharashtra
+
+City:
+Pune
+```
+
+Click:
+
+```text
+Publish
+```
+
+---
+
+### Expected Result
+
+The backend should execute:
+
+```text
+Test Job Published
+        ↓
+Job persisted
+        ↓
+JOB_CREATED
+        ↓
+Normalize
+        ↓
+Deduplicate
+        ↓
+Matching Engine
+        ↓
+User matched
+        ↓
+Notification created
+        ↓
+Queue
+        ↓
+Notification Worker
+        ↓
+Email Provider
+        ↓
+Test User receives email
+```
+
+No direct email shortcut is allowed.
+
+---
+
+# 22. Reuse Existing Architecture
+
+Before implementing anything, inspect the existing codebase.
+
+Identify and reuse:
+
+* Company entity/model
+* Job entity/model
+* Location model
+* Role model
+* Level model
+* User preferences
+* Company subscriptions
+* Job normalization
+* Deduplication
+* Matching engine
+* Event system
+* Queue
+* Notification model
+* Notification service
+* Email service
+* Email provider
+* Admin authentication
+* Existing dropdown/reference-data APIs
+
+Do not create duplicate implementations when existing functionality can be reused.
+
+---
+
+# 23. UI Integration
+
+The feature should feel like a native part of GettingShortlisted.com.
+
+For example, the admin navigation can contain:
+
+```text
+Dashboard
+Jobs
+Companies
+Notifications
+-------------------
+Test Companies
+Test Jobs
+```
+
+or an equivalent structure consistent with the existing design.
+
+The important distinction is:
+
+```text
+Normal User Area
+        ≠
+Admin/Test UI
+```
+
+but both belong to:
+
+```text
+SAME GETTINGSHORTLISTED.COM APPLICATION
+```
+
+---
+
+# 24. API Design
+
+Add appropriate admin APIs for:
+
+```text
+Create test company
+List test companies
+Update test company
+Create test job
+Update test job
+Publish test job
+List test jobs
+```
+
+For example, conceptually:
+
+```http
+POST /admin/test-companies
+POST /admin/test-companies/{companyId}/jobs
+POST /admin/test-jobs/{jobId}/publish
+```
+
+The exact endpoint naming should follow the conventions already used in the project.
+
+The API should invoke the existing job creation/publishing infrastructure.
+
+---
+
+# 25. Database Design
+
+Prefer extending existing tables/models instead of creating parallel tables.
+
+Possible additions:
+
+```text
+Company
+--------
+is_test_company
+source_type
+
+Job
+--------
+is_test_job
+source_type
+```
+
+Only add fields that are genuinely necessary.
+
+If the existing source abstraction already supports source types, reuse it.
+
+---
+
+# 26. Cleanup
+
+Because this is a test facility, provide an easy way for an administrator to identify and optionally remove/deactivate:
+
+```text
+Test companies
+Test jobs
+Test notifications
+```
+
+However, cleanup must respect existing foreign-key relationships and notification history.
+
+Do not introduce unsafe hard deletion if the application's existing data-retention strategy uses soft deletion.
+
+---
+
+# 27. Definition of Done
+
+The feature is complete only when all of the following work:
+
+* [x] Custom company can be created from an admin/test tab.
+* [ ] The admin/test tab exists inside the SAME GettingShortlisted.com application.
+* [ ] No second application is created.
+* [ ] Custom company uses the existing Company architecture.
+* [ ] Custom job uses the existing Job architecture.
+* [ ] Existing dropdown/reference data is reused.
+* [ ] Location selection follows Country → State → City.
+* [ ] Multiple locations are supported where the existing Job model supports them.
+* [ ] User can subscribe to the custom company using the normal subscription flow.
+* [ ] Admin can create a custom job.
+* [ ] Admin can publish the custom job.
+* [ ] Publishing emits/initiates the normal job-created flow.
+* [ ] Existing normalization is reused.
+* [ ] Existing deduplication is reused.
+* [ ] Existing matching engine is reused.
+* [ ] Existing subscription rules are reused.
+* [ ] Existing notification service is reused.
+* [ ] Existing queue is reused.
+* [ ] Existing email worker is reused.
+* [ ] Existing email provider is reused.
+* [ ] No direct admin → email shortcut exists.
+* [ ] Existing-job-before-subscription behavior is preserved.
+* [ ] New-job-after-subscription behavior works.
+* [ ] Duplicate processing does not create duplicate notifications.
+* [ ] Non-matching users do not receive notifications.
+* [ ] Multiple matching users receive notifications.
+* [ ] Admin authorization protects the feature.
+* [ ] Test functionality is environment-gated.
+* [ ] Automated tests cover the critical scenarios.
+* [ ] The complete two-browser-tab end-to-end test works.
+
+---
+
+# 28. Most Important Architectural Rule
+
+**Treat the custom company/test job as a synthetic source of a normal job, NOT as a special notification feature.**
+
+The only special part should be how the job enters the system:
+
+```text
+REAL WORLD
+Company Career Page / ATS
+        ↓
+Source Adapter
+        ↓
+Job Pipeline
+```
+
+versus:
+
+```text
+TEST
+GettingShortlisted.com Admin/Test Tab
+        ↓
+Custom Test Job API
+        ↓
+Job Pipeline
+```
+
+After that point, both paths should converge:
+
+```text
+                    ┌── Real Job Source
+                    │
+                    └── Custom Test Job
+                           ↓
+                    Job Processing Pipeline
+                           ↓
+                    Normalization
+                           ↓
+                    Deduplication
+                           ↓
+                    Matching
+                           ↓
+                    Notification
+                           ↓
+                    Queue
+                           ↓
+                    Email Worker
+                           ↓
+                    Email Provider
+                           ↓
+                       User
+```
+
+**Do not create a parallel test pipeline. The purpose of this feature is specifically to validate that the real GettingShortlisted.com job-alert pipeline works end-to-end.**

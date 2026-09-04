@@ -46,6 +46,23 @@ const envSchema = z.object({
   // practice once a real subscription is configured -- the subscription's
   // endpoint URL is the one place this secret needs to be embedded.
   SES_WEBHOOK_SECRET: optional(z.string()),
+
+  // Comma-separated list of Clerk account emails allowed to reach the
+  // admin/test-companies surface (see auth/authenticate.ts's requireAdmin).
+  // Reuses the existing Clerk-authenticated session rather than a second
+  // credential system -- this only adds an authorization check on top of
+  // "already signed in", the same way every other admin surface in this
+  // codebase (admin:companies et al.) assumes whoever can reach it is
+  // trusted, except this one has a real HTTP surface so that trust has to
+  // be an explicit, checked allowlist instead of "has shell access."
+  ADMIN_EMAILS: optional(z.string()),
+
+  // Section 17 of custom_company.txt: the admin/test-companies feature must
+  // be safely gated, on by default in dev/staging and off by default in
+  // production unless explicitly enabled. Left unset, the default below
+  // (env.ts's own isProduction) applies; set explicitly to override either
+  // direction.
+  ALLOW_TEST_COMPANIES: optional(z.enum(["true", "false"])),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -57,3 +74,5 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProduction = env.NODE_ENV === "production";
+export const allowTestCompanies =
+  env.ALLOW_TEST_COMPANIES !== undefined ? env.ALLOW_TEST_COMPANIES === "true" : !isProduction;

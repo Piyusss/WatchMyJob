@@ -1,8 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db/prisma.js";
 import { requireAuth } from "../auth/authenticate.js";
-import { findCountry, findState } from "../geo/data.js";
-import { preferencesSchema, type PreferencesInput, type LocationInput } from "./schemas.js";
+import { preferencesSchema, toLocationRow, type PreferencesInput } from "./schemas.js";
 import { matchUserAgainstActiveJobs } from "../matching/engine.js";
 
 const SCALAR_FIELDS = ["roleFamily", "roleLevel", "yearsExperience", "toleranceYears"] as const;
@@ -40,22 +39,6 @@ function isMatchingRelevantChange(
   if (!sameSet(existing.opportunityTypes, input.opportunityTypes)) return true;
   if (!sameSet(existing.locations.map(locationKey), input.locations.map(locationKey))) return true;
   return false;
-}
-
-// Derives the denormalized display names from the validated codes -- see
-// schema.prisma's UserPreferenceLocation comment for why matching needs
-// names (substring match against a job's raw location text) even though the
-// wire format and validation are code-based.
-function toLocationRow(loc: LocationInput) {
-  const country = findCountry(loc.countryCode)!; // already validated by preferencesSchema
-  const state = loc.stateCode ? findState(loc.countryCode, loc.stateCode) : undefined;
-  return {
-    countryCode: country.code,
-    countryName: country.name,
-    stateCode: state?.code ?? null,
-    stateName: state?.name ?? null,
-    cityName: loc.cityName,
-  };
 }
 
 const PREFERENCES_INCLUDE = { locations: true } as const;

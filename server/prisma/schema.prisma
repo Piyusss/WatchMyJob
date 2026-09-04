@@ -8,39 +8,39 @@ datasource db {
 }
 
 model User {
-  id                  String    @id @default(uuid())
+  id                  String   @id @default(uuid())
   // Clerk owns identity/credentials; this is the join key back to that
   // account. Populated the first time a Clerk-authenticated request for
   // this user hits the API (see auth/authenticate.ts) -- never written any
   // other way.
-  clerkUserId         String    @unique
+  clerkUserId         String   @unique
   name                String
-  email               String    @unique
+  email               String   @unique
   // Synced from Clerk's own verification status at local-row creation time
   // (see auth/authenticate.ts) rather than re-checked live on every
   // request -- Clerk itself already gates sign-in on a verified email for
   // both the password and Google strategies, so this only goes stale in
   // edge cases (e.g. verification requirements changed after signup).
-  emailVerified       Boolean   @default(false)
+  emailVerified       Boolean  @default(false)
   phone               String?
   linkedinUrl         String?
   githubUrl           String?
-  notificationsPaused Boolean   @default(false)
+  notificationsPaused Boolean  @default(false)
   // Set when SES reports a PERMANENT bounce for this address (see
   // notifications/webhooks.ts). Checked by the same pre-send recheck that
   // already re-verifies emailVerified/notificationsPaused immediately
   // before sending -- a hard-bounced address is suppressed the same way a
   // paused user is, rather than continuing to retry sends that will only
   // ever bounce again and risk the domain's sender reputation.
-  emailHardBounced    Boolean   @default(false)
+  emailHardBounced    Boolean  @default(false)
   // Stable, per-user, non-expiring -- every notification email links to
   // /unsubscribe?token=this. Needs no single-use/expiry security: the
   // action it gates (pausing notifications) is idempotent and reversible
   // from within the app, so a simple stable token is the right amount of
   // mechanism, not more.
-  unsubscribeToken    String    @unique @default(cuid())
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  unsubscribeToken    String   @unique @default(cuid())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   preferences          UserPreferences?
   companySubscriptions UserCompanySubscription[]
@@ -66,19 +66,25 @@ enum CompanyStatus {
 }
 
 model Company {
-  id          String        @id @default(uuid())
-  name        String
-  slug        String        @unique
-  accessBasis AccessBasis
-  status      CompanyStatus @default(ACTIVE)
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  accessBasis   AccessBasis
+  status        CompanyStatus @default(ACTIVE)
   // The company's own primary web domain (e.g. "figma.com") -- not a logo
   // URL directly, so the frontend can derive one from whichever logo
   // provider it uses without a migration if that provider ever changes.
   // Null means "no verified domain on file yet"; the frontend falls back to
   // an initials avatar rather than guessing.
-  domain      String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  domain        String?
+  // A synthetic company created through the admin/test tab (see
+  // testCompanies/routes.ts), not a real employer JobDrop actually
+  // monitors. Never changes matching/notification behavior -- see that
+  // file's header comment -- it exists purely so the admin UI and any
+  // future cleanup pass can tell real companies and test fixtures apart.
+  isTestCompany Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   sources       JobSource[]
   subscriptions UserCompanySubscription[]
@@ -100,21 +106,27 @@ enum SourcePlatform {
   CUSTOM_HTML
   RSS
   API
+  // Not a real ATS -- the admin/test tab's own source of jobs (see
+  // sources/adapters/customTest.ts and testCompanies/routes.ts). Discovers
+  // its jobs from CustomTestJob rows instead of an HTTP fetch, but is
+  // otherwise a source like any other: same syncSource pipeline, same
+  // baseline/no-flood rules, same matching engine.
+  CUSTOM_TEST
 }
 
 model JobSource {
-  id                  String    @id @default(uuid())
-  companyId           String
-  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  platform            SourcePlatform
+  id                     String         @id @default(uuid())
+  companyId              String
+  company                Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  platform               SourcePlatform
   // Platform-specific connection details (board token, tenant, feed URL...).
   // Shape is validated per-platform at write time — see src/sources/configSchemas.ts.
-  config              Json
+  config                 Json
   // Seconds between polls once continuous monitoring (Phase 6) exists.
   // Starts conservative for every source; nothing here yet earns a faster tier.
-  pollIntervalSeconds Int       @default(240)
-  consecutiveFailures Int       @default(0)
-  lastSuccessAt       DateTime?
+  pollIntervalSeconds    Int            @default(240)
+  consecutiveFailures    Int            @default(0)
+  lastSuccessAt          DateTime?
   // When the scheduler last tried this source, success or failure -- distinct
   // from lastSuccessAt so a persistently-failing source is still retried on
   // schedule (not more eagerly, not silently skipped forever) and so an
@@ -126,14 +138,77 @@ model JobSource {
   // than the company because adding a NEW source to an already-live company
   // re-opens the same flood risk for that source's pre-existing jobs.
   initialSyncCompletedAt DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
-  jobs     Job[]
-  syncRuns SyncRun[]
+  jobs           Job[]
+  syncRuns       SyncRun[]
+  customTestJobs CustomTestJob[]
 
   @@index([companyId])
   @@map("job_sources")
+}
+
+// One row per admin-authored test job (see testCompanies/routes.ts) --
+// the "board" a CUSTOM_TEST JobSource discovers from, playing the same role
+// a real ATS's API plays for a Greenhouse/Lever source. Structured input,
+// not a title to parse: role/level/experience are admin-picked directly
+// (via the same controlled components/values the rest of the product uses)
+// and handed to the pipeline as classification hints (see
+// sources/types.ts's roleFamilyHint et al.) rather than round-tripped
+// through classify.ts's regex, which exists only because REAL postings
+// don't offer structured data this clean.
+model CustomTestJob {
+  id       String    @id @default(uuid())
+  sourceId String
+  source   JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  title                 String
+  roleFamily            String
+  level                 String?
+  workMode              WorkMode?
+  opportunityType       OpportunityType @default(FULL_TIME)
+  requiredExperienceMin Int?
+  requiredExperienceMax Int?
+  description           String?
+  applicationUrl        String
+
+  locations CustomTestJobLocation[]
+
+  // Null = draft, not yet visible to the discoverJobs() adapter. Set on
+  // first publish and left alone on every later edit -- re-publishing an
+  // already-published draft is how an admin pushes an edit through the
+  // real update-detection path (matchRelevantFieldsChanged), not a second
+  // "new job" event.
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceId])
+  @@map("custom_test_jobs")
+}
+
+// Mirrors UserPreferenceLocation's shape/reasoning exactly (see its own
+// comment): a code+name pair per location so the admin form can redisplay
+// exactly what was picked, joined into the job's single free-text
+// `location` string at discovery time the same way a real multi-location
+// posting's raw location string would read (see customTest.ts) -- Job
+// itself has no relational multi-location model to mirror, so this is not
+// a simplified stand-in for one.
+model CustomTestJobLocation {
+  id              String        @id @default(uuid())
+  customTestJobId String
+  customTestJob   CustomTestJob @relation(fields: [customTestJobId], references: [id], onDelete: Cascade)
+
+  countryCode String
+  countryName String
+  stateCode   String?
+  stateName   String?
+  cityName    String?
+
+  @@index([customTestJobId])
+  @@map("custom_test_job_locations")
 }
 
 // RUNNING: written before the adapter is ever called, mirroring
@@ -201,7 +276,7 @@ model Job {
   // update-detection Phase 6 adds. Computed at insert time regardless.
   contentHash  String
 
-  title    String
+  title      String
   // Deterministic role/level extraction from the title is Phase 8's job
   // ("Experience & Opportunity Classification") -- left null until then
   // rather than guessed here.
@@ -233,7 +308,7 @@ model Job {
   // 18's hard rule: never invent a requirement, never treat missing
   // information as 0 years. UNKNOWN is the honest default; matching (Phase
   // 9) must define what to do with it, not this phase.
-  experienceStatus ExperienceStatus @default(UNKNOWN)
+  experienceStatus       ExperienceStatus @default(UNKNOWN)
   // "3+ years required, 5 years preferred" must not collapse to "3-5" --
   // required and preferred are gated differently (a candidate who meets
   // only the required minimum still qualifies). Populated only when
@@ -257,14 +332,14 @@ model Job {
 
   // Source-supplied publish signal, where the platform provides one --
   // never trusted alone for "is this new" decisions (see firstSeenAt).
-  postedAt DateTime?
+  postedAt                  DateTime?
   // JobDrop's own discovery timestamp. Write-once: what the onboarding
   // no-flood rule and the notify predicate actually key off.
-  firstSeenAt DateTime @default(now())
+  firstSeenAt               DateTime  @default(now())
   // Bumped every cycle this job is rediscovered. A job whose lastSeenAt
   // falls behind is the raw "missing" signal Phase 7's closure algorithm
   // will consume -- Phase 6 only produces the signal, it never acts on it.
-  lastSeenAt DateTime @default(now())
+  lastSeenAt                DateTime  @default(now())
   // Bumped only when a rediscovery's contentHash differs from what's
   // stored -- i.e. a genuine matching-relevant change, not just "still
   // there." This is the timestamp the future notify predicate uses for a
@@ -283,7 +358,7 @@ model Job {
   // counter. Closure requires BOTH enough consecutive misses AND enough
   // elapsed time since this timestamp -- a count alone can't tell a source
   // polling every 60s from one polling every 15min apart.
-  firstMissingAt        DateTime?
+  firstMissingAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -490,7 +565,7 @@ model Notification {
 
   // Set the moment a worker claims this row, before the provider is ever
   // called. Also what the restart-reconciliation staleness check reads.
-  sendingAt DateTime?
+  sendingAt         DateTime?
   // Set only on a successful provider call.
   sentAt            DateTime?
   providerMessageId String?
@@ -498,12 +573,12 @@ model Notification {
   // (see notifications/webhooks.ts) -- all three stay null for the console
   // provider and for any PROVIDER_ACCEPTED row the feedback simply hasn't
   // reached yet.
-  deliveredAt  DateTime?
-  bouncedAt    DateTime?
-  complainedAt DateTime?
+  deliveredAt       DateTime?
+  bouncedAt         DateTime?
+  complainedAt      DateTime?
 
-  attemptCount Int     @default(0)
-  lastError    String?
+  attemptCount  Int       @default(0)
+  lastError     String?
   // When a FAILED row becomes eligible to be claimed again. Null means
   // "not currently backing off" -- true for QUEUED rows and for FAILED
   // rows the claim query hasn't reached yet.

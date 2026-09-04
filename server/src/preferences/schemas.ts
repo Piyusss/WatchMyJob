@@ -9,8 +9,10 @@ const OPPORTUNITY_TYPE_VALUES = ["FULL_TIME", "INTERNSHIP", "CONTRACT", "PART_TI
 // already duplicated between this file's zod schema and the frontend's
 // WORK_MODES/OPPORTUNITY_TYPES arrays -- an established pattern in this
 // codebase, not a new one, and small/stable enough not to warrant a shared
-// package for two six-line lists.
-const LEVEL_VALUES = ["Intern", "Associate", "Senior", "Lead", "Staff", "Principal"] as const;
+// package for two six-line lists. Exported so testCompanies/schemas.ts can
+// validate its own Level field against the exact same vocabulary rather
+// than a second hand-copied list.
+export const LEVEL_VALUES = ["Intern", "Associate", "Senior", "Lead", "Staff", "Principal"] as const;
 
 const trimmedOrNull = z
   .string()
@@ -26,7 +28,10 @@ const MAX_LOCATIONS = 10;
 // (geo/data.ts), so a stored name can never drift from what its code
 // actually means. City has no separate code (it's a dataset leaf), so it's
 // validated as an exact match against its state's known city list instead.
-const locationInputSchema = z
+// Exported so testCompanies/schemas.ts can validate its own Locations field
+// with the exact same rule (country -> state -> city, never invented)
+// instead of a second copy that could quietly drift from this one.
+export const locationInputSchema = z
   .object({
     countryCode: z.string().min(1),
     stateCode: z.string().min(1).nullable().default(null),
@@ -66,3 +71,21 @@ export const preferencesSchema = z.object({
 
 export type PreferencesInput = z.infer<typeof preferencesSchema>;
 export type LocationInput = z.infer<typeof locationInputSchema>;
+
+// Derives the denormalized display names from validated codes -- see
+// schema.prisma's UserPreferenceLocation comment for why matching needs
+// names (substring match against a job's raw location text) even though the
+// wire format and validation are code-based. Shared by preferences/routes.ts
+// and testCompanies/routes.ts (CustomTestJobLocation has the identical
+// shape/reasoning -- see schema.prisma).
+export function toLocationRow(loc: LocationInput) {
+  const country = findCountry(loc.countryCode)!; // already validated by locationInputSchema
+  const state = loc.stateCode ? findState(loc.countryCode, loc.stateCode) : undefined;
+  return {
+    countryCode: country.code,
+    countryName: country.name,
+    stateCode: state?.code ?? null,
+    stateName: state?.name ?? null,
+    cityName: loc.cityName,
+  };
+}

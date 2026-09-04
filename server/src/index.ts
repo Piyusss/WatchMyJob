@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { clerkPlugin } from "@clerk/fastify";
-import { env } from "./config/env.js";
+import { env, allowTestCompanies } from "./config/env.js";
 import { authRoutes } from "./auth/routes.js";
 import { companyRoutes } from "./companies/routes.js";
 import { preferencesRoutes } from "./preferences/routes.js";
@@ -12,6 +12,7 @@ import { jobRoutes } from "./jobs/routes.js";
 import { notificationRoutes } from "./notifications/routes.js";
 import { webhookRoutes } from "./notifications/webhooks.js";
 import { geoRoutes } from "./geo/routes.js";
+import { testCompanyRoutes } from "./testCompanies/routes.js";
 import { prisma } from "./db/prisma.js";
 
 async function main() {
@@ -86,6 +87,15 @@ async function main() {
   await fastify.register(notificationRoutes, { prefix: "/api/notifications" });
   await fastify.register(webhookRoutes, { prefix: "/api/webhooks" });
   await fastify.register(geoRoutes, { prefix: "/api/locations" });
+
+  // Section 17 of custom_company.txt: gated at registration, not just by
+  // requireAdmin inside each handler -- with the flag off, the whole
+  // surface 404s for everyone rather than existing-but-forbidden, which is
+  // the stronger of the two "don't let test data touch production"
+  // guarantees the spec asks for.
+  if (allowTestCompanies) {
+    await fastify.register(testCompanyRoutes, { prefix: "/api/admin" });
+  }
 
   await fastify.listen({ port: env.PORT, host: "0.0.0.0" });
 }

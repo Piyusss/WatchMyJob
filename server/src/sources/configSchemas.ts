@@ -12,6 +12,10 @@ export const platformConfigSchemas = {
   CUSTOM_HTML: z.object({ url: z.string().url() }),
   RSS: z.object({ feedUrl: z.string().url() }),
   API: z.object({ endpoint: z.string().url() }),
+  // No connection details -- its "board" is CustomTestJob rows keyed by
+  // this JobSource's own id (see adapters/customTest.ts), not anything
+  // reachable over the network.
+  CUSTOM_TEST: z.object({}),
 } as const;
 
 export type SourcePlatform = keyof typeof platformConfigSchemas;

@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { getAuth } from "@clerk/fastify";
 import { clerkClient } from "./clerkClient.js";
 import { prisma } from "../db/prisma.js";
+import { env } from "../config/env.js";
 import type { User } from "@prisma/client";
 
 // Test-only seam, mirroring email/index.ts's setEmailProviderForTesting --
@@ -84,4 +85,47 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   const user = await resolveLocalUser(clerkUserId);
   request.userId = user.id;
   request.clerkUserId = clerkUserId;
+}
+
+// Test-only seam, same pattern as setUserResolverForTesting above -- lets a
+// test grant/revoke admin status for a specific email without depending on
+// (or colliding with) whatever ADMIN_EMAILS happens to be set to in the
+// environment the test suite runs in. Never used from production code.
+let testAdminEmails: string[] | undefined;
+
+export function setAdminEmailsForTesting(emails: string[] | undefined): void {
+  testAdminEmails = emails;
+}
+
+// Parsed on every call rather than cached at module load -- ADMIN_EMAILS
+// only matters in test/admin contexts, never on the hot request path, so
+// there's no cost worth avoiding by caching it.
+function adminEmailSet(): Set<string> {
+  const raw = testAdminEmails !== undefined ? testAdminEmails.join(",") : (env.ADMIN_EMAILS ?? "");
+  return new Set(
+    raw
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+export function isAdminEmail(email: string): boolean {
+  return adminEmailSet().has(email.toLowerCase());
+}
+
+// Gates the admin/test-companies HTTP surface (see testCompanies/routes.ts).
+// Builds on requireAuth rather than replacing it -- this is an
+// authorization check on top of an already-authenticated Clerk session, not
+// a second credential system. A signed-in user whose email isn't in
+// ADMIN_EMAILS gets 403, not 404: existing (not a secret) but forbidden.
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  const authResult = await requireAuth(request, reply);
+  if (authResult) return authResult; // requireAuth already replied (401)
+
+  const user = await prisma.user.findUnique({ where: { id: request.userId }, select: { email: true } });
+  if (!user || !isAdminEmail(user.email)) {
+    reply.code(403).send({ error: "Admin access required" });
+    return reply;
+  }
 }

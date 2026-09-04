@@ -68,6 +68,7 @@ export interface PublicUser {
   notificationsPaused: boolean;
   createdAt: string;
   hasPreferences: boolean;
+  isAdmin: boolean;
 }
 
 export type WorkMode = "REMOTE" | "HYBRID" | "ON_SITE";
@@ -276,4 +277,133 @@ export interface Subscription {
   deactivatedAt: string | null;
   active: boolean;
   company: { id: string; name: string; slug: string; status: string };
+}
+
+// --- Admin / test companies (custom_company.txt) --------------------------
+// Everything below talks to /api/admin/*, which only exists at all when the
+// server has ALLOW_TEST_COMPANIES on, and only accepts requests from an
+// account on its ADMIN_EMAILS allowlist -- see the server's
+// testCompanies/routes.ts. A non-admin never sees the nav link that reaches
+// these pages, but these calls would 403 regardless.
+
+export interface TestCompanyListItem {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "INACTIVE";
+  domain: string | null;
+  createdAt: string;
+  openJobs: number;
+  totalTestJobs: number;
+}
+
+export interface TestCompanyDetail {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "INACTIVE";
+  domain: string | null;
+  // Whether this company currently satisfies SELECTABLE_COMPANY -- i.e.
+  // whether a real user could watch it right now. True immediately on
+  // creation (see routes.ts's empty baseline), so this should basically
+  // never read false, but it's here to make that guarantee visible rather
+  // than assumed.
+  selectable: boolean;
+}
+
+export interface TestJob {
+  id: string;
+  title: string;
+  roleFamily: string;
+  level: Level | null;
+  workMode: WorkMode | null;
+  opportunityType: OpportunityType;
+  requiredExperienceMin: number | null;
+  requiredExperienceMax: number | null;
+  description: string | null;
+  applicationUrl: string;
+  published: boolean;
+  publishedAt: string | null;
+  locations: PreferenceLocation[];
+  // The real Job row this draft produced, once published -- null until
+  // then. Links straight to the real job detail page so the admin can
+  // confirm, in Tab 1, exactly what Tab 2 just published.
+  job: { id: string; externalJobId: string; status: "ACTIVE" | "CLOSED" } | null;
+}
+
+export interface CreateTestCompanyInput {
+  name: string;
+  slug?: string;
+  domain?: string | null;
+}
+
+export interface TestJobInput {
+  title: string;
+  roleFamily: string;
+  level: Level | null;
+  locations: PreferenceLocation[];
+  workMode: WorkMode | null;
+  opportunityType: OpportunityType;
+  requiredExperienceMin: number | null;
+  requiredExperienceMax: number | null;
+  description: string | null;
+  applicationUrl: string;
+}
+
+export interface PublishTestJobResult {
+  result: {
+    discovered: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    reactivated: number;
+    missing: number | null;
+    closed: number;
+    circuitBreakerTripped: boolean;
+    queued: number;
+    error: string | null;
+    summary: string;
+  };
+  job: { id: string; status: "ACTIVE" | "CLOSED"; title: string } | null;
+  notificationsByStatus: Record<string, number>;
+}
+
+export function listTestCompanies() {
+  return apiFetch<{ companies: TestCompanyListItem[] }>("/api/admin/test-companies");
+}
+
+export function createTestCompany(input: CreateTestCompanyInput) {
+  return apiFetch<{ company: { id: string; slug: string } }>("/api/admin/test-companies", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateTestCompanyStatus(slug: string, status: "ACTIVE" | "INACTIVE") {
+  return apiFetch<{ company: TestCompanyListItem; subscriptionsDeactivated: number }>(`/api/admin/test-companies/${slug}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function getTestCompany(slug: string) {
+  return apiFetch<{ company: TestCompanyDetail; jobs: TestJob[] }>(`/api/admin/test-companies/${slug}`);
+}
+
+export function createTestJob(slug: string, input: TestJobInput) {
+  return apiFetch<{ job: TestJob }>(`/api/admin/test-companies/${slug}/jobs`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateTestJob(jobId: string, input: TestJobInput) {
+  return apiFetch<{ job: TestJob }>(`/api/admin/test-jobs/${jobId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function publishTestJob(jobId: string) {
+  return apiFetch<PublishTestJobResult>(`/api/admin/test-jobs/${jobId}/publish`, { method: "POST" });
 }

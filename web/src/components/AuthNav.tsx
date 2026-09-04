@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { LogOut, Settings, SlidersHorizontal } from "lucide-react";
+import { LogOut, Settings, SlidersHorizontal, FlaskConical } from "lucide-react";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
 import {
   DropdownMenu,
@@ -106,6 +106,12 @@ export default function AuthNav() {
               <Settings />
               Settings
             </DropdownMenuItem>
+            {user?.isAdmin && (
+              <DropdownMenuItem render={<Link href="/admin/test-companies" />}>
+                <FlaskConical />
+                Test companies
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut />

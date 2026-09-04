@@ -2,6 +2,7 @@ import type { SourcePlatform } from "@prisma/client";
 import type { JobSourceAdapter } from "./types.js";
 import { GreenhouseAdapter } from "./adapters/greenhouse.js";
 import { LeverAdapter } from "./adapters/lever.js";
+import { CustomTestAdapter } from "./adapters/customTest.js";
 
 // One entry per ATS platform, not per company -- adding company #51 on an
 // already-supported platform is a JobSource config row (Phase 2's admin
@@ -9,6 +10,7 @@ import { LeverAdapter } from "./adapters/lever.js";
 const adapters: Partial<Record<SourcePlatform, JobSourceAdapter>> = {
   GREENHOUSE: new GreenhouseAdapter(),
   LEVER: new LeverAdapter(),
+  CUSTOM_TEST: new CustomTestAdapter(),
 };
 
 export function getAdapter(platform: SourcePlatform): JobSourceAdapter {
