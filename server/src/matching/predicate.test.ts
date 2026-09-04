@@ -1,6 +1,16 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { getMatchExplanation, matchesPreferences, type MatchableJob, type MatchablePreferences } from "./predicate.js";
+import {
+  getMatchExplanation,
+  matchesPreferences,
+  type MatchableJob,
+  type MatchableLocation,
+  type MatchablePreferences,
+} from "./predicate.js";
+
+function loc(overrides: Partial<MatchableLocation> = {}): MatchableLocation {
+  return { countryName: "India", stateName: null, cityName: null, ...overrides };
+}
 
 function job(overrides: Partial<MatchableJob> = {}): MatchableJob {
   return {
@@ -23,9 +33,7 @@ function prefs(overrides: Partial<MatchablePreferences> = {}): MatchablePreferen
     roleLevel: null,
     yearsExperience: null,
     toleranceYears: null,
-    country: null,
-    state: null,
-    city: null,
+    locations: [],
     workMode: [],
     opportunityTypes: [],
     ...overrides,
@@ -78,8 +86,8 @@ describe("matchesPreferences -- level (unknown passes by default -- most real jo
   });
 });
 
-describe("matchesPreferences -- location (most specific field wins: city > state > country)", () => {
-  it("no location preference set at all: passes", () => {
+describe("matchesPreferences -- location (within one location, most specific field wins: city > state > country)", () => {
+  it("no locations added at all: passes", () => {
     assert.equal(matchesPreferences(job({ location: "Paris, France" }), prefs()), true);
   });
 
@@ -87,22 +95,65 @@ describe("matchesPreferences -- location (most specific field wins: city > state
     assert.equal(
       matchesPreferences(
         job({ location: "Bangalore, India" }),
-        prefs({ city: "Bangalore", state: "Nonexistent State", country: "Nonexistent Country" }),
+        prefs({ locations: [loc({ cityName: "Bangalore", stateName: "Nonexistent State", countryName: "Nonexistent Country" })] }),
       ),
       true,
     );
   });
 
   it("city set but absent from the job's location string: fails", () => {
-    assert.equal(matchesPreferences(job({ location: "Berlin, Germany" }), prefs({ city: "Bangalore" })), false);
+    assert.equal(
+      matchesPreferences(job({ location: "Berlin, Germany" }), prefs({ locations: [loc({ cityName: "Bangalore" })] })),
+      false,
+    );
   });
 
   it("falls back to country when city/state are blank", () => {
-    assert.equal(matchesPreferences(job({ location: "Berlin, Germany" }), prefs({ country: "Germany" })), true);
+    assert.equal(
+      matchesPreferences(job({ location: "Berlin, Germany" }), prefs({ locations: [loc({ countryName: "Germany" })] })),
+      true,
+    );
   });
 
   it("null job location passes -- no signal to filter on", () => {
-    assert.equal(matchesPreferences(job({ location: null }), prefs({ city: "Bangalore" })), true);
+    assert.equal(
+      matchesPreferences(job({ location: null }), prefs({ locations: [loc({ cityName: "Bangalore" })] })),
+      true,
+    );
+  });
+});
+
+describe("matchesPreferences -- location (multiple locations are OR, never AND)", () => {
+  it("job matches the second of two added locations: passes", () => {
+    assert.equal(
+      matchesPreferences(
+        job({ location: "Pune, India" }),
+        prefs({
+          locations: [loc({ cityName: "Bangalore" }), loc({ cityName: "Pune" })],
+        }),
+      ),
+      true,
+    );
+  });
+
+  it("job matches neither of two added locations: fails", () => {
+    assert.equal(
+      matchesPreferences(
+        job({ location: "Berlin, Germany" }),
+        prefs({
+          locations: [loc({ cityName: "Bangalore" }), loc({ cityName: "Pune" })],
+        }),
+      ),
+      false,
+    );
+  });
+
+  it("removing one location does not affect matching against the other", () => {
+    const twoLocations = prefs({ locations: [loc({ cityName: "Bangalore" }), loc({ cityName: "Pune" })] });
+    const oneLocationRemoved = prefs({ locations: [loc({ cityName: "Pune" })] });
+    const job1 = job({ location: "Pune, India" });
+    assert.equal(matchesPreferences(job1, twoLocations), true);
+    assert.equal(matchesPreferences(job1, oneLocationRemoved), true);
   });
 });
 
@@ -269,7 +320,7 @@ describe("getMatchExplanation -- the canonical per-criterion breakdown", () => {
   it("isolates exactly one failing dimension without affecting the others -- a real 'why this doesn't match' scenario", () => {
     const explanation = getMatchExplanation(
       job({ roleFamily: "Software Engineer", location: "Berlin, Germany" }),
-      prefs({ roleFamily: "Software Engineer", city: "Bangalore" }),
+      prefs({ roleFamily: "Software Engineer", locations: [loc({ cityName: "Bangalore" })] }),
     );
     assert.equal(explanation.roleMatched, true);
     assert.equal(explanation.locationMatched, false);

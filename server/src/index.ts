@@ -11,6 +11,7 @@ import { accountRoutes } from "./account/routes.js";
 import { jobRoutes } from "./jobs/routes.js";
 import { notificationRoutes } from "./notifications/routes.js";
 import { webhookRoutes } from "./notifications/webhooks.js";
+import { geoRoutes } from "./geo/routes.js";
 import { prisma } from "./db/prisma.js";
 
 async function main() {
@@ -84,6 +85,7 @@ async function main() {
   await fastify.register(jobRoutes, { prefix: "/api/jobs" });
   await fastify.register(notificationRoutes, { prefix: "/api/notifications" });
   await fastify.register(webhookRoutes, { prefix: "/api/webhooks" });
+  await fastify.register(geoRoutes, { prefix: "/api/locations" });
 
   await fastify.listen({ port: env.PORT, host: "0.0.0.0" });
 }

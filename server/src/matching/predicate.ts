@@ -12,14 +12,18 @@ export interface MatchableJob {
   requiredExperienceMax: number | null;
 }
 
+export interface MatchableLocation {
+  countryName: string;
+  stateName: string | null;
+  cityName: string | null;
+}
+
 export interface MatchablePreferences {
   roleFamily: string | null;
   roleLevel: string | null;
   yearsExperience: number | null;
   toleranceYears: number | null;
-  country: string | null;
-  state: string | null;
-  city: string | null;
+  locations: MatchableLocation[];
   workMode: WorkMode[];
   opportunityTypes: OpportunityType[];
 }
@@ -55,17 +59,24 @@ function matchLevel(jobLevel: string | null, prefRoleLevel: string | null): bool
   return jobLevel.toLowerCase() === pref.toLowerCase();
 }
 
-// City/state/country are independent free-text fields, but they name one
-// hierarchy, not three separate filters -- a user who sets city="Bangalore"
-// wants that city specifically, not "anywhere matching any of city, state,
-// OR country" (too loose) and not "must match all three simultaneously"
-// (too strict, since state/country are usually left blank once city is
-// filled in). The most specific field the user set is the one that governs.
-function matchLocation(jobLocation: string | null, prefs: MatchablePreferences): boolean {
-  const term = prefs.city?.trim() || prefs.state?.trim() || prefs.country?.trim();
-  if (!term) return true;
+// Within ONE location, city/state/country name one hierarchy, not three
+// separate filters -- a user who picked a city wants that city specifically,
+// not "anywhere matching city, state, OR country" (too loose) and not "must
+// match all three simultaneously" (too strict). The most specific level the
+// user picked is the one that governs.
+function locationTerm(loc: MatchableLocation): string {
+  return loc.cityName || loc.stateName || loc.countryName;
+}
+
+// Across MULTIPLE locations, the relationship flips to OR: a user who added
+// both Pune and Bangalore wants either, never both at once (a single job
+// posting only ever names one place). No locations selected means no
+// filter, same as the old single-location "all three blank" case.
+function matchLocation(jobLocation: string | null, locations: MatchableLocation[]): boolean {
+  if (locations.length === 0) return true;
   if (!jobLocation) return true; // no location signal from the source -- don't block on it
-  return jobLocation.toLowerCase().includes(term.toLowerCase());
+  const haystack = jobLocation.toLowerCase();
+  return locations.some((loc) => haystack.includes(locationTerm(loc).toLowerCase()));
 }
 
 function matchWorkMode(jobWorkMode: WorkMode | null, prefWorkModes: WorkMode[]): boolean {
@@ -140,7 +151,7 @@ export interface MatchExplanation {
 export function getMatchExplanation(job: MatchableJob, prefs: MatchablePreferences): MatchExplanation {
   const roleMatched = matchRoleFamily(job.roleFamily, prefs.roleFamily);
   const levelMatched = matchLevel(job.level, prefs.roleLevel);
-  const locationMatched = matchLocation(job.location, prefs);
+  const locationMatched = matchLocation(job.location, prefs.locations);
   const workModeMatched = matchWorkMode(job.workMode, prefs.workMode);
   const opportunityTypeMatched = matchOpportunityType(job.opportunityType, prefs.opportunityTypes);
   const experienceMatched = matchExperience(job, prefs);

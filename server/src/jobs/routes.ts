@@ -66,11 +66,9 @@ const PREFERENCES_SELECT = {
   roleLevel: true,
   yearsExperience: true,
   toleranceYears: true,
-  country: true,
-  state: true,
-  city: true,
   workMode: true,
   opportunityTypes: true,
+  locations: { select: { countryName: true, stateName: true, cityName: true } },
 } as const;
 
 type SelectedJob = Prisma.JobGetPayload<{ select: typeof JOB_SELECT }>;
@@ -95,6 +93,24 @@ function sortKey(job: SelectedJob, sort: "newest" | "updated"): number {
 // onboarding first, see auth/routes.ts's hasPreferences) falls back to the
 // unfiltered watch-list view rather than showing nothing.
 export async function jobRoutes(fastify: FastifyInstance) {
+  // Backs the preferences form's Role combobox. There's no fixed role-family
+  // taxonomy to validate against -- classification (see sources/classify.ts)
+  // deliberately produces near-title-granular values rather than bucketing
+  // into a small invented set, so "controlled selection, not free text" here
+  // means "must be a value that's actually on a real job," sourced live from
+  // the database, not a hardcoded list that would drift from reality.
+  // Public: this is reference data, not user data (same reasoning as GET
+  // /api/companies and /api/locations).
+  fastify.get("/role-families", async (_request, reply) => {
+    const rows = await prisma.job.findMany({
+      where: { status: "ACTIVE", roleFamily: { not: null } },
+      distinct: ["roleFamily"],
+      select: { roleFamily: true },
+      orderBy: { roleFamily: "asc" },
+    });
+    return reply.send({ roleFamilies: rows.map((r) => r.roleFamily as string) });
+  });
+
   fastify.get("/", { preHandler: requireAuth }, async (request, reply) => {
     const parsed = jobsQuerySchema.safeParse(request.query);
     if (!parsed.success) {

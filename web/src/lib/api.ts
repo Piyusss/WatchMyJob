@@ -88,19 +88,55 @@ export function clearJobState(jobId: string) {
   return apiFetch<{ jobId: string; state: null }>(`/api/jobs/${jobId}/state`, { method: "DELETE" });
 }
 
+// A small, fixed vocabulary -- kept in sync by hand with the backend's own
+// LEVEL_VALUES (preferences/schemas.ts), the same pattern already used for
+// WorkMode/OpportunityType across this file and that schema.
+export const LEVEL_OPTIONS = ["Intern", "Associate", "Senior", "Lead", "Staff", "Principal"] as const;
+export type Level = (typeof LEVEL_OPTIONS)[number];
+
+// The wire/storage shape for one added location. countryCode/stateCode are
+// what get submitted back on save (validated server-side against the
+// curated geo list); the *Name fields are what the UI displays and are
+// filled in by the server on every read.
+export interface PreferenceLocation {
+  countryCode: string;
+  countryName: string;
+  stateCode: string | null;
+  stateName: string | null;
+  cityName: string | null;
+}
+
 export interface Preferences {
   id: string;
   userId: string;
   roleFamily: string | null;
-  roleLevel: string | null;
+  roleLevel: Level | null;
   yearsExperience: number | null;
   toleranceYears: number | null;
-  country: string | null;
-  state: string | null;
-  city: string | null;
+  locations: PreferenceLocation[];
   workMode: WorkMode[];
   opportunityTypes: OpportunityType[];
   effectiveSince: string;
+}
+
+export interface GeoState {
+  code: string;
+  name: string;
+  cities: string[];
+}
+
+export interface GeoCountry {
+  code: string;
+  name: string;
+  states: GeoState[];
+}
+
+export function getLocationOptions() {
+  return apiFetch<{ countries: GeoCountry[] }>("/api/locations");
+}
+
+export function getRoleFamilyOptions() {
+  return apiFetch<{ roleFamilies: string[] }>("/api/jobs/role-families");
 }
 
 export interface Company {

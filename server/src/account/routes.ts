@@ -31,7 +31,7 @@ export async function accountRoutes(fastify: FastifyInstance) {
           createdAt: true,
         },
       }),
-      prisma.userPreferences.findUnique({ where: { userId } }),
+      prisma.userPreferences.findUnique({ where: { userId }, include: { locations: true } }),
       prisma.userCompanySubscription.findMany({
         where: { userId },
         include: { company: { select: { name: true, slug: true } } },

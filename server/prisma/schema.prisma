@@ -360,13 +360,13 @@ model UserPreferences {
   roleLevel        String?
   yearsExperience  Int?
   toleranceYears   Int?
-  country          String?
-  state            String?
-  city             String?
   workMode         WorkMode[]
   opportunityTypes OpportunityType[]
 
-  // Bumped whenever a matching-relevant field above changes. The matching
+  locations UserPreferenceLocation[]
+
+  // Bumped whenever a matching-relevant field above changes (locations
+  // included -- see preferences/routes.ts's set-comparison). The matching
   // engine (Phase 9) suppresses notifications for jobs whose eligibility
   // timestamp predates this, so widening a filter can't flood the user with
   // every pre-existing job that newly matches -- the same guarantee the
@@ -377,6 +377,35 @@ model UserPreferences {
   updatedAt DateTime @updatedAt
 
   @@map("user_preferences")
+}
+
+// One row per location a user added to their preferences -- multiple rows
+// mean OR at match time (see matching/predicate.ts), never AND. Deliberately
+// a child table, not a JSON column: this is genuinely relational data (a
+// bounded list of structured tuples a user adds/removes one at a time), and
+// Postgres can index/query it normally.
+//
+// country/state/city are both a code (stable, validated against the curated
+// list in geo/data.ts at write time) and a name (denormalized at write time
+// from that same list, since matching -- see predicate.ts -- needs to
+// substring-match against a job's raw, unstructured location text, not an
+// opaque code). state/city are optional: a location can be as coarse as
+// "anywhere in this country."
+model UserPreferenceLocation {
+  id                String          @id @default(uuid())
+  userPreferencesId String
+  userPreferences   UserPreferences @relation(fields: [userPreferencesId], references: [id], onDelete: Cascade)
+
+  countryCode String
+  countryName String
+  stateCode   String?
+  stateName   String?
+  cityName    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userPreferencesId])
+  @@map("user_preference_locations")
 }
 
 model UserCompanySubscription {

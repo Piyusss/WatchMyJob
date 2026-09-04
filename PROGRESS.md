@@ -17,7 +17,8 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `Company` — name, slug, status, accessBasis, domain (nullable; the company's own web domain, used to derive a real logo -- see Functional behavior)
 - `JobSource` — platform, config, polling interval, initialSyncCompletedAt, consecutiveFailures, lastAttemptedAt
 - `Job` — identity/content hashes, role classification, location, work mode, opportunity type, experience range, status, firstSeenAt/lastSeenAt/lastMatchRelevantChangeAt, miss-tracking fields
-- `UserPreferences` — role family/level, years experience, tolerance, country/state/city, work modes, opportunity types, effectiveSince
+- `UserPreferences` — role family (validated live against real roleFamily values on active jobs, not free text), level (fixed 6-value enum), years experience, tolerance, work modes, opportunity types, effectiveSince
+- `UserPreferenceLocation` — one row per location a user adds (country/state/city, each validated against a curated geo dataset), multiple rows OR'd together at match time -- see Location preferences below
 - `UserCompanySubscription`
 - `Notification` — states SENDING/PROVIDER_ACCEPTED/FAILED/SKIPPED/DEAD_LETTER, attemptCount, lastError, nextAttemptAt, providerMessageId
 - `UserJobState` — one row per (user, job): SAVED / APPLIED / DISMISSED, mutually exclusive. Deliberately separate from `Job.status` (global, source-derived) — a user's own stance toward a job never affects what anyone else sees.
@@ -49,6 +50,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 
 ### Matching
 - Pure matching predicate (role family, level, location, work mode, opportunity type, experience-with-tolerance)
+- Location matching: within one location, city/state/country name one hierarchy (most specific wins); across multiple added locations, OR (a job matching any one of them counts, never all simultaneously)
 - Eligibility/timing logic kept separate from the predicate (decides whether a match should notify based on subscription/preference timing)
 - Matching engine: match one job against all subscribers, and match one user against all their currently-active jobs
 - Notification idempotency via atomic `createMany({skipDuplicates:true})` against the DB unique constraint, not check-then-insert
@@ -89,6 +91,8 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `GET /api/companies/:slug` (detail: open roles, watching state, recent jobs, repeated role families, last successful sync time)
 - `PUT /api/jobs/:id/state`, `DELETE /api/jobs/:id/state` (SAVED/APPLIED/DISMISSED)
 - `GET /api/jobs?state=SAVED|APPLIED|DISMISSED` (flat list of jobs in that state, bypassing the watchlist/preference filters)
+- `GET /api/jobs/role-families` (distinct roleFamily values on currently-active jobs -- backs the preferences form's Role combobox; also what PUT /api/preferences validates a submitted roleFamily against, live, not a static list)
+- `GET /api/locations` (the curated country/state/region/city dataset -- public reference data, backs the preferences form's cascading location picker and what PUT /api/preferences validates submitted locations against)
 
 ### Testing
 - 141 automated tests across 29 suites (`node:test`), all passing
@@ -111,7 +115,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `/` — landing page (animated hero, company marquee, how-it-works, principles)
 - `/register`, `/login` — two-panel auth layout wrapping Clerk's `<SignUp>`/`<SignIn>` (Google + email/password; verification and password reset happen inline, Clerk's own)
 - `/dashboard` — job feed filtered by saved preferences, stat cards, search, verification/onboarding banners
-- `/preferences` — onboarding mode and edit mode (role, experience, location, work mode, opportunity type)
+- `/preferences` — onboarding mode and edit mode (role, experience, location, work mode, opportunity type). Role is a searchable combobox sourced from real active-job values (`RoleFamilySelect`), Level a fixed dropdown (`LevelSelect`), Location a cascading country->state->city picker supporting multiple added locations (`LocationPicker`) -- no free-text entry for any of the three
 - `/companies` — company watchlist with avatars and live open-role counts, each linking to its detail page
 - `/companies/[slug]` — company detail: watching toggle, open-role count, last sync time, repeated role families, recent roles
 - `/saved` — Saved/Applied tabs over the user's own job-state list
@@ -143,3 +147,5 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - No Clerk `user.deleted`/`user.updated` webhook — the local `User` row is only synced from Clerk once, at first sign-in (see `auth/authenticate.ts`); it won't pick up a later name/email change made inside Clerk's own account portal
 - No dark-mode toggle (tokens exist in CSS but nothing switches the `.dark` class)
 - Automated application-assistance system (mini application screen, controlled browser session, auto form-filling, CAPTCHA handling, auto-submission) — out of scope per original project plan, not built
+- The location dataset (`server/src/geo/data.ts`) is a curated ~14-country set (major tech-hiring markets), not a comprehensive worldwide gazetteer — a full dataset was considered and explicitly declined in favor of this. Extending it is a data-only change (add entries, no code/migration needed).
+- The Role combobox's option list is exactly whatever distinct `roleFamily` strings exist on active jobs right now, including occasional classifier artifacts (e.g. a stray numeric-looking value) -- this is real data, not filtered/cleaned, since inventing a filter risks hiding a legitimate short role name. A coarser, human-curated role taxonomy was considered and rejected: classification (Phase 8) deliberately produces near-title-granular values with no synonym table, and forcing preferences into a small fixed taxonomy would require rebuilding that matching semantics everywhere (dashboard, notifications, "why this matches") to avoid silently breaking match precision -- a separate, larger project, not a side effect of a UX pass.

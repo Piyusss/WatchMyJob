@@ -29,12 +29,10 @@ const PREFERENCES_SELECT = {
   roleLevel: true,
   yearsExperience: true,
   toleranceYears: true,
-  country: true,
-  state: true,
-  city: true,
   workMode: true,
   opportunityTypes: true,
   effectiveSince: true,
+  locations: { select: { countryName: true, stateName: true, cityName: true } },
 } as const;
 
 async function queueNotification(userId: string, jobId: string, notificationType: "NEW_JOB" | "MATCH_VIA_UPDATE") {

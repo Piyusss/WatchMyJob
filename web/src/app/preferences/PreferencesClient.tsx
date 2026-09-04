@@ -7,8 +7,19 @@ import { toast } from "sonner";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
+import RoleFamilySelect from "@/components/RoleFamilySelect";
+import LevelSelect from "@/components/LevelSelect";
+import LocationPicker from "@/components/LocationPicker";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
-import { apiFetch, ApiError, type Preferences, type WorkMode, type OpportunityType } from "@/lib/api";
+import {
+  apiFetch,
+  ApiError,
+  type Preferences,
+  type WorkMode,
+  type OpportunityType,
+  type Level,
+  type PreferenceLocation,
+} from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -96,13 +107,11 @@ export default function PreferencesClient() {
   const [loaded, setLoaded] = useState(false);
   const [step, setStep] = useState(0);
 
-  const [roleFamily, setRoleFamily] = useState("");
-  const [roleLevel, setRoleLevel] = useState("");
+  const [roleFamily, setRoleFamily] = useState<string | null>(null);
+  const [roleLevel, setRoleLevel] = useState<Level | null>(null);
   const [yearsExperience, setYearsExperience] = useState("");
   const [toleranceYears, setToleranceYears] = useState("");
-  const [country, setCountry] = useState("");
-  const [state, setState] = useState("");
-  const [city, setCity] = useState("");
+  const [locations, setLocations] = useState<PreferenceLocation[]>([]);
   const [workMode, setWorkMode] = useState<WorkMode[]>([]);
   const [opportunityTypes, setOpportunityTypes] = useState<OpportunityType[]>([]);
   const [effectiveSince, setEffectiveSince] = useState<string | null>(null);
@@ -117,13 +126,11 @@ export default function PreferencesClient() {
       .then((res) => {
         const p = res.preferences;
         if (p) {
-          setRoleFamily(p.roleFamily ?? "");
-          setRoleLevel(p.roleLevel ?? "");
+          setRoleFamily(p.roleFamily);
+          setRoleLevel(p.roleLevel);
           setYearsExperience(p.yearsExperience?.toString() ?? "");
           setToleranceYears(p.toleranceYears?.toString() ?? "");
-          setCountry(p.country ?? "");
-          setState(p.state ?? "");
-          setCity(p.city ?? "");
+          setLocations(p.locations);
           setWorkMode(p.workMode);
           setOpportunityTypes(p.opportunityTypes);
           setEffectiveSince(p.effectiveSince);
@@ -144,9 +151,7 @@ export default function PreferencesClient() {
           roleLevel,
           yearsExperience: yearsExperience === "" ? null : Number(yearsExperience),
           toleranceYears: toleranceYears === "" ? null : Number(toleranceYears),
-          country,
-          state,
-          city,
+          locations: locations.map((l) => ({ countryCode: l.countryCode, stateCode: l.stateCode, cityName: l.cityName })),
           workMode,
           opportunityTypes,
         }),
@@ -243,27 +248,17 @@ export default function PreferencesClient() {
                     <div className="space-y-4">
                       <p className="text-[0.88rem] leading-relaxed text-ink-muted">
                         We match on the start of a job&apos;s role family, so &ldquo;Software Engineer&rdquo; also
-                        catches &ldquo;Software Engineer, Payments&rdquo;. Leave blank to hear about every role.
+                        catches &ldquo;Software Engineer, Payments&rdquo;. Select &ldquo;Any role&rdquo; to hear about
+                        everything.
                       </p>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor="roleFamily">Role</Label>
-                          <Input
-                            id="roleFamily"
-                            autoFocus
-                            placeholder="Software Engineer"
-                            value={roleFamily}
-                            onChange={(e) => setRoleFamily(e.target.value)}
-                          />
+                          <RoleFamilySelect value={roleFamily} onChange={setRoleFamily} />
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor="roleLevel">Level (optional)</Label>
-                          <Input
-                            id="roleLevel"
-                            placeholder="Senior"
-                            value={roleLevel}
-                            onChange={(e) => setRoleLevel(e.target.value)}
-                          />
+                          <LevelSelect value={roleLevel} onChange={setRoleLevel} />
                         </div>
                       </div>
                     </div>
@@ -308,39 +303,11 @@ export default function PreferencesClient() {
                   {current.key === "location" && (
                     <div className="space-y-4">
                       <p className="text-[0.88rem] leading-relaxed text-ink-muted">
-                        Fill in the most specific one that matters to you — city wins over region, region over country.
-                        Leave blank if location isn&apos;t a constraint.
+                        Add as many as you like — a job matching any one of them counts. Pick just a country for
+                        &ldquo;anywhere in India&rdquo;, or narrow to a city. Add none if location isn&apos;t a
+                        constraint.
                       </p>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="city">City</Label>
-                          <Input
-                            id="city"
-                            autoFocus
-                            placeholder="Bangalore"
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="state">State / region</Label>
-                          <Input
-                            id="state"
-                            placeholder="Karnataka"
-                            value={state}
-                            onChange={(e) => setState(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5 sm:max-w-[calc(50%-0.5rem)]">
-                        <Label htmlFor="country">Country</Label>
-                        <Input
-                          id="country"
-                          placeholder="India"
-                          value={country}
-                          onChange={(e) => setCountry(e.target.value)}
-                        />
-                      </div>
+                      <LocationPicker value={locations} onChange={setLocations} />
                     </div>
                   )}
 
@@ -448,21 +415,11 @@ export default function PreferencesClient() {
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="roleFamily">Role</Label>
-                <Input
-                  id="roleFamily"
-                  placeholder="Software Engineer"
-                  value={roleFamily}
-                  onChange={(e) => setRoleFamily(e.target.value)}
-                />
+                <RoleFamilySelect value={roleFamily} onChange={setRoleFamily} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="roleLevel">Level</Label>
-                <Input
-                  id="roleLevel"
-                  placeholder="Senior"
-                  value={roleLevel}
-                  onChange={(e) => setRoleLevel(e.target.value)}
-                />
+                <LevelSelect value={roleLevel} onChange={setRoleLevel} />
               </div>
             </div>
           </section>
@@ -503,21 +460,10 @@ export default function PreferencesClient() {
           <section>
             <h2 className="eyebrow">Location</h2>
             <p className="mt-2 max-w-lg text-[0.85rem] leading-relaxed text-ink-muted">
-              The most specific field you fill in is the one that governs.
+              A job matching any one of these counts. Add none to leave location unconstrained.
             </p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" placeholder="Bangalore" value={city} onChange={(e) => setCity(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="state">State / region</Label>
-                <Input id="state" placeholder="Karnataka" value={state} onChange={(e) => setState(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="country">Country</Label>
-                <Input id="country" placeholder="India" value={country} onChange={(e) => setCountry(e.target.value)} />
-              </div>
+            <div className="mt-3">
+              <LocationPicker value={locations} onChange={setLocations} />
             </div>
           </section>
 
