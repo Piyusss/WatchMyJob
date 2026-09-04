@@ -183,13 +183,18 @@ export default function CompaniesClient() {
                     {avatarInitial(c.name)}
                   </span>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[0.92rem] font-medium text-ink">{c.name}</div>
+                  {/* Only the name block navigates -- the Watch button is the
+                      primary action on this screen and must stay a plain
+                      sibling, not a control nested inside a link. */}
+                  <Link href={`/companies/${c.slug}`} className="min-w-0 flex-1">
+                    <div className="truncate text-[0.92rem] font-medium text-ink transition-colors hover:text-brand-ink">
+                      {c.name}
+                    </div>
                     <div className="mt-0.5 text-[0.78rem] text-ink-muted">
                       {c.openRoles.toLocaleString()} open {c.openRoles === 1 ? "role" : "roles"}
                       {watching && <span className="text-brand"> · Watching</span>}
                     </div>
-                  </div>
+                  </Link>
 
                   <Button
                     size="sm"

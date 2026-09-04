@@ -1,15 +1,24 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type { JobListing } from "@/lib/api";
+import type { JobListing, UserJobState } from "@/lib/api";
 import { OPPORTUNITY_LABEL, experienceLabel } from "@/lib/jobDisplay";
 import { formatRecency } from "@/lib/recency";
+import JobStateActions from "@/components/JobStateActions";
 import { cn } from "@/lib/utils";
 
 // One row in a divided list, not a standalone card. Metadata is carried by
 // type weight, color and position rather than by giving every field its own
 // badge -- twenty rows of five badges each is noise, and it flattens the
 // hierarchy so nothing reads as important.
-export default function JobCard({ job }: { job: JobListing }) {
+export default function JobCard({
+  job,
+  onStateChange,
+}: {
+  job: JobListing;
+  // Omitted where per-row actions don't belong (e.g. a company's "recent
+  // roles" list, which is a preview rather than a working queue).
+  onStateChange?: (state: UserJobState | null) => void;
+}) {
   const expLabel = experienceLabel(job);
   const recency = formatRecency(job.firstSeenAt);
 
@@ -22,14 +31,25 @@ export default function JobCard({ job }: { job: JobListing }) {
 
   const rightMeta = [job.level, OPPORTUNITY_LABEL[job.opportunityType]].filter(Boolean).join(" · ");
 
+  // The row can't be a single <Link> any more -- the action buttons would be
+  // interactive elements nested inside an anchor, which is invalid HTML and
+  // breaks keyboard navigation. A stretched overlay link keeps the whole row
+  // clickable while leaving the buttons as siblings above it (z-10).
   return (
-    <Link href={`/jobs/${job.id}`} className="list-row list-row-interactive group">
-      <div className="min-w-0 flex-1">
+    <div className="list-row list-row-interactive group relative">
+      <Link href={`/jobs/${job.id}`} className="absolute inset-0 rounded-[inherit]" aria-label={job.title} />
+
+      <div className="pointer-events-none min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {showAsNew && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[0.66rem] font-semibold uppercase tracking-wide text-brand-ink">
               <span className="size-1.5 rounded-full bg-brand" />
               New
+            </span>
+          )}
+          {job.status === "CLOSED" && (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-tint-strong px-2 py-0.5 text-[0.66rem] font-semibold uppercase tracking-wide text-ink-muted">
+              Closed
             </span>
           )}
           <h3 className="truncate text-[0.925rem] font-medium text-ink transition-colors group-hover:text-brand-ink">
@@ -50,7 +70,7 @@ export default function JobCard({ job }: { job: JobListing }) {
           the list) is noise that competes with the New pill -- which is the
           signal that actually matters here. Absence of the pill is the
           contrast. */}
-      <div className="hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
+      <div className="pointer-events-none hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
         {rightMeta && <span className="text-[0.78rem] text-ink-secondary">{rightMeta}</span>}
         {(expLabel || !job.discoveredInInitialSync) && (
           <span className={cn("text-[0.72rem]", showAsNew ? "text-brand" : "text-ink-faint")}>
@@ -59,7 +79,9 @@ export default function JobCard({ job }: { job: JobListing }) {
         )}
       </div>
 
-      <ChevronRight className="size-4 shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-ink-muted" />
-    </Link>
+      {onStateChange && <JobStateActions jobId={job.id} state={job.userState} onChange={onStateChange} />}
+
+      <ChevronRight className="pointer-events-none size-4 shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-ink-muted" />
+    </div>
   );
 }

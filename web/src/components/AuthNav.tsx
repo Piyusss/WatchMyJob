@@ -17,12 +17,15 @@ import { cn } from "@/lib/utils";
 
 // Only the destinations a user navigates *between* live in the top bar.
 // Account-shaped destinations (settings, sign out) live in the avatar menu
-// instead -- keeps the bar to three items, which fits a 375px phone without
-// a hamburger or horizontal scrolling.
+// instead. Preferences moved there too when Saved and Alerts arrived: it's a
+// set-once screen, and dropping the longest label kept the bar at roughly
+// its previous total width, so this still fits a 375px phone without a
+// hamburger. It remains reachable from the avatar menu.
 const LINKS = [
   { href: "/dashboard", label: "Jobs" },
+  { href: "/saved", label: "Saved" },
   { href: "/companies", label: "Companies" },
-  { href: "/preferences", label: "Preferences" },
+  { href: "/notifications", label: "Alerts" },
 ];
 
 export default function AuthNav() {

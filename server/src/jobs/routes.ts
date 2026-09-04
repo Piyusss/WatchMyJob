@@ -30,6 +30,15 @@ const jobsQuerySchema = z.object({
   opportunityType: z.enum(["FULL_TIME", "INTERNSHIP", "CONTRACT", "PART_TIME", "OTHER"]).optional(),
   location: z.string().trim().max(200).optional(),
   q: z.string().trim().max(200).optional(),
+  // Switches this endpoint from "the feed" to "jobs I've marked X". A state
+  // view deliberately ignores the watchlist and the preference filter: a job
+  // you saved stays yours to find even after you stop watching that company
+  // or narrow your preferences past it.
+  state: z.enum(["SAVED", "APPLIED", "DISMISSED"]).optional(),
+});
+
+const jobStateBodySchema = z.object({
+  state: z.enum(["SAVED", "APPLIED", "DISMISSED"]),
 });
 
 const JOB_SELECT = {
@@ -93,31 +102,53 @@ export async function jobRoutes(fastify: FastifyInstance) {
     }
     const query = parsed.data;
 
-    const [subscriptions, preferences] = await Promise.all([
+    const [subscriptions, preferences, userStates] = await Promise.all([
       prisma.userCompanySubscription.findMany({
         where: { userId: request.userId, active: true },
         select: { companyId: true },
       }),
       prisma.userPreferences.findUnique({ where: { userId: request.userId }, select: PREFERENCES_SELECT }),
+      prisma.userJobState.findMany({ where: { userId: request.userId }, select: { jobId: true, state: true } }),
     ]);
 
-    if (subscriptions.length === 0) {
-      return reply.send({ jobs: [], nextCursor: null, total: 0, unfilteredTotal: 0, filtered: false });
+    const stateByJobId = new Map(userStates.map((s) => [s.jobId, s.state]));
+
+    let allJobs: SelectedJob[];
+    let unfilteredTotal: number;
+    let preferenceMatched: SelectedJob[];
+
+    if (query.state) {
+      // A state view is a flat list of exactly the jobs the user marked --
+      // no watchlist gate, no preference gate. Closed jobs are kept (and
+      // reported via `status`) rather than silently dropped: "the role I
+      // applied to has closed" is information the user needs, not noise.
+      const ids = userStates.filter((s) => s.state === query.state).map((s) => s.jobId);
+      allJobs = ids.length > 0 ? await prisma.job.findMany({ where: { id: { in: ids } }, select: JOB_SELECT }) : [];
+      unfilteredTotal = allJobs.length;
+      preferenceMatched = allJobs;
+    } else {
+      if (subscriptions.length === 0) {
+        return reply.send({ jobs: [], nextCursor: null, total: 0, unfilteredTotal: 0, filtered: false });
+      }
+
+      const where = {
+        status: "ACTIVE" as const,
+        companyId: { in: subscriptions.map((s) => s.companyId) },
+      };
+
+      [allJobs, unfilteredTotal] = await Promise.all([
+        prisma.job.findMany({ where, select: JOB_SELECT }),
+        prisma.job.count({ where }),
+      ]);
+
+      // Dismissing a job removes it from this user's feed only -- the job
+      // stays ACTIVE globally and keeps notifying everyone else.
+      allJobs = allJobs.filter((job) => stateByJobId.get(job.id) !== "DISMISSED");
+
+      preferenceMatched = preferences
+        ? allJobs.filter((job) => matchesPreferences(job as MatchableJob, preferences as MatchablePreferences))
+        : allJobs;
     }
-
-    const where = {
-      status: "ACTIVE" as const,
-      companyId: { in: subscriptions.map((s) => s.companyId) },
-    };
-
-    const [allJobs, unfilteredTotal] = await Promise.all([
-      prisma.job.findMany({ where, select: JOB_SELECT }),
-      prisma.job.count({ where }),
-    ]);
-
-    const preferenceMatched = preferences
-      ? allJobs.filter((job) => matchesPreferences(job as MatchableJob, preferences as MatchablePreferences))
-      : allJobs;
 
     const companySlugs = query.companies
       ? new Set(
@@ -172,8 +203,10 @@ export async function jobRoutes(fastify: FastifyInstance) {
       const matchExplanation = preferences
         ? getMatchExplanation(job as MatchableJob, preferences as MatchablePreferences)
         : null;
-      const { status: _status, lastMatchRelevantChangeAt: _lmrca, ...rest } = job;
-      return { ...rest, matchExplanation };
+      const { lastMatchRelevantChangeAt: _lmrca, ...rest } = job;
+      // userState rides along on every listing so a card can render its
+      // Save/Applied affordance without a second round trip per job.
+      return { ...rest, matchExplanation, userState: stateByJobId.get(job.id) ?? null };
     });
 
     return reply.send({
@@ -181,7 +214,9 @@ export async function jobRoutes(fastify: FastifyInstance) {
       nextCursor,
       total: filtered.length,
       unfilteredTotal,
-      filtered: preferences !== null,
+      // A state view is never "filtered by preferences" -- saying otherwise
+      // would make the UI claim these are your matches when they're your saves.
+      filtered: query.state ? false : preferences !== null,
     });
   });
 
@@ -203,14 +238,21 @@ export async function jobRoutes(fastify: FastifyInstance) {
     // (see account & subscriptions routes for those boundaries). Only the
     // match-explanation portion is user-specific, computed fresh against
     // THIS requester's own preferences, never another user's.
-    const preferences = await prisma.userPreferences.findUnique({
-      where: { userId: request.userId },
-      select: PREFERENCES_SELECT,
-    });
+    const [preferences, userState] = await Promise.all([
+      prisma.userPreferences.findUnique({
+        where: { userId: request.userId },
+        select: PREFERENCES_SELECT,
+      }),
+      prisma.userJobState.findUnique({
+        where: { userId_jobId: { userId: request.userId!, jobId: job.id } },
+        select: { state: true },
+      }),
+    ]);
 
     return reply.send({
       job: {
         ...job,
+        userState: userState?.state ?? null,
         // Reuses the same html->text conversion the classifier itself runs
         // on this field (see sources/classify.ts) -- description is stored
         // as HTML whose tags are themselves entity-escaped (a real
@@ -225,5 +267,41 @@ export async function jobRoutes(fastify: FastifyInstance) {
           : null,
       },
     });
+  });
+
+  // Upsert rather than create: the three states are mutually exclusive
+  // stances toward one job (see schema.prisma), so re-marking simply moves
+  // the existing row. Idempotent -- marking an already-APPLIED job APPLIED
+  // is a no-op, not a duplicate-key error.
+  fastify.put<{ Params: { id: string } }>("/:id/state", { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = jobStateBodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors });
+    }
+
+    // Confirm the job exists before writing: the FK would reject it anyway,
+    // but as a 500-shaped crash rather than an honest 404.
+    const job = await prisma.job.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!job) {
+      return reply.code(404).send({ error: "Job not found" });
+    }
+
+    const state = parsed.data.state;
+    const saved = await prisma.userJobState.upsert({
+      where: { userId_jobId: { userId: request.userId!, jobId: job.id } },
+      create: { userId: request.userId!, jobId: job.id, state },
+      update: { state },
+      select: { state: true },
+    });
+
+    return reply.send({ jobId: job.id, state: saved.state });
+  });
+
+  // Clearing is "I no longer have a stance on this job" -- un-saving, or
+  // undoing a dismissal so it returns to the feed. Deleting a row that isn't
+  // there is success, not 404: the caller's desired end state is already true.
+  fastify.delete<{ Params: { id: string } }>("/:id/state", { preHandler: requireAuth }, async (request, reply) => {
+    await prisma.userJobState.deleteMany({ where: { userId: request.userId, jobId: request.params.id } });
+    return reply.send({ jobId: request.params.id, state: null });
   });
 }

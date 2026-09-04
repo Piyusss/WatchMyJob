@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, AlertCircle } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
+import JobStateActions from "@/components/JobStateActions";
 import WhyThisMatches from "@/components/WhyThisMatches";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError, type JobDetail } from "@/lib/api";
@@ -86,6 +87,9 @@ export default function JobDetailPage() {
 }
 
 function JobDetailContent({ job }: { job: JobDetail }) {
+  // Local copy so the buttons reflect a change immediately; the server
+  // remains the source of truth on the next load of this page.
+  const [userState, setUserState] = useState(job.userState);
   const expLabel = experienceLabel(job);
   const recency = formatRecency(job.firstSeenAt);
   const colors = avatarColors(job.company.name);
@@ -145,6 +149,7 @@ function JobDetailContent({ job }: { job: JobDetail }) {
               <ExternalLink className="size-3.5" />
             </Button>
           </a>
+          <JobStateActions jobId={job.id} state={userState} onChange={setUserState} />
           <span className="text-[0.78rem] text-ink-faint">Opens {job.company.name}&apos;s own careers page</span>
         </div>
       </header>

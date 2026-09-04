@@ -427,7 +427,22 @@ export default function DashboardPage() {
             <>
               <div className="list-surface">
                 {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    onStateChange={(state) => {
+                      // A dismissed job is gone from this feed by definition,
+                      // so drop it locally rather than leaving a row the next
+                      // refetch would remove anyway. Other states just update
+                      // in place so the button reflects the new stance.
+                      setJobs((prev) =>
+                        state === "DISMISSED"
+                          ? prev.filter((j) => j.id !== job.id)
+                          : prev.map((j) => (j.id === job.id ? { ...j, userState: state } : j)),
+                      );
+                      if (state === "DISMISSED") setTotal((t) => Math.max(0, t - 1));
+                    }}
+                  />
                 ))}
               </div>
 

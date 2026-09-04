@@ -73,6 +73,21 @@ export interface PublicUser {
 export type WorkMode = "REMOTE" | "HYBRID" | "ON_SITE";
 export type OpportunityType = "FULL_TIME" | "INTERNSHIP" | "CONTRACT" | "PART_TIME" | "OTHER";
 
+// This user's own stance toward a job -- distinct from the job's global
+// status (see the server's schema.prisma). null means "no stance yet".
+export type UserJobState = "SAVED" | "APPLIED" | "DISMISSED";
+
+export function setJobState(jobId: string, state: UserJobState) {
+  return apiFetch<{ jobId: string; state: UserJobState }>(`/api/jobs/${jobId}/state`, {
+    method: "PUT",
+    body: JSON.stringify({ state }),
+  });
+}
+
+export function clearJobState(jobId: string) {
+  return apiFetch<{ jobId: string; state: null }>(`/api/jobs/${jobId}/state`, { method: "DELETE" });
+}
+
 export interface Preferences {
   id: string;
   userId: string;
@@ -122,6 +137,11 @@ export interface JobListing {
   requiredExperienceMax: number | null;
   company: { name: string; slug: string };
   matchExplanation: MatchExplanation | null;
+  // The feed only ever returns ACTIVE jobs, but a state view (?state=SAVED)
+  // deliberately keeps closed ones so "the role I applied to has closed" is
+  // visible rather than silently dropped.
+  status: "ACTIVE" | "CLOSED";
+  userState: UserJobState | null;
 }
 
 export interface JobDetail extends JobListing {
@@ -129,10 +149,6 @@ export interface JobDetail extends JobListing {
   // jobs/routes.ts) -- an empty string means no description, never null.
   description: string;
   company: { id: string; name: string; slug: string };
-  // Only the detail endpoint includes this -- the list endpoint strips it
-  // (every job returned there is already known ACTIVE, since that's the
-  // list's own base filter).
-  status: "ACTIVE" | "CLOSED";
 }
 
 export interface JobsPage {
@@ -145,6 +161,53 @@ export interface JobsPage {
 
 export type JobsSort = "newest" | "updated";
 
+export type NotificationStatus =
+  | "SENDING"
+  | "PROVIDER_ACCEPTED"
+  | "DELIVERED"
+  | "BOUNCED"
+  | "COMPLAINED"
+  | "FAILED"
+  | "SKIPPED"
+  | "DEAD_LETTER";
+
+export interface NotificationHistoryItem {
+  id: string;
+  notificationType: "NEW_JOB" | "MATCH_VIA_UPDATE";
+  status: NotificationStatus;
+  createdAt: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  job: {
+    id: string;
+    title: string;
+    location: string | null;
+    status: "ACTIVE" | "CLOSED";
+    company: { name: string; slug: string };
+  };
+}
+
+export interface CompanyDetail {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  openRoles: number;
+  watching: boolean;
+  lastSyncedAt: string | null;
+  roleFamilies: { roleFamily: string; count: number }[];
+  recentJobs: {
+    id: string;
+    title: string;
+    location: string | null;
+    workMode: WorkMode | null;
+    opportunityType: OpportunityType;
+    firstSeenAt: string;
+    roleFamily: string | null;
+    level: string | null;
+  }[];
+}
+
 export interface JobsQuery {
   limit?: number;
   cursor?: string;
@@ -156,6 +219,7 @@ export interface JobsQuery {
   opportunityType?: OpportunityType;
   location?: string;
   q?: string;
+  state?: UserJobState;
 }
 
 export function buildJobsQueryString(query: JobsQuery): string {

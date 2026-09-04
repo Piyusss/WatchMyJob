@@ -45,6 +45,7 @@ model User {
   preferences          UserPreferences?
   companySubscriptions UserCompanySubscription[]
   notifications        Notification[]
+  jobStates            UserJobState[]
 
   @@map("users")
 }
@@ -282,11 +283,43 @@ model Job {
   updatedAt DateTime @updatedAt
 
   notifications Notification[]
+  userStates    UserJobState[]
 
   @@unique([sourceId, externalJobId])
   @@index([companyId, status])
   @@index([identityHash])
   @@map("jobs")
+}
+
+// The user's own stance toward a job. Deliberately NOT folded into
+// Job.status: that field is global and source-derived (is this posting still
+// open?), whereas this is per-user and self-reported (have I applied?).
+// Conflating them would let one user's dismissal close a job for everyone.
+enum UserJobStateValue {
+  SAVED
+  APPLIED
+  DISMISSED
+}
+
+// One row per (user, job) -- the three values are mutually exclusive stances,
+// not independent flags, so marking a saved job APPLIED replaces the SAVED
+// row rather than accumulating a second one.
+model UserJobState {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  state UserJobStateValue
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, jobId])
+  // Serves both "list my saved jobs" and the feed's DISMISSED exclusion.
+  @@index([userId, state])
+  @@map("user_job_states")
 }
 
 enum WorkMode {

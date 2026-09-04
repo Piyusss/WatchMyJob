@@ -20,6 +20,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `UserPreferences` — role family/level, years experience, tolerance, country/state/city, work modes, opportunity types, effectiveSince
 - `UserCompanySubscription`
 - `Notification` — states SENDING/PROVIDER_ACCEPTED/FAILED/SKIPPED/DEAD_LETTER, attemptCount, lastError, nextAttemptAt, providerMessageId
+- `UserJobState` — one row per (user, job): SAVED / APPLIED / DISMISSED, mutually exclusive. Deliberately separate from `Job.status` (global, source-derived) — a user's own stance toward a job never affects what anyone else sees.
 - DB-level triggers enforcing write-once columns (firstSeenAt, discoveredInInitialSync) so they can't be silently overwritten
 - Unique DB constraint enforcing notification idempotency (userId, jobId, notificationType)
 
@@ -83,6 +84,10 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `GET /api/jobs` (filtered by saved preferences when present, reports both matched and unfiltered totals)
 - `GET /api/account/export`, `PATCH /api/account/notifications`, `DELETE /api/account`
 - `POST /api/notifications/unsubscribe`
+- `GET /api/notifications` (this user's own send history, paginated, read-only — not a second delivery channel)
+- `GET /api/companies/:slug` (detail: open roles, watching state, recent jobs, repeated role families, last successful sync time)
+- `PUT /api/jobs/:id/state`, `DELETE /api/jobs/:id/state` (SAVED/APPLIED/DISMISSED)
+- `GET /api/jobs?state=SAVED|APPLIED|DISMISSED` (flat list of jobs in that state, bypassing the watchlist/preference filters)
 
 ### Testing
 - 141 automated tests across 29 suites (`node:test`), all passing
@@ -106,7 +111,10 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `/register`, `/login` — two-panel auth layout wrapping Clerk's `<SignUp>`/`<SignIn>` (Google + email/password; verification and password reset happen inline, Clerk's own)
 - `/dashboard` — job feed filtered by saved preferences, stat cards, search, verification/onboarding banners
 - `/preferences` — onboarding mode and edit mode (role, experience, location, work mode, opportunity type)
-- `/companies` — company watchlist with avatars and live open-role counts
+- `/companies` — company watchlist with avatars and live open-role counts, each linking to its detail page
+- `/companies/[slug]` — company detail: watching toggle, open-role count, last sync time, repeated role families, recent roles
+- `/saved` — Saved/Applied tabs over the user's own job-state list
+- `/notifications` — paginated read-only history of sent job-alert emails, with delivery status
 - `/settings` — notification pause toggle, data export, account deletion (confirmation dialog)
 - `/unsubscribe` — standalone confirmation page (still on the pre-shadcn styling, not yet migrated)
 
@@ -123,6 +131,8 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Deterministic per-company avatar colors
 - Email verification banner (rare in practice — Clerk gates sign-in on a verified email already) with a "Verify email" action that opens Clerk's own account portal
 - Toggleable notification pause, JSON data export, account deletion via modal (Clerk session is the confirmation, no password step)
+- Save / Applied / Dismiss actions on every job card and the job detail page — mutually exclusive stances, not independent flags; clicking the active one clears it. Dismissed jobs leave the feed immediately (client-side) without waiting for a refetch. Dismiss offers an Undo toast; the other two are trivially reversible by re-clicking.
+- Company detail's "what they're hiring for" list only shows role families with 2+ open roles, capped at 8 — classification currently produces near-title-granular values (e.g. ~157 distinct "families" for one company's 158 open jobs), so an unfiltered list would just restate job titles one by one.
 
 ## Explicitly not done / deferred
 - Workday adapter (would recover ~13 more companies: Adobe, Salesforce, Intuit, PayPal, ServiceNow, Broadcom, AMD, Qualcomm, Palo Alto Networks, Synopsys, Cadence, S&P Global, possibly Atlassian) — not started
