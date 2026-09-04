@@ -71,6 +71,12 @@ model Company {
   slug        String        @unique
   accessBasis AccessBasis
   status      CompanyStatus @default(ACTIVE)
+  // The company's own primary web domain (e.g. "figma.com") -- not a logo
+  // URL directly, so the frontend can derive one from whichever logo
+  // provider it uses without a migration if that provider ever changes.
+  // Null means "no verified domain on file yet"; the frontend falls back to
+  // an initials avatar rather than guessing.
+  domain      String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

@@ -8,9 +8,9 @@ import { toast } from "sonner";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
+import CompanyLogo from "@/components/CompanyLogo";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, type Company, type Subscription } from "@/lib/api";
-import { avatarColors, avatarInitial } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -172,7 +172,6 @@ export default function CompaniesClient() {
             {visible.map((c) => {
               const watching = watchedSlugs.has(c.slug);
               const isPending = pending.has(c.slug);
-              const colors = avatarColors(c.name);
               return (
                 <div
                   key={c.id}
@@ -181,12 +180,7 @@ export default function CompaniesClient() {
                     watching ? "border-brand/35 bg-brand-tint/25" : "border-line hover:border-line-strong hover:shadow-sm",
                   )}
                 >
-                  <span
-                    className="grid size-10 shrink-0 place-items-center rounded-lg text-[0.95rem] font-bold"
-                    style={{ background: colors.bg, color: colors.fg }}
-                  >
-                    {avatarInitial(c.name)}
-                  </span>
+                  <CompanyLogo name={c.name} domain={c.domain} size={40} />
 
                   {/* Only the name block navigates -- the Watch button is the
                       primary action on this screen and must stay a plain

@@ -22,7 +22,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
       prisma.company.findMany({
         where: SELECTABLE_COMPANY,
         orderBy: { name: "asc" },
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, domain: true },
       }),
       prisma.job.groupBy({ by: ["companyId"], where: { status: "ACTIVE" }, _count: true }),
     ]);
@@ -39,7 +39,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { slug: string } }>("/:slug", { preHandler: requireAuth }, async (request, reply) => {
     const company = await prisma.company.findFirst({
       where: { ...SELECTABLE_COMPANY, slug: request.params.slug },
-      select: { id: true, name: true, slug: true, status: true },
+      select: { id: true, name: true, slug: true, status: true, domain: true },
     });
     if (!company) {
       return reply.code(404).send({ error: "Company not found" });

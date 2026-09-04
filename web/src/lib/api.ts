@@ -108,6 +108,7 @@ export interface Company {
   name: string;
   slug: string;
   openRoles: number;
+  domain: string | null;
 }
 
 export interface MatchExplanation {
@@ -135,7 +136,7 @@ export interface JobListing {
   experienceStatus: "KNOWN" | "UNKNOWN";
   requiredExperienceMin: number | null;
   requiredExperienceMax: number | null;
-  company: { name: string; slug: string };
+  company: { name: string; slug: string; domain: string | null };
   matchExplanation: MatchExplanation | null;
   // The feed only ever returns ACTIVE jobs, but a state view (?state=SAVED)
   // deliberately keeps closed ones so "the role I applied to has closed" is
@@ -148,7 +149,7 @@ export interface JobDetail extends JobListing {
   // Always plain text, server-converted from the source's raw HTML (see
   // jobs/routes.ts) -- an empty string means no description, never null.
   description: string;
-  company: { id: string; name: string; slug: string };
+  company: { id: string; name: string; slug: string; domain: string | null };
 }
 
 export interface JobsPage {
@@ -183,7 +184,7 @@ export interface NotificationHistoryItem {
     title: string;
     location: string | null;
     status: "ACTIVE" | "CLOSED";
-    company: { name: string; slug: string };
+    company: { name: string; slug: string; domain: string | null };
   };
 }
 
@@ -192,6 +193,7 @@ export interface CompanyDetail {
   name: string;
   slug: string;
   status: string;
+  domain: string | null;
   openRoles: number;
   watching: boolean;
   lastSyncedAt: string | null;

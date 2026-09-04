@@ -14,7 +14,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 
 ### Data model (Prisma)
 - `User` — clerkUserId (unique, join key to Clerk), email, name, phone, linkedinUrl, githubUrl, emailVerified, notificationsPaused, unsubscribeToken. Lazily provisioned on a user's first authenticated request (see `auth/authenticate.ts`) rather than via a Clerk webhook — no public URL for Clerk to call in local dev.
-- `Company` — name, slug, status, accessBasis
+- `Company` — name, slug, status, accessBasis, domain (nullable; the company's own web domain, used to derive a real logo -- see Functional behavior)
 - `JobSource` — platform, config, polling interval, initialSyncCompletedAt, consecutiveFailures, lastAttemptedAt
 - `Job` — identity/content hashes, role classification, location, work mode, opportunity type, experience range, status, firstSeenAt/lastSeenAt/lastMatchRelevantChangeAt, miss-tracking fields
 - `UserPreferences` — role family/level, years experience, tolerance, country/state/city, work modes, opportunity types, effectiveSince
@@ -75,6 +75,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `admin:initial-sync` — run baseline sync (with `--allow-empty` override)
 - `admin:health` — health check script
 - `admin:reclassify` — re-run classification on existing jobs
+- `admin:companies -- set-domain` — attach/update a company's web domain (drives its logo)
 
 ### API endpoints
 - `GET /api/auth/me` (registration/login/logout/verification/reset are Clerk's — no server endpoints for them)
@@ -133,6 +134,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Toggleable notification pause, JSON data export, account deletion via modal (Clerk session is the confirmation, no password step)
 - Save / Applied / Dismiss actions on every job card and the job detail page — mutually exclusive stances, not independent flags; clicking the active one clears it. Dismissed jobs leave the feed immediately (client-side) without waiting for a refetch. Dismiss offers an Undo toast; the other two are trivially reversible by re-clicking.
 - Company detail's "what they're hiring for" list only shows role families with 2+ open roles, capped at 8 — classification currently produces near-title-granular values (e.g. ~157 distinct "families" for one company's 158 open jobs), so an unfiltered list would just restate job titles one by one.
+- Real company logos (companies list, company detail, job cards, job detail) via `CompanyLogo`, derived from each company's `domain` field through DuckDuckGo's public icon-by-domain endpoint -- chosen after Clearbit's equivalent free logo endpoint (the more obvious pick) turned out to no longer resolve at all post-HubSpot-acquisition, confirmed dead via two independent network paths before switching. Falls back to the existing deterministic initials avatar when a company has no `domain` on file or the request 404s -- no broken-image icons, no layout shift (fixed square, `object-contain`).
 
 ## Explicitly not done / deferred
 - Workday adapter (would recover ~13 more companies: Adobe, Salesforce, Intuit, PayPal, ServiceNow, Broadcom, AMD, Qualcomm, Palo Alto Networks, Synopsys, Cadence, S&P Global, possibly Atlassian) — not started

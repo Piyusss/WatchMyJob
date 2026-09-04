@@ -3,10 +3,11 @@
 // shell access to the server, matching "a script is enough at this scale."
 //
 // Usage:
-//   npm run admin:companies -- add --name "Microsoft" --slug microsoft --access-basis OFFICIAL_API
+//   npm run admin:companies -- add --name "Microsoft" --slug microsoft --access-basis OFFICIAL_API --domain microsoft.com
 //   npm run admin:companies -- list
 //   npm run admin:companies -- deactivate --slug microsoft
 //   npm run admin:companies -- activate --slug microsoft
+//   npm run admin:companies -- set-domain --slug microsoft --domain microsoft.com
 import { parseArgs } from "node:util";
 import { prisma } from "../db/prisma.js";
 import { AccessBasis, CompanyStatus } from "@prisma/client";
@@ -33,6 +34,7 @@ async function addCompany(argv: string[]) {
       name: { type: "string" },
       slug: { type: "string" },
       "access-basis": { type: "string" },
+      domain: { type: "string" },
     },
   });
 
@@ -48,7 +50,7 @@ async function addCompany(argv: string[]) {
   if (existing) fail(`A company with slug "${slug}" already exists (id: ${existing.id})`);
 
   const company = await prisma.company.create({
-    data: { name: values.name, slug, accessBasis: accessBasis as AccessBasis },
+    data: { name: values.name, slug, accessBasis: accessBasis as AccessBasis, domain: values.domain ?? null },
   });
 
   console.log(`Created company "${company.name}" (slug: ${company.slug}, id: ${company.id})`);
@@ -84,6 +86,18 @@ async function setStatus(argv: string[], status: CompanyStatus) {
   console.log(`${company.name} is now ${status}.`);
 }
 
+async function setDomain(argv: string[]) {
+  const { values } = parseArgs({ args: argv, options: { slug: { type: "string" }, domain: { type: "string" } } });
+  if (!values.slug) fail("--slug is required");
+  if (!values.domain) fail("--domain is required");
+
+  const company = await prisma.company.findUnique({ where: { slug: values.slug } });
+  if (!company) fail(`No company with slug "${values.slug}"`);
+
+  await prisma.company.update({ where: { slug: values.slug }, data: { domain: values.domain } });
+  console.log(`${company.name}'s domain is now ${values.domain}.`);
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
 
@@ -96,8 +110,10 @@ async function main() {
       return setStatus(rest, CompanyStatus.ACTIVE);
     case "deactivate":
       return setStatus(rest, CompanyStatus.INACTIVE);
+    case "set-domain":
+      return setDomain(rest);
     default:
-      console.log("Usage: admin:companies -- <add|list|activate|deactivate> [options]");
+      console.log("Usage: admin:companies -- <add|list|activate|deactivate|set-domain> [options]");
       process.exit(command ? 1 : 0);
   }
 }

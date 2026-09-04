@@ -4,6 +4,7 @@ import type { JobListing, UserJobState } from "@/lib/api";
 import { OPPORTUNITY_LABEL, experienceLabel } from "@/lib/jobDisplay";
 import { formatRecency } from "@/lib/recency";
 import JobStateActions from "@/components/JobStateActions";
+import CompanyLogo from "@/components/CompanyLogo";
 import { cn } from "@/lib/utils";
 
 // One row in a divided list, not a standalone card. Metadata is carried by
@@ -38,6 +39,8 @@ export default function JobCard({
   return (
     <div className="list-row list-row-interactive group relative">
       <Link href={`/jobs/${job.id}`} className="absolute inset-0 rounded-[inherit]" aria-label={job.title} />
+
+      <CompanyLogo name={job.company.name} domain={job.company.domain} size={32} className="pointer-events-none" />
 
       <div className="pointer-events-none min-w-0 flex-1">
         <div className="flex items-center gap-2">

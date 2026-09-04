@@ -12,7 +12,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError, type JobDetail } from "@/lib/api";
 import { OPPORTUNITY_LABEL, experienceLabel } from "@/lib/jobDisplay";
 import { formatRecency } from "@/lib/recency";
-import { avatarColors, avatarInitial } from "@/lib/avatar";
+import CompanyLogo from "@/components/CompanyLogo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -92,7 +92,6 @@ function JobDetailContent({ job }: { job: JobDetail }) {
   const [userState, setUserState] = useState(job.userState);
   const expLabel = experienceLabel(job);
   const recency = formatRecency(job.firstSeenAt);
-  const colors = avatarColors(job.company.name);
   const showAsNew = recency.isNew && !job.discoveredInInitialSync;
 
   // Meta reads as one sentence of facts rather than a row of badges --
@@ -110,12 +109,7 @@ function JobDetailContent({ job }: { job: JobDetail }) {
     <article>
       <header>
         <div className="flex items-center gap-2.5">
-          <span
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-[0.8rem] font-bold"
-            style={{ background: colors.bg, color: colors.fg }}
-          >
-            {avatarInitial(job.company.name)}
-          </span>
+          <CompanyLogo name={job.company.name} domain={job.company.domain} size={32} />
           <span className="text-[0.9rem] font-medium text-ink-secondary">{job.company.name}</span>
           {showAsNew && (
             <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[0.66rem] font-semibold uppercase tracking-wide text-brand-ink">

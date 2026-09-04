@@ -58,7 +58,7 @@ const JOB_SELECT = {
   experienceStatus: true,
   requiredExperienceMin: true,
   requiredExperienceMax: true,
-  company: { select: { name: true, slug: true } },
+  company: { select: { name: true, slug: true, domain: true } },
 } as const;
 
 const PREFERENCES_SELECT = {
@@ -226,7 +226,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       select: {
         ...JOB_SELECT,
         description: true,
-        company: { select: { id: true, name: true, slug: true } },
+        company: { select: { id: true, name: true, slug: true, domain: true } },
       },
     });
     if (!job) {

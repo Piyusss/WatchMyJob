@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
+import CompanyLogo from "@/components/CompanyLogo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -120,12 +121,15 @@ export default function CompanyDetailPage() {
         </Link>
 
         <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">{company.name}</h1>
-            <p className="mt-1.5 text-[0.88rem] text-ink-muted">
-              <span className="font-medium text-ink-secondary">{company.openRoles.toLocaleString()}</span> open{" "}
-              {company.openRoles === 1 ? "role" : "roles"} · {formatSyncTime(company.lastSyncedAt)}
-            </p>
+          <div className="flex min-w-0 items-center gap-3.5">
+            <CompanyLogo name={company.name} domain={company.domain} size={44} />
+            <div className="min-w-0">
+              <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">{company.name}</h1>
+              <p className="mt-1.5 text-[0.88rem] text-ink-muted">
+                <span className="font-medium text-ink-secondary">{company.openRoles.toLocaleString()}</span> open{" "}
+                {company.openRoles === 1 ? "role" : "roles"} · {formatSyncTime(company.lastSyncedAt)}
+              </p>
+            </div>
           </div>
 
           <Button variant={company.watching ? "outline" : "default"} onClick={toggleWatch} disabled={toggling}>
