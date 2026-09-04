@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { getAuth, clerkClient } from "@clerk/fastify";
+import { getAuth } from "@clerk/fastify";
+import { clerkClient } from "./clerkClient.js";
 import { prisma } from "../db/prisma.js";
 import type { User } from "@prisma/client";
 

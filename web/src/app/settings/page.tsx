@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, BadgeCheck, Clock } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
+import AccountLoadError from "@/components/AccountLoadError";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
 }
 
 export default function SettingsPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, loading, error: userError } = useCurrentUser();
   const router = useRouter();
 
   const [notificationsPaused, setNotificationsPaused] = useState<boolean | null>(null);
@@ -110,6 +111,15 @@ export default function SettingsPage() {
       setDeleteError(err instanceof ApiError ? err.message : "Couldn't delete your account. Please try again.");
       setDeleting(false);
     }
+  }
+
+  if (userError) {
+    return (
+      <>
+        <AuthNav />
+        <AccountLoadError message={userError} />
+      </>
+    );
   }
 
   if (loading || !user) {

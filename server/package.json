@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1126.0",
+    "@clerk/backend": "^2.33.6",
     "@clerk/fastify": "^2.6.34",
     "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",

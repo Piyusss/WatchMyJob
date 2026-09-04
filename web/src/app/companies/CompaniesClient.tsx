@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, Check, Plus, Search, Building2 } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
+import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, type Company, type Subscription } from "@/lib/api";
@@ -16,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export default function CompaniesClient() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, loading: userLoading, error: userError } = useCurrentUser();
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get("onboarding") === "1";
 
@@ -71,6 +72,15 @@ export default function CompaniesClient() {
     if (!q) return companies;
     return companies.filter((c) => c.name.toLowerCase().includes(q));
   }, [companies, query]);
+
+  if (userError) {
+    return (
+      <>
+        <AuthNav />
+        <AccountLoadError message={userError} />
+      </>
+    );
+  }
 
   if (userLoading || !loaded) {
     return (

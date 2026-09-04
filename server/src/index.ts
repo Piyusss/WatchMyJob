@@ -22,9 +22,21 @@ async function main() {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
   });
 
+  // Generic abuse protection, not brute-force protection: the endpoints worth
+  // brute-forcing (login, signup, password reset) are Clerk's now and are
+  // rate-limited on their side.
+  //
+  // 100/min was too tight to be safe. A single dashboard load legitimately
+  // fires several requests, and when the frontend misbehaved it burned the
+  // whole budget in seconds -- after which *every* route returned 429,
+  // including /health, which made a frontend bug look like a total outage
+  // and masked the actual server error underneath it. The allowList keeps
+  // the liveness probe honest: a monitor polling /health must never be able
+  // to throttle itself into reporting the service down.
   await fastify.register(rateLimit, {
-    max: 100,
+    max: 600,
     timeWindow: "1 minute",
+    allowList: (request) => request.url === "/health",
   });
 
   // Decorates every request with getAuth(request) (see auth/authenticate.ts).

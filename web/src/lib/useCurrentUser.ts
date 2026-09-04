@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { apiFetch, type PublicUser } from "@/lib/api";
+import { apiFetch, ApiError, type PublicUser } from "@/lib/api";
 
 // Several components on a single screen need the current user (the page
 // itself and AuthNav, at minimum). Without this, each one fires its own
@@ -42,6 +42,7 @@ export function useCurrentUser() {
   const { isLoaded, isSignedIn } = useAuth();
   const [user, setUser] = useState<PublicUser | null>(cached);
   const [loading, setLoading] = useState(cached === null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -53,12 +54,27 @@ export function useCurrentUser() {
     }
 
     let active = true;
+    setError(null);
     fetchCurrentUser()
       .then((u) => {
         if (active) setUser(u);
       })
-      .catch(() => {
-        if (active) router.replace("/login");
+      .catch((err: unknown) => {
+        if (!active) return;
+        // Only a genuine 401 means "not signed in". Redirecting on *any*
+        // failure is an infinite loop: Clerk still holds a valid session, so
+        // /login's <SignIn forceRedirectUrl="/dashboard"> immediately sends
+        // the user back here, which re-fires this request, which fails
+        // again... The loop also hammers the API hard enough to trip its
+        // rate limiter, at which point every request 429s and the loop can
+        // never recover on its own. Anything that isn't a 401 gets surfaced
+        // to the user instead, so a broken server looks broken rather than
+        // looking like a login problem.
+        if (err instanceof ApiError && err.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        setError(err instanceof ApiError ? err.message : "Something went wrong loading your account.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -68,5 +84,5 @@ export function useCurrentUser() {
     };
   }, [isLoaded, isSignedIn, router]);
 
-  return { user, loading };
+  return { user, loading, error };
 }

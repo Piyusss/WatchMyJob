@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import AuthNav from "@/components/AuthNav";
+import AccountLoadError from "@/components/AccountLoadError";
 import JobCard from "@/components/JobCard";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, loading, error: userError } = useCurrentUser();
   const { openUserProfile } = useClerk();
 
   const [watchedCompanies, setWatchedCompanies] = useState<{ slug: string; name: string }[]>([]);
@@ -151,6 +152,15 @@ export default function DashboardPage() {
     } finally {
       setLoadingMore(false);
     }
+  }
+
+  if (userError) {
+    return (
+      <>
+        <AuthNav />
+        <AccountLoadError message={userError} />
+      </>
+    );
   }
 
   if (loading) {

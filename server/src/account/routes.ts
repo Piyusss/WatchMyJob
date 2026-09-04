@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { clerkClient } from "@clerk/fastify";
+import { clerkClient } from "../auth/clerkClient.js";
 import { prisma } from "../db/prisma.js";
 import { requireAuth } from "../auth/authenticate.js";
 

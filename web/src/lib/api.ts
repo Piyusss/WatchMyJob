@@ -1,9 +1,15 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export class ApiError extends Error {
+  // The HTTP status is load-bearing, not just diagnostic: callers have to be
+  // able to tell "you are not signed in" (401) apart from "the server broke"
+  // (500) or "you're being throttled" (429). Conflating them is what turned a
+  // single server error into an unbounded redirect loop -- see useCurrentUser.
+  status: number;
   details?: Record<string, string[] | undefined>;
-  constructor(message: string, details?: Record<string, string[] | undefined>) {
+  constructor(message: string, status: number, details?: Record<string, string[] | undefined>) {
     super(message);
+    this.status = status;
     this.details = details;
   }
 }
@@ -27,20 +33,28 @@ async function getAuthToken(): Promise<string | null> {
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // The API being unreachable (down, DNS, CORS rejection) is emphatically
+    // not an auth failure -- status 0 keeps it from ever being mistaken for
+    // a 401 by callers that branch on status.
+    throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
+  }
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await res.json().catch(() => null) : null;
 
   if (!res.ok) {
-    throw new ApiError(body?.error || `Request failed (${res.status})`, body?.details);
+    throw new ApiError(body?.error || `Request failed (${res.status})`, res.status, body?.details);
   }
 
   return body as T;

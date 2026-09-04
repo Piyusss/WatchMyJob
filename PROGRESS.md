@@ -9,7 +9,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - PostgreSQL 16 via Docker Compose, Prisma ORM
 - Separate worker processes: source poller (`worker.ts`), notification sender (`notificationWorker.ts`), apart from the API server (`index.ts`)
 - Clerk-managed authentication (Google + email/password, verification, sessions) — `@clerk/fastify`'s `clerkPlugin` verifies the bearer token on every request; the API never sees a password
-- Rate limiting on auth endpoints
+- Rate limiting (600/min per IP, `/health` exempt) as generic abuse protection — the endpoints actually worth brute-forcing are Clerk's now and are throttled on their side
 - CORS configured
 
 ### Data model (Prisma)
