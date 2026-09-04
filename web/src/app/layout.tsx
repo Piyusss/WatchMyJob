@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Geist, Instrument_Serif, Caveat, Pixelify_Sans } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -37,8 +38,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={cn("font-sans", geist.variable, instrumentSerif.variable, caveat.variable, pixelify.variable)}
     >
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster />
+        <ClerkProvider
+          appearance={{
+            variables: { colorPrimary: "var(--brand)", fontFamily: "var(--font-sans)" },
+          }}
+        >
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
+        </ClerkProvider>
       </body>
     </html>
   );

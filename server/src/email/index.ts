@@ -53,10 +53,3 @@ export function setEmailProviderForTesting(override: EmailProvider | undefined):
   provider = override ?? buildDefaultProvider();
 }
 
-export function verificationEmail(name: string, verifyUrl: string) {
-  return {
-    subject: "Verify your JobDrop email",
-    text: `Hi ${name},\n\nConfirm your email to start receiving job alerts:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
-    html: `<p>Hi ${name},</p><p>Confirm your email to start receiving job alerts:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
-  };
-}

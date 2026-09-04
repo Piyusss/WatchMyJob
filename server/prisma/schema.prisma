@@ -9,9 +9,18 @@ datasource db {
 
 model User {
   id                  String    @id @default(uuid())
+  // Clerk owns identity/credentials; this is the join key back to that
+  // account. Populated the first time a Clerk-authenticated request for
+  // this user hits the API (see auth/authenticate.ts) -- never written any
+  // other way.
+  clerkUserId         String    @unique
   name                String
   email               String    @unique
-  passwordHash        String
+  // Synced from Clerk's own verification status at local-row creation time
+  // (see auth/authenticate.ts) rather than re-checked live on every
+  // request -- Clerk itself already gates sign-in on a verified email for
+  // both the password and Google strategies, so this only goes stale in
+  // edge cases (e.g. verification requirements changed after signup).
   emailVerified       Boolean   @default(false)
   phone               String?
   linkedinUrl         String?
@@ -25,36 +34,19 @@ model User {
   // ever bounce again and risk the domain's sender reputation.
   emailHardBounced    Boolean   @default(false)
   // Stable, per-user, non-expiring -- every notification email links to
-  // /unsubscribe?token=this. Unlike the email-verification token, this
-  // needs no single-use/expiry security: the action it gates (pausing
-  // notifications) is idempotent and reversible from within the app, so a
-  // simple stable token is the right amount of mechanism, not more.
+  // /unsubscribe?token=this. Needs no single-use/expiry security: the
+  // action it gates (pausing notifications) is idempotent and reversible
+  // from within the app, so a simple stable token is the right amount of
+  // mechanism, not more.
   unsubscribeToken    String    @unique @default(cuid())
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  verificationTokens   EmailVerificationToken[]
   preferences          UserPreferences?
   companySubscriptions UserCompanySubscription[]
   notifications        Notification[]
 
   @@map("users")
-}
-
-// One-time, expiring tokens for the email verification link. Kept separate
-// from the JWT session so a verification link can be single-use and revoked
-// independently of login state.
-model EmailVerificationToken {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([userId])
-  @@map("email_verification_tokens")
 }
 
 // How JobDrop is allowed to reach this company's job data — set before the

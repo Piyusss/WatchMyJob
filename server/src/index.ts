@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import { clerkPlugin } from "@clerk/fastify";
 import { env } from "./config/env.js";
 import { authRoutes } from "./auth/routes.js";
 import { companyRoutes } from "./companies/routes.js";
@@ -22,11 +22,18 @@ async function main() {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
   });
 
-  await fastify.register(cookie);
-
   await fastify.register(rateLimit, {
     max: 100,
     timeWindow: "1 minute",
+  });
+
+  // Decorates every request with getAuth(request) (see auth/authenticate.ts).
+  // Explicit keys rather than letting the plugin read process.env itself --
+  // consistent with the rest of this file's config coming through the
+  // validated env object, not ambient environment state.
+  await fastify.register(clerkPlugin, {
+    secretKey: env.CLERK_SECRET_KEY,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
   });
 
   // Liveness/readiness probe -- deliberately unauthenticated (that's the

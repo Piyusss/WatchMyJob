@@ -36,11 +36,12 @@ function alwaysFails(reason = "simulated provider failure"): EmailProvider {
 }
 
 async function makeUser(overrides: Partial<{ emailVerified: boolean; notificationsPaused: boolean }> = {}) {
+  const idx = callIndex++;
   return prisma.user.create({
     data: {
       name: "Pipeline Test User",
-      email: `u${callIndex++}-${RUN_ID}@example.test`,
-      passwordHash: "x",
+      email: `u${idx}-${RUN_ID}@example.test`,
+      clerkUserId: `clerk-${idx}-${RUN_ID}`,
       emailVerified: true,
       notificationsPaused: false,
       ...overrides,

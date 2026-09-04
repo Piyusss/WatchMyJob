@@ -41,7 +41,13 @@ services:
       NODE_ENV: production
       PORT: 4000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
+      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-JobDrop}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-}
       SES_REGION: ${SES_REGION:-us-east-1}
       SES_WEBHOOK_SECRET: ${SES_WEBHOOK_SECRET:-}
@@ -58,7 +64,8 @@ services:
     environment:
       DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
       NODE_ENV: production
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
 
   notification-worker:
     build: ./server
@@ -70,8 +77,14 @@ services:
     environment:
       DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
       NODE_ENV: production
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
+      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-JobDrop}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-}
       SES_REGION: ${SES_REGION:-us-east-1}
 

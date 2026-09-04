@@ -8,12 +8,30 @@ export class ApiError extends Error {
   }
 }
 
+// apiFetch is a plain function called from many places, not a hook, so it
+// can't use useAuth()'s getToken() directly -- window.Clerk is the
+// documented escape hatch for reaching the same session token outside a
+// component. Every real caller renders after ClerkProvider has mounted
+// (see useCurrentUser, which every authenticated page goes through first),
+// so window.Clerk is populated by the time this actually needs a token.
+async function getAuthToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const clerk = (window as unknown as { Clerk?: { session?: { getToken(): Promise<string | null> } } }).Clerk;
+  if (!clerk?.session) return null;
+  try {
+    return await clerk.session.getToken();
+  } catch {
+    return null;
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await getAuthToken();
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: "include",
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });

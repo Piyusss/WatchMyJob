@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { LogOut, Settings, SlidersHorizontal } from "lucide-react";
-import { apiFetch } from "@/lib/api";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
 import {
   DropdownMenu,
@@ -27,18 +27,14 @@ const LINKS = [
 
 export default function AuthNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useCurrentUser();
+  const { signOut } = useClerk();
 
   async function logout() {
-    try {
-      await apiFetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      // Clear before navigating, so the next signed-in user never renders
-      // against the previous one's cached identity.
-      invalidateCurrentUser();
-      router.push("/login");
-    }
+    // Clear before navigating, so the next signed-in user never renders
+    // against the previous one's cached identity.
+    invalidateCurrentUser();
+    await signOut({ redirectUrl: "/login" });
   }
 
   const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() ?? "·";

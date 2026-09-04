@@ -15,8 +15,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
-  JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
-  COOKIE_NAME: z.string().default("jobdrop_session"),
+
+  // Clerk is the sole auth mechanism (see auth/authenticate.ts) -- both
+  // required, boot fails without them rather than running with auth silently
+  // broken.
+  CLERK_PUBLISHABLE_KEY: z.string().min(1, "CLERK_PUBLISHABLE_KEY is required"),
+  CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
 
   // Provider selection happens in email/index.ts: Brevo (both set) > Resend
   // (both set) > SES (SES_FROM_EMAIL set) > console fallback. Credentials

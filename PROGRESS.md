@@ -8,14 +8,12 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Fastify 5 + TypeScript (ESM) API server
 - PostgreSQL 16 via Docker Compose, Prisma ORM
 - Separate worker processes: source poller (`worker.ts`), notification sender (`notificationWorker.ts`), apart from the API server (`index.ts`)
-- JWT httpOnly cookie sessions
-- bcryptjs password hashing
+- Clerk-managed authentication (Google + email/password, verification, sessions) — `@clerk/fastify`'s `clerkPlugin` verifies the bearer token on every request; the API never sees a password
 - Rate limiting on auth endpoints
 - CORS configured
 
 ### Data model (Prisma)
-- `User` — email, password hash, name, phone, linkedinUrl, githubUrl, emailVerified, notificationsPaused, unsubscribeToken
-- `EmailVerificationToken` — single-use, hashed, expiring
+- `User` — clerkUserId (unique, join key to Clerk), email, name, phone, linkedinUrl, githubUrl, emailVerified, notificationsPaused, unsubscribeToken. Lazily provisioned on a user's first authenticated request (see `auth/authenticate.ts`) rather than via a Clerk webhook — no public URL for Clerk to call in local dev.
 - `Company` — name, slug, status, accessBasis
 - `JobSource` — platform, config, polling interval, initialSyncCompletedAt, consecutiveFailures, lastAttemptedAt
 - `Job` — identity/content hashes, role classification, location, work mode, opportunity type, experience range, status, firstSeenAt/lastSeenAt/lastMatchRelevantChangeAt, miss-tracking fields
@@ -55,8 +53,8 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Notification idempotency via atomic `createMany({skipDuplicates:true})` against the DB unique constraint, not check-then-insert
 
 ### Notifications
-- Email provider abstraction — console provider (dev) and AWS SES v2 provider (integrated, untested live — no AWS credentials in this environment)
-- Email templates: verification email, job-match email
+- Email provider abstraction — Brevo (live, primary), Resend and AWS SES v2 as fallbacks, console provider for local dev with none configured
+- Email templates: job-match email (account verification is Clerk's own, sent outside this pipeline)
 - Delivery pipeline: queue via Postgres `SELECT ... FOR UPDATE SKIP LOCKED` for atomic batch claiming
 - Exponential backoff with a retry ceiling, reaching DEAD_LETTER after exhaustion
 - SENDING state persisted before the external send call (crash safety)
@@ -66,7 +64,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 
 ### Account management
 - Notifications pause/resume toggle
-- Account deletion (password-confirmed)
+- Account deletion — deletes the Clerk account and the local row together (see `account/routes.ts`); the Clerk session itself is the confirmation, no separate password step
 - Full data export as JSON
 
 ### Admin CLIs (no HTTP surface, direct DB scripts)
@@ -78,7 +76,7 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - `admin:reclassify` — re-run classification on existing jobs
 
 ### API endpoints
-- `POST /api/auth/register`, `/login`, `/logout`, `GET /me`, `POST /verify-email`, `POST /resend-verification`
+- `GET /api/auth/me` (registration/login/logout/verification/reset are Clerk's — no server endpoints for them)
 - `GET /api/preferences`, `PUT /api/preferences`
 - `GET /api/companies` (includes live open-role counts)
 - `GET /api/subscriptions`, `POST /api/subscriptions`, `DELETE /api/subscriptions/:slug`
@@ -105,12 +103,12 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 
 ### Pages
 - `/` — landing page (animated hero, company marquee, how-it-works, principles)
-- `/register`, `/login` — two-panel auth layout
+- `/register`, `/login` — two-panel auth layout wrapping Clerk's `<SignUp>`/`<SignIn>` (Google + email/password; verification and password reset happen inline, Clerk's own)
 - `/dashboard` — job feed filtered by saved preferences, stat cards, search, verification/onboarding banners
 - `/preferences` — onboarding mode and edit mode (role, experience, location, work mode, opportunity type)
 - `/companies` — company watchlist with avatars and live open-role counts
 - `/settings` — notification pause toggle, data export, account deletion (confirmation dialog)
-- `/verify-email`, `/unsubscribe` — standalone confirmation pages (still on the pre-shadcn styling, not yet migrated)
+- `/unsubscribe` — standalone confirmation page (still on the pre-shadcn styling, not yet migrated)
 
 ### Components
 - `AuthNav`, `AuthShell` (custom)
@@ -123,12 +121,13 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Dashboard reports both matched-job count and total-open-at-watched-companies count
 - Client-side search over the dashboard job list (title/company/location)
 - Deterministic per-company avatar colors
-- Email verification banner with resend action
-- Toggleable notification pause, JSON data export, password-confirmed account deletion via modal
+- Email verification banner (rare in practice — Clerk gates sign-in on a verified email already) with a "Verify email" action that opens Clerk's own account portal
+- Toggleable notification pause, JSON data export, account deletion via modal (Clerk session is the confirmation, no password step)
 
 ## Explicitly not done / deferred
 - Workday adapter (would recover ~13 more companies: Adobe, Salesforce, Intuit, PayPal, ServiceNow, Broadcom, AMD, Qualcomm, Palo Alto Networks, Synopsys, Cadence, S&P Global, possibly Atlassian) — not started
 - Companies with fully custom/proprietary career portals (Google, Meta, Amazon, Apple, Microsoft, Oracle, Cisco, Samsung, Intel, Zoho, eBay, Walmart) — no adapter path exists for these
-- `/verify-email` and `/unsubscribe` pages not yet rebuilt with shadcn/Tailwind (still on the original hand-written CSS)
+- `/unsubscribe` page not yet rebuilt with shadcn/Tailwind (still on the original hand-written CSS)
+- No Clerk `user.deleted`/`user.updated` webhook — the local `User` row is only synced from Clerk once, at first sign-in (see `auth/authenticate.ts`); it won't pick up a later name/email change made inside Clerk's own account portal
 - No dark-mode toggle (tokens exist in CSS but nothing switches the `.dark` class)
 - Automated application-assistance system (mini application screen, controlled browser session, auto form-filling, CAPTCHA handling, auto-submission) — out of scope per original project plan, not built

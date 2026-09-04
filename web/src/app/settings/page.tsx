@@ -8,8 +8,6 @@ import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -63,7 +61,6 @@ export default function SettingsPage() {
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [password, setPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -103,7 +100,10 @@ export default function SettingsPage() {
     setDeleteError(null);
     setDeleting(true);
     try {
-      await apiFetch("/api/account", { method: "DELETE", body: JSON.stringify({ password }) });
+      // Empty body: authentication (the Clerk session itself) is the only
+      // confirmation needed now -- see account/routes.ts, which also
+      // deletes the underlying Clerk account.
+      await apiFetch("/api/account", { method: "DELETE" });
       invalidateCurrentUser();
       router.push("/");
     } catch (err) {
@@ -222,10 +222,7 @@ export default function SettingsPage() {
           open={deleteOpen}
           onOpenChange={(open: boolean) => {
             setDeleteOpen(open);
-            if (!open) {
-              setPassword("");
-              setDeleteError(null);
-            }
+            if (!open) setDeleteError(null);
           }}
         >
           <DialogContent>
@@ -243,20 +240,9 @@ export default function SettingsPage() {
               </Alert>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="confirm-password">Confirm your password to continue</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
-
             <DialogFooter>
               <DialogClose render={<Button variant="outline" disabled={deleting} />}>Cancel</DialogClose>
-              <Button variant="destructive" onClick={deleteAccount} disabled={deleting || !password}>
+              <Button variant="destructive" onClick={deleteAccount} disabled={deleting}>
                 {deleting ? "Deleting…" : "Delete my account"}
               </Button>
             </DialogFooter>

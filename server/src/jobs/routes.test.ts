@@ -1,20 +1,20 @@
 // Exercises GET /api/jobs and GET /api/jobs/:id through a real Fastify
-// instance (route registration, requireAuth's cookie parsing, zod query
+// instance (route registration, requireAuth's preHandler, zod query
 // validation) -- not just the pagination/filter logic in isolation, since
 // the auth wiring and query-string coercion are themselves real places to
-// get wrong.
+// get wrong. Auth itself is stubbed via setUserResolverForTesting (see
+// auth/authenticate.ts) rather than a real Clerk token -- a request's
+// x-test-user-id header stands in for whatever Clerk would have resolved.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import Fastify, { type FastifyInstance } from "fastify";
-import cookie from "@fastify/cookie";
 import { prisma } from "../db/prisma.js";
 import { jobRoutes } from "./routes.js";
-import { signSession } from "../auth/tokens.js";
-import { env } from "../config/env.js";
+import { setUserResolverForTesting } from "../auth/authenticate.js";
 
 let app: FastifyInstance;
 let userId: string;
-let authCookie: string;
+let authHeaders: Record<string, string>;
 let companyId: string;
 let sourceId: string;
 
@@ -43,17 +43,18 @@ async function makeJob(overrides: JobOverrides = {}) {
 
 describe("GET /api/jobs and /api/jobs/:id", () => {
   before(async () => {
+    setUserResolverForTesting((request) => (request.headers["x-test-user-id"] as string) ?? null);
+
     app = Fastify();
-    await app.register(cookie);
     await app.register(jobRoutes);
     await app.ready();
 
     const suffix = Date.now();
     const user = await prisma.user.create({
-      data: { name: "Jobs Route Test", email: `jobs-route-${suffix}@example.test`, passwordHash: "x" },
+      data: { name: "Jobs Route Test", email: `jobs-route-${suffix}@example.test`, clerkUserId: `clerk-jobs-${suffix}` },
     });
     userId = user.id;
-    authCookie = `${env.COOKIE_NAME}=${signSession({ userId })}`;
+    authHeaders = { "x-test-user-id": userId };
 
     const company = await prisma.company.create({
       data: { name: "Jobs Route Co", slug: `jobs-route-co-${suffix}`, accessBasis: "OFFICIAL_API" },
@@ -68,6 +69,7 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
   });
 
   after(async () => {
+    setUserResolverForTesting(undefined);
     await prisma.company.delete({ where: { id: companyId } });
     await prisma.user.delete({ where: { id: userId } });
     await app.close();
@@ -75,19 +77,19 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
 
   it("returns an empty result with no active user error when the user has no subscriptions", async () => {
     const otherUser = await prisma.user.create({
-      data: { name: "No Subs", email: `no-subs-${Date.now()}@example.test`, passwordHash: "x" },
+      data: { name: "No Subs", email: `no-subs-${Date.now()}@example.test`, clerkUserId: `clerk-no-subs-${Date.now()}` },
     });
     const res = await app.inject({
       method: "GET",
       url: "/",
-      headers: { cookie: `${env.COOKIE_NAME}=${signSession({ userId: otherUser.id })}` },
+      headers: { "x-test-user-id": otherUser.id },
     });
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.json(), { jobs: [], nextCursor: null, total: 0, unfilteredTotal: 0, filtered: false });
     await prisma.user.delete({ where: { id: otherUser.id } });
   });
 
-  it("rejects a request with no auth cookie", async () => {
+  it("rejects a request with no auth", async () => {
     const res = await app.inject({ method: "GET", url: "/" });
     assert.equal(res.statusCode, 401);
   });
@@ -102,7 +104,7 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
       const res = await app.inject({
         method: "GET",
         url: `/?limit=2${cursor ? `&cursor=${cursor}` : ""}`,
-        headers: { cookie: authCookie },
+        headers: authHeaders,
       });
       assert.equal(res.statusCode, 200);
       const body = res.json();
@@ -117,7 +119,7 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
   });
 
   it("validates query parameters and rejects an invalid one with 400", async () => {
-    const res = await app.inject({ method: "GET", url: "/?limit=9999", headers: { cookie: authCookie } });
+    const res = await app.inject({ method: "GET", url: "/?limit=9999", headers: authHeaders });
     assert.equal(res.statusCode, 400);
   });
 
@@ -146,7 +148,7 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
     const filteredRes = await app.inject({
       method: "GET",
       url: `/?companies=${company.slug}&limit=100`,
-      headers: { cookie: authCookie },
+      headers: authHeaders,
     });
     const body = filteredRes.json();
     assert.ok(body.jobs.every((j: { company: { slug: string } }) => j.company.slug === company.slug));
@@ -160,7 +162,7 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
     const res = await app.inject({
       method: "GET",
       url: "/?q=Extremely Unique Searchable",
-      headers: { cookie: authCookie },
+      headers: authHeaders,
     });
     const body = res.json();
     assert.ok(body.jobs.length >= 1);
@@ -170,12 +172,12 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
   it("includes a matchExplanation per job only when the user has saved preferences", async () => {
     const job = await makeJob({ title: "Match Explanation Test", roleFamily: "Software Engineer" });
 
-    const before = await app.inject({ method: "GET", url: `/?q=Match Explanation Test`, headers: { cookie: authCookie } });
+    const before = await app.inject({ method: "GET", url: `/?q=Match Explanation Test`, headers: authHeaders });
     assert.equal(before.json().filtered, false);
     assert.equal(before.json().jobs[0].matchExplanation, null);
 
     await prisma.userPreferences.create({ data: { userId, roleFamily: "Software Engineer" } });
-    const after = await app.inject({ method: "GET", url: `/?q=Match Explanation Test`, headers: { cookie: authCookie } });
+    const after = await app.inject({ method: "GET", url: `/?q=Match Explanation Test`, headers: authHeaders });
     assert.equal(after.json().filtered, true);
     assert.ok(after.json().jobs.length >= 1);
     assert.equal(after.json().jobs[0].matchExplanation.roleMatched, true);
@@ -188,14 +190,14 @@ describe("GET /api/jobs and /api/jobs/:id", () => {
     const res = await app.inject({
       method: "GET",
       url: "/00000000-0000-0000-0000-000000000000",
-      headers: { cookie: authCookie },
+      headers: authHeaders,
     });
     assert.equal(res.statusCode, 404);
   });
 
   it("GET /:id returns full job detail including description and matchExplanation", async () => {
     const job = await makeJob({ title: "Detail Page Job", description: "Full description text" });
-    const res = await app.inject({ method: "GET", url: `/${job.id}`, headers: { cookie: authCookie } });
+    const res = await app.inject({ method: "GET", url: `/${job.id}`, headers: authHeaders });
     assert.equal(res.statusCode, 200);
     const body = res.json();
     assert.equal(body.job.title, "Detail Page Job");

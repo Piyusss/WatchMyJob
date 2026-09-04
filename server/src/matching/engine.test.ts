@@ -45,7 +45,7 @@ async function makeUser(emailSuffix: string) {
   // that this suite's own cleanup can't reach, since users aren't cascaded
   // from company deletion) never collides with the next run's attempt.
   return prisma.user.create({
-    data: { name: "Test User", email: `${emailSuffix}-${RUN_ID}@example.test`, passwordHash: "x" },
+    data: { name: "Test User", email: `${emailSuffix}-${RUN_ID}@example.test`, clerkUserId: `clerk-${emailSuffix}-${RUN_ID}` },
   });
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useClerk } from "@clerk/nextjs";
 import { AlertTriangle, Search, AlertCircle, Briefcase, Building2, SlidersHorizontal, CheckCircle2 } from "lucide-react";
 import {
   apiFetch,
@@ -50,7 +51,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 
 export default function DashboardPage() {
   const { user, loading } = useCurrentUser();
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const { openUserProfile } = useClerk();
 
   const [watchedCompanies, setWatchedCompanies] = useState<{ slug: string; name: string }[]>([]);
 
@@ -152,16 +153,6 @@ export default function DashboardPage() {
     }
   }
 
-  async function resendVerification() {
-    setResendState("sending");
-    try {
-      await apiFetch("/api/auth/resend-verification", { method: "POST" });
-      setResendState("sent");
-    } catch {
-      setResendState("idle");
-    }
-  }
-
   if (loading) {
     return (
       <>
@@ -240,19 +231,14 @@ export default function DashboardPage() {
             <AlertTriangle className="text-warn-ink" />
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-warn-ink">
               <span>Verify your email to start receiving job alerts.</span>
-              {resendState === "sent" ? (
-                <span className="font-medium">Sent — check your inbox.</span>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-warn-ink/30 bg-transparent text-warn-ink hover:bg-warn-ink/10"
-                  onClick={resendVerification}
-                  disabled={resendState === "sending"}
-                >
-                  {resendState === "sending" ? "Sending…" : "Resend link"}
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-warn-ink/30 bg-transparent text-warn-ink hover:bg-warn-ink/10"
+                onClick={() => openUserProfile()}
+              >
+                Verify email
+              </Button>
             </AlertDescription>
           </Alert>
         )}
