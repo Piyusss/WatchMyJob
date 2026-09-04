@@ -100,7 +100,9 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Coverage includes: classification, matching predicate/eligibility/engine, closure/circuit-breaker (unit + integration), empty-baseline guard, inactive-company guard, concurrent-sync races, consecutive-failure tracking, HTML-to-text parsing, onboarding no-flood invariants
 
 ### Companies configured with real, live data
-13 companies, all with a committed baseline and real synced jobs: Figma, Discord, Palantir, LinkedIn, Postman, Rubrik, Cloudflare, Zscaler, Databricks, Stripe, Airbnb, Dropbox, Spotify (~3,700+ real job postings total).
+15 companies, all with a committed baseline and real synced jobs: Figma, Discord, Palantir, LinkedIn, Postman, Rubrik, Cloudflare, Zscaler, Databricks, Stripe, Airbnb, Dropbox, Spotify, Meesho, Freshworks (~3,700+ real job postings total).
+
+Meesho and Freshworks came from a 50-company list (`companies.txt`) the product owner supplied against `new_requirements.txt`'s company-import ask. Checked all 50 against the two adapters that actually exist (Greenhouse, Lever) by resolving each against known-real anchors (Stripe, Airbnb, already live) rather than guessing: only these two are on Lever. The other 48 (every Big Tech name, every bank) run custom or Workday-based career portals with no adapter path today -- per explicit product direction, they were NOT added as inert/unwatchable directory rows; they're simply not in the system yet. Freshworks' Lever board is real but genuinely empty right now (verified directly against Lever's own API, not an adapter failure) -- committed via `--allow-empty`, 0 jobs, same as any other source whose board is temporarily quiet.
 
 ## Frontend (web/)
 
@@ -141,8 +143,8 @@ What has actually been built so far, backend and frontend. Not a plan, not aspir
 - Real company logos (companies list, company detail, job cards, job detail) via `CompanyLogo`, derived from each company's `domain` field through DuckDuckGo's public icon-by-domain endpoint -- chosen after Clearbit's equivalent free logo endpoint (the more obvious pick) turned out to no longer resolve at all post-HubSpot-acquisition, confirmed dead via two independent network paths before switching. Falls back to the existing deterministic initials avatar when a company has no `domain` on file or the request 404s -- no broken-image icons, no layout shift (fixed square, `object-contain`).
 
 ## Explicitly not done / deferred
-- Workday adapter (would recover ~13 more companies: Adobe, Salesforce, Intuit, PayPal, ServiceNow, Broadcom, AMD, Qualcomm, Palo Alto Networks, Synopsys, Cadence, S&P Global, possibly Atlassian) — not started
-- Companies with fully custom/proprietary career portals (Google, Meta, Amazon, Apple, Microsoft, Oracle, Cisco, Samsung, Intel, Zoho, eBay, Walmart) — no adapter path exists for these
+- Workday adapter (would recover Adobe, Salesforce, Intuit, PayPal, ServiceNow, Broadcom, AMD, Qualcomm, Palo Alto Networks, Synopsys, Cadence, S&P Global, and likely several of the large banks below) — not started
+- Companies with fully custom/proprietary career portals — no adapter path exists for these: Google, Meta, Amazon, Apple, Microsoft, Oracle, Cisco, Samsung, Intel, Zoho, eBay, Walmart, SAP, NVIDIA, Netflix, Uber, Flipkart, PhonePe, Razorpay, and effectively every major bank (JPMorgan Chase, Goldman Sachs, Morgan Stanley, BNY, UBS, Citi, Bank of America, Wells Fargo, Barclays, HSBC, Deutsche Bank, Standard Chartered, American Express, Visa, Mastercard, Capital One, State Street, Northern Trust, BlackRock, Fidelity, Blackstone, BNP Paribas, PNC, U.S. Bank, Discover) -- verified directly (not assumed): checked all 50 companies in a supplied list against both existing adapters by resolving each against known-real anchors already live in the system (Stripe, Airbnb), and none of these hit
 - `/unsubscribe` page not yet rebuilt with shadcn/Tailwind (still on the original hand-written CSS)
 - No Clerk `user.deleted`/`user.updated` webhook — the local `User` row is only synced from Clerk once, at first sign-in (see `auth/authenticate.ts`); it won't pick up a later name/email change made inside Clerk's own account portal
 - No dark-mode toggle (tokens exist in CSS but nothing switches the `.dark` class)
