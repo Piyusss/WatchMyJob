@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  name                String
+  email               String    @unique
+  passwordHash        String
+  emailVerified       Boolean   @default(false)
+  phone               String?
+  linkedinUrl         String?
+  githubUrl           String?
+  notificationsPaused Boolean   @default(false)
+  // Set when SES reports a PERMANENT bounce for this address (see
+  // notifications/webhooks.ts). Checked by the same pre-send recheck that
+  // already re-verifies emailVerified/notificationsPaused immediately
+  // before sending -- a hard-bounced address is suppressed the same way a
+  // paused user is, rather than continuing to retry sends that will only
+  // ever bounce again and risk the domain's sender reputation.
+  emailHardBounced    Boolean   @default(false)
+  // Stable, per-user, non-expiring -- every notification email links to
+  // /unsubscribe?token=this. Unlike the email-verification token, this
+  // needs no single-use/expiry security: the action it gates (pausing
+  // notifications) is idempotent and reversible from within the app, so a
+  // simple stable token is the right amount of mechanism, not more.
+  unsubscribeToken    String    @unique @default(cuid())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  verificationTokens   EmailVerificationToken[]
+  preferences          UserPreferences?
+  companySubscriptions UserCompanySubscription[]
+  notifications        Notification[]
+
+  @@map("users")
+}
+
+// One-time, expiring tokens for the email verification link. Kept separate
+// from the JWT session so a verification link can be single-use and revoked
+// independently of login state.
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+// How JobDrop is allowed to reach this company's job data — set before the
+// company can occupy one of the 50 supported slots, so ToS compliance is an
+// auditable gate rather than an implementation-time judgment call.
+enum AccessBasis {
+  OFFICIAL_API
+  RSS
+  PERMITTED_SCRAPE
+  WRITTEN_PERMISSION
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Company {
+  id          String        @id @default(uuid())
+  name        String
+  slug        String        @unique
+  accessBasis AccessBasis
+  status      CompanyStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  sources       JobSource[]
+  subscriptions UserCompanySubscription[]
+  jobs          Job[]
+
+  @@map("companies")
+}
+
+// The shared implementation a source belongs to. Most companies sit on one
+// of a handful of ATS platforms with an identical API shape per platform —
+// only `config` (a board token, tenant slug, etc.) differs per company, so
+// onboarding company #51's replacement is a config entry, not a new adapter.
+enum SourcePlatform {
+  GREENHOUSE
+  LEVER
+  WORKDAY
+  ICIMS
+  SMARTRECRUITERS
+  CUSTOM_HTML
+  RSS
+  API
+}
+
+model JobSource {
+  id                  String    @id @default(uuid())
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  platform            SourcePlatform
+  // Platform-specific connection details (board token, tenant, feed URL...).
+  // Shape is validated per-platform at write time — see src/sources/configSchemas.ts.
+  config              Json
+  // Seconds between polls once continuous monitoring (Phase 6) exists.
+  // Starts conservative for every source; nothing here yet earns a faster tier.
+  pollIntervalSeconds Int       @default(240)
+  consecutiveFailures Int       @default(0)
+  lastSuccessAt       DateTime?
+  // When the scheduler last tried this source, success or failure -- distinct
+  // from lastSuccessAt so a persistently-failing source is still retried on
+  // schedule (not more eagerly, not silently skipped forever) and so an
+  // in-flight fetch isn't picked up again by the next tick before it finishes.
+  lastAttemptedAt        DateTime?
+  // Set only when a complete baseline import of this source has committed.
+  // Until then the source's company is not selectable, so nobody can hold a
+  // subscription that predates the baseline. Lives on the source rather
+  // than the company because adding a NEW source to an already-live company
+  // re-opens the same flood risk for that source's pre-existing jobs.
+  initialSyncCompletedAt DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  jobs     Job[]
+  syncRuns SyncRun[]
+
+  @@index([companyId])
+  @@map("job_sources")
+}
+
+// RUNNING: written before the adapter is ever called, mirroring
+// Notification's SENDING-before-external-call pattern -- a row stuck here
+// past a sane duration means the process died mid-sync, visible to an
+// operator rather than silently vanishing. SUCCESS: fetchStatus was
+// COMPLETE. PARTIAL: fetchStatus was PARTIAL (the adapter itself said the
+// result isn't the whole picture) -- jobs found were still persisted, just
+// no closure decisions were made from it (see sync.ts). FAILED: the adapter
+// fetch, the empty-baseline guard, or the persistence transaction rejected
+// this attempt.
+enum SyncRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+// One row per sync ATTEMPT (not per source) -- the operational history
+// admin:health and a future admin UI need to answer "when did this source
+// last actually work, and what happened the times it didn't," which
+// JobSource's own lastAttemptedAt/lastSuccessAt/consecutiveFailures fields
+// (aggregate, overwritten each cycle) can't answer on their own.
+model SyncRun {
+  id       String    @id @default(uuid())
+  sourceId String
+  source   JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  startedAt  DateTime      @default(now())
+  finishedAt DateTime?
+  status     SyncRunStatus @default(RUNNING)
+  durationMs Int?
+
+  jobsDiscovered  Int @default(0)
+  jobsCreated     Int @default(0)
+  jobsUpdated     Int @default(0)
+  jobsClosed      Int @default(0)
+  jobsReactivated Int @default(0)
+
+  error String?
+
+  @@index([sourceId, startedAt])
+  @@map("sync_runs")
+}
+
+enum JobStatus {
+  ACTIVE
+  CLOSED
+}
+
+model Job {
+  id            String    @id @default(uuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceId      String
+  source        JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalJobId String
+
+  // Stable identity for cross-source dedup (company + normalized title +
+  // normalized location, no mutable fields) -- computed now so it's ready
+  // for the cross-source merge step Phase 11 adds once a company has more
+  // than one source. Not yet consulted for merging with a single adapter.
+  identityHash String
+  // Changes when a matching-relevant field changes; consumed by the
+  // update-detection Phase 6 adds. Computed at insert time regardless.
+  contentHash  String
+
+  title    String
+  // Deterministic role/level extraction from the title is Phase 8's job
+  // ("Experience & Opportunity Classification") -- left null until then
+  // rather than guessed here.
+  roleFamily String?
+  level      String?
+
+  // Raw, source-supplied location string. Structured country/state/city
+  // splitting is deferred until a phase actually consumes it -- storing an
+  // unreliable guess would violate the same "don't invent data" principle
+  // Section 18 applies to experience.
+  location String?
+  // Best-effort only: REMOTE when the location string says so; ON_SITE vs
+  // HYBRID is not inferable from a location string alone, so this stays
+  // null rather than guessing.
+  workMode WorkMode?
+
+  description String?
+  sourceUrl   String
+
+  // Categorical, independent of experience -- Section 17's own example:
+  // a senior candidate must never match an internship purely because a
+  // numeric range happens to overlap. Defaults to FULL_TIME because,
+  // unlike a missing experience number, the ABSENCE of "intern" / "contract"
+  // / "part-time" language in a title is itself informative -- job boards
+  // overwhelmingly default to full-time unless stated otherwise.
+  opportunityType OpportunityType @default(FULL_TIME)
+
+  // Distinguishes "explicitly stated as 0" from "not specified" -- Section
+  // 18's hard rule: never invent a requirement, never treat missing
+  // information as 0 years. UNKNOWN is the honest default; matching (Phase
+  // 9) must define what to do with it, not this phase.
+  experienceStatus ExperienceStatus @default(UNKNOWN)
+  // "3+ years required, 5 years preferred" must not collapse to "3-5" --
+  // required and preferred are gated differently (a candidate who meets
+  // only the required minimum still qualifies). Populated only when
+  // experienceStatus is KNOWN; an open floor ("3+ years") leaves the max
+  // null rather than inventing a ceiling.
+  requiredExperienceMin  Int?
+  requiredExperienceMax  Int?
+  preferredExperienceMin Int?
+  preferredExperienceMax Int?
+
+  status JobStatus @default(ACTIVE)
+
+  // True for rows created by a source's INITIAL sync -- i.e. inventory that
+  // already existed when JobDrop started watching this source. These are
+  // real, active, dashboard-visible jobs, but they are by definition not
+  // "new openings" for anyone, so they must never fire a NEW_JOB
+  // notification regardless of subscription timing. This is what protects
+  // existing subscribers when a new source is added to a live company,
+  // where firstSeenAt alone would wrongly read as brand-new.
+  discoveredInInitialSync Boolean @default(false)
+
+  // Source-supplied publish signal, where the platform provides one --
+  // never trusted alone for "is this new" decisions (see firstSeenAt).
+  postedAt DateTime?
+  // JobDrop's own discovery timestamp. Write-once: what the onboarding
+  // no-flood rule and the notify predicate actually key off.
+  firstSeenAt DateTime @default(now())
+  // Bumped every cycle this job is rediscovered. A job whose lastSeenAt
+  // falls behind is the raw "missing" signal Phase 7's closure algorithm
+  // will consume -- Phase 6 only produces the signal, it never acts on it.
+  lastSeenAt DateTime @default(now())
+  // Bumped only when a rediscovery's contentHash differs from what's
+  // stored -- i.e. a genuine matching-relevant change, not just "still
+  // there." This is the timestamp the future notify predicate uses for a
+  // job that flips from non-matching to matching after a correction, since
+  // firstSeenAt (write-once) can't serve that purpose.
+  lastMatchRelevantChangeAt DateTime?
+
+  // Consecutive COMPLETE sync cycles in a row this job was expected but not
+  // rediscovered. Resets to 0 the instant it reappears (Phase 6 already
+  // does the reappearance detection; Phase 7 adds the reset). Never
+  // incremented from a PARTIAL or failed fetch -- absence isn't evidence
+  // then -- and never incremented at all while the source's circuit
+  // breaker is tripped (see src/sources/closure.ts).
+  consecutiveMissCount Int       @default(0)
+  // When this run of misses started. Cleared on reappearance alongside the
+  // counter. Closure requires BOTH enough consecutive misses AND enough
+  // elapsed time since this timestamp -- a count alone can't tell a source
+  // polling every 60s from one polling every 15min apart.
+  firstMissingAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications Notification[]
+
+  @@unique([sourceId, externalJobId])
+  @@index([companyId, status])
+  @@index([identityHash])
+  @@map("jobs")
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ON_SITE
+}
+
+// The README's "opportunity type" (Section 17) and "employment type"
+// (Section 4) name the same underlying concept twice without ever defining
+// how they'd differ -- collapsed into one field rather than carrying an
+// undefined duplicate forward.
+enum OpportunityType {
+  FULL_TIME
+  INTERNSHIP
+  CONTRACT
+  PART_TIME
+  OTHER
+}
+
+enum ExperienceStatus {
+  KNOWN
+  UNKNOWN
+}
+
+model UserPreferences {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roleFamily       String?
+  roleLevel        String?
+  yearsExperience  Int?
+  toleranceYears   Int?
+  country          String?
+  state            String?
+  city             String?
+  workMode         WorkMode[]
+  opportunityTypes OpportunityType[]
+
+  // Bumped whenever a matching-relevant field above changes. The matching
+  // engine (Phase 9) suppresses notifications for jobs whose eligibility
+  // timestamp predates this, so widening a filter can't flood the user with
+  // every pre-existing job that newly matches -- the same guarantee the
+  // onboarding rule gives new company subscriptions.
+  effectiveSince DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model UserCompanySubscription {
+  id        String  @id @default(uuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Resets to now() on every reactivation (see Phase 3 notes) -- the only
+  // policy that preserves the no-flood guarantee across an
+  // unsubscribe/resubscribe cycle.
+  subscribedAt  DateTime  @default(now())
+  deactivatedAt DateTime?
+  active        Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("user_company_subscriptions")
+}
+
+// NEW_JOB: eligibility_event was the job's firstSeenAt (genuinely new since
+// this user's subscription/preference cutoff). MATCH_VIA_UPDATE: the job
+// predates that cutoff, but a matching-relevant edit after it made the job
+// newly relevant -- firstSeenAt (write-once) can't represent that, so this
+// is its own type with its own idempotency slot rather than colliding with
+// NEW_JOB's.
+enum NotificationType {
+  NEW_JOB
+  MATCH_VIA_UPDATE
+}
+
+// QUEUED: created by the matching engine (Phase 9), not yet claimed.
+// SENDING: a worker has claimed it and persisted this BEFORE calling the
+//   provider -- the actual fix for "worker crashes after the provider
+//   accepts but before the DB records it" (Section 29's own example). A row
+//   stuck here past a timeout is treated as ambiguous, never blind-retried
+//   (see notifications/worker.ts) -- risking a duplicate email is worse
+//   than risking a missed one, per this product's own onboarding-flood
+//   priorities.
+// PROVIDER_ACCEPTED: the provider call succeeded; this is the practical
+//   success terminal state for V1. True delivery/bounce tracking would
+//   need SES event notifications wired to SNS -- real added infrastructure
+//   deliberately out of scope here, not an oversight.
+// FAILED: a send attempt failed and is scheduled to retry (see
+//   nextAttemptAt) while under the attempt ceiling.
+// SKIPPED: the final pre-send recheck found the job closed, the
+//   subscription inactive, the user unverified, or notifications paused --
+//   correctly not sent, not a delivery failure.
+// DEAD_LETTER: exhausted retries, or recovered from an ambiguous SENDING
+//   state on worker restart. Terminal; requires operator attention.
+// DELIVERED/BOUNCED/COMPLAINED: provider feedback received asynchronously,
+//   after PROVIDER_ACCEPTED, via SES event notifications (see
+//   notifications/webhooks.ts). Not every provider surfaces these -- the
+//   console provider (dev) never will, so a row can sit at
+//   PROVIDER_ACCEPTED forever in dev, which is correct, not a bug.
+enum NotificationStatus {
+  QUEUED
+  SENDING
+  PROVIDER_ACCEPTED
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  FAILED
+  SKIPPED
+  DEAD_LETTER
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  notificationType NotificationType
+  status           NotificationStatus @default(QUEUED)
+
+  // Set the moment a worker claims this row, before the provider is ever
+  // called. Also what the restart-reconciliation staleness check reads.
+  sendingAt DateTime?
+  // Set only on a successful provider call.
+  sentAt            DateTime?
+  providerMessageId String?
+  // Populated only if/when the provider's async event feedback arrives
+  // (see notifications/webhooks.ts) -- all three stay null for the console
+  // provider and for any PROVIDER_ACCEPTED row the feedback simply hasn't
+  // reached yet.
+  deliveredAt  DateTime?
+  bouncedAt    DateTime?
+  complainedAt DateTime?
+
+  attemptCount Int     @default(0)
+  lastError    String?
+  // When a FAILED row becomes eligible to be claimed again. Null means
+  // "not currently backing off" -- true for QUEUED rows and for FAILED
+  // rows the claim query hasn't reached yet.
+  nextAttemptAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The actual idempotency mechanism -- enforced by the database, not an
+  // application-level check-then-insert (which races under concurrent
+  // matching passes). At most one logical notification per (user, job,
+  // type), forever.
+  @@unique([userId, jobId, notificationType])
+  @@index([userId])
+  @@index([jobId])
+  @@index([status, nextAttemptAt])
+  @@map("notifications")
+}

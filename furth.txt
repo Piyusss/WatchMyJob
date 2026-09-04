@@ -1,0 +1,1285 @@
+JOBDROP — WHAT TO ADD / MODIFY NEXT
+======================================
+
+Scope
+-----
+This file contains ONLY concrete changes to make next in the existing
+JobDrop product: backend changes, frontend/UI changes, and modifications to
+existing behavior.
+
+It is intentionally not a general analysis and does not include aspirational
+future architecture.
+
+CURRENT PRODUCT BOUNDARY
+------------------------
+Keep the current core boundary:
+
+    DETECT
+      ->
+    NORMALIZE
+      ->
+    DEDUPLICATE
+      ->
+    CLASSIFY
+      ->
+    MATCH
+      ->
+    EMAIL NOTIFY
+
+Email remains the only notification delivery channel for the current phase.
+
+Do NOT add the automated application-assistance system yet.
+
+
+A. BACKEND — ADD / MODIFY
+-------------------------
+
+1. Replace custom authentication with Clerk
+--------------------------------------------
+Add:
+- Clerk authentication
+- Google sign-in
+- email/password sign-in
+- Clerk-managed email verification
+- Clerk-managed password reset
+- Clerk-managed sessions
+
+Modify:
+- Fastify authentication middleware to verify Clerk authentication
+- authenticated request context to expose clerkUserId
+- local-user resolution: clerkUserId -> User.id
+
+Change User model:
+    add clerkUserId UNIQUE
+
+Remove/retire from JobDrop auth:
+- passwordHash
+- custom password reset implementation
+- custom email verification token flow
+- custom JWT issuance/session management that Clerk replaces
+
+Keep JobDrop-specific user data:
+- email
+- name
+- phone
+- linkedinUrl
+- githubUrl
+- notificationsPaused
+- unsubscribeToken
+- createdAt
+- updatedAt
+
+2. Add consistent runtime API validation
+----------------------------------------
+Add validation for all public request bodies and query parameters.
+
+Validate:
+- strings and max lengths
+- enums
+- numeric ranges
+- array sizes
+- URLs
+- company slugs / IDs
+- preference combinations
+- pagination parameters
+
+Do not rely only on TypeScript compile-time types.
+
+3. Add pagination to jobs API
+-----------------------------
+Modify:
+    GET /api/jobs
+
+to support cursor-based pagination, for example:
+    ?limit=30&cursor=...
+
+Do not return the entire active job set in one request.
+
+Update frontend infinite-scroll or paginated loading accordingly.
+
+4. Add/strengthen source request controls
+------------------------------------------
+For every source adapter:
+- request timeout
+- bounded retries
+- exponential backoff where appropriate
+- HTTP 429 handling
+- Retry-After handling where supported
+- 5xx handling
+- malformed-response handling
+- schema validation
+- response-size safeguards
+
+A source failure must not cause mass job closure.
+
+5. Track successful source freshness
+------------------------------------
+Ensure each source has:
+    lastSuccessfulSyncAt
+
+Keep separate:
+    lastAttemptedAt
+    lastSuccessfulSyncAt
+
+Expose this information to the internal admin/health layer.
+
+6. Add source sync history
+--------------------------
+Add a SyncRun / SourceSyncRun table.
+
+Recommended fields:
+    id
+    sourceId
+    startedAt
+    finishedAt
+    status
+    durationMs
+    jobsDiscovered
+    jobsCreated
+    jobsUpdated
+    jobsClosed
+    jobsReactivated
+    error
+
+Record one row per sync attempt.
+
+7. Add operational observability
+--------------------------------
+Add structured logs and metrics for:
+
+API:
+- request count
+- latency
+- 4xx
+- 5xx
+
+Source worker:
+- sync attempts
+- successful syncs
+- failures
+- duration
+- discovered
+- created
+- updated
+- closed
+- reactivated
+- consecutive failures
+
+Notification worker:
+- queued
+- claimed
+- sending
+- provider accepted
+- delivered
+- failed
+- retried
+- dead-lettered
+
+Never log:
+- passwords
+- Clerk/session secrets
+- provider credentials
+- unsubscribe tokens
+- sensitive personal information unnecessarily
+
+8. Improve notification delivery state
+--------------------------------------
+Keep:
+    QUEUED/SENDING/PROVIDER_ACCEPTED/FAILED/SKIPPED/DEAD_LETTER
+
+Add provider feedback states where useful:
+    DELIVERED
+    BOUNCED
+    COMPLAINED
+
+Record timestamps such as:
+    deliveredAt
+    bouncedAt
+    complainedAt
+
+Suppress permanent hard-bounced email addresses from future sends.
+
+9. Preserve crash-safe notification processing
+----------------------------------------------
+Keep SENDING persisted before external send.
+
+Keep reconciliation for stuck SENDING rows.
+
+Modify reconciliation carefully so it does not assume true exactly-once external
+email delivery.
+
+Treat the delivery model as:
+    at-least-once processing with duplicate-risk mitigation
+
+Use:
+- durable notification ID
+- provider metadata/message identifiers where supported
+- conservative reconciliation thresholds
+
+10. Add job lifecycle history
+-----------------------------
+Add a JobEvent / JobHistory table for meaningful events:
+
+    JOB_CREATED
+    JOB_UPDATED
+    JOB_CLOSED
+    JOB_REACTIVATED
+    MATCHING_FIELDS_CHANGED
+
+Store enough information to explain the lifecycle of a job.
+
+11. Add classification diagnostics
+----------------------------------
+Keep deterministic classification.
+
+Add optional fields such as:
+    roleConfidence
+    levelConfidence
+    opportunityTypeConfidence
+    classificationVersion
+
+Optionally store the rule/reason that produced the classification.
+
+Do NOT introduce an LLM into job matching yet.
+
+12. Improve location normalization
+----------------------------------
+Preserve:
+    rawLocation
+
+Normalize where practical into:
+    country
+    state/region
+    city
+
+Handle variants such as:
+    Bengaluru / Bangalore
+    New York / NYC
+
+13. Add saved-job backend support
+--------------------------------
+Add:
+    SavedJob
+
+Recommended uniqueness:
+    UNIQUE(userId, jobId)
+
+Store:
+    userId
+    jobId
+    createdAt
+
+14. Add user/job state
+----------------------
+Add a separate user-specific job state rather than modifying global Job.status.
+
+Support eventually:
+    SAVED
+    APPLIED
+    DISMISSED
+
+Do not mix:
+    Job.status
+with:
+    User's status toward the job.
+
+15. Add notification history API
+--------------------------------
+Expose the user's previously created/sent notifications through an authenticated
+endpoint.
+
+Example:
+    GET /api/notifications
+
+Paginate this endpoint too.
+
+16. Add job detail endpoint
+---------------------------
+Add:
+    GET /api/jobs/:id
+
+Return:
+- title
+- company
+- location
+- work mode
+- opportunity type
+- experience
+- description
+- postedAt
+- firstSeenAt
+- updated information
+- source
+- original application URL
+- active/closed state
+- match explanation data if appropriate
+
+17. Generate match explanation data
+-----------------------------------
+Do not make the frontend reverse-engineer why a job matched.
+
+Have the backend provide structured reasons where practical:
+
+    roleMatched
+    levelMatched
+    experienceMatched
+    locationMatched
+    workModeMatched
+    opportunityTypeMatched
+
+This should be derived from the same canonical matching logic used for
+notification eligibility.
+
+18. Add/verify authorization boundaries
+---------------------------------------
+Verify every user-scoped endpoint.
+
+A user must not be able to:
+- read another user's preferences
+- alter another user's preferences
+- modify another user's company subscriptions
+- read another user's notifications
+- modify another user's saved/applied/dismissed state
+
+
+B. FRONTEND / UI — ADD
+----------------------
+
+1. Build a dedicated job detail page
+------------------------------------
+Add:
+    /jobs/[id]
+
+Include:
+- job title
+- company
+- location
+- work mode
+- opportunity type
+- experience
+- posting/update information
+- description
+- requirements
+- primary Apply button
+
+2. Add a strong Apply CTA
+-------------------------
+Primary action:
+    Apply on company site ↗
+
+Open the original official source URL.
+
+Do NOT build an embedded application mini-screen or browser automation yet.
+
+3. Add "Why this matches"
+-------------------------
+Show a compact section such as:
+
+    Why this job matches you
+
+    ✓ Role
+    ✓ Level
+    ✓ Experience
+    ✓ Location
+    ✓ Work mode
+    ✓ Opportunity type
+
+Only show criteria that actually contributed to the match.
+
+4. Add job recency indicators
+-----------------------------
+Show:
+    NEW
+    Recently discovered
+    Discovered 18 min ago
+    New today
+
+Use firstSeenAt appropriately.
+
+Do not label old jobs as new merely because the user changed preferences.
+
+5. Improve dashboard filters
+----------------------------
+Add UI filters for:
+- company
+- role family
+- level
+- experience
+- location
+- work mode
+- opportunity type
+
+Add sorting:
+- newest
+- recently updated
+
+Keep search for:
+- title
+- company
+- location
+
+6. Add saved jobs UI
+--------------------
+On job cards/detail:
+    Save / Saved
+
+Add:
+    /saved
+
+Saved jobs should be user-specific.
+
+7. Add job status actions
+-------------------------
+Provide:
+    Save
+    Applied
+    Dismiss
+
+Use confirmation/toast behavior where appropriate.
+
+Dismissed jobs should disappear from the normal active feed for that user.
+
+8. Add in-app notification history
+----------------------------------
+Add:
+    /notifications
+
+Display:
+- job
+- company
+- date/time
+- notification state where appropriate
+- link to job detail
+
+This is a history surface, not a second delivery channel.
+
+9. Add company detail pages
+---------------------------
+Add:
+    /companies/[slug]
+
+Show:
+- company name
+- watching state
+- active job count
+- recent jobs
+- job categories/role families if available
+- last data update time if appropriate
+
+10. Improve company watchlist UX
+--------------------------------
+On /companies:
+- clear Watching / Not watching state
+- live open-role count
+- last data update indicator where appropriate
+- quick navigation to company detail
+
+11. Improve onboarding UX
+------------------------
+Use progressive steps:
+
+    1. Role
+    2. Experience
+    3. Location
+    4. Work mode
+    5. Opportunity type
+    6. Companies
+
+Finish with a clear confirmation:
+    We'll watch these companies and email you when a matching job appears.
+
+12. Clearly separate Preferences and Companies
+----------------------------------------------
+Preferences page:
+    what jobs I want
+
+Companies page:
+    where I want to look
+
+Do not make the user interpret the backend model.
+
+13. Improve empty states
+------------------------
+Create intentional empty states for:
+- no matching jobs
+- no watched companies
+- no saved jobs
+- no notification history
+
+Example:
+    No matching jobs yet.
+    We'll email you when one appears.
+
+14. Improve error states
+------------------------
+For failed API/page loads, use an in-page error state with:
+    Something went wrong.
+    Try again.
+
+Do not rely exclusively on toast messages.
+
+15. Improve loading states
+--------------------------
+Use skeletons for:
+- dashboard
+- job list
+- job detail
+- companies
+- company detail
+- notifications
+
+Avoid blank loading screens.
+
+16. Mobile responsiveness
+-------------------------
+Verify and fix:
+- dashboard
+- job cards
+- filter controls
+- job detail
+- onboarding
+- companies
+- settings
+- notifications
+
+Test approximately:
+    375px
+    390px
+    414px
+
+17. Finish the two non-shadcn pages
+-----------------------------------
+Migrate:
+    /verify-email
+    /unsubscribe
+
+to the same Tailwind/shadcn visual system as the rest of the application.
+
+18. Add dark mode only if desired
+---------------------------------
+Dark-mode tokens already exist.
+
+Do not consider dark mode a functional requirement.
+
+If implemented:
+- add a visible theme toggle
+- persist theme preference
+- test every important page
+
+Otherwise leave it deferred.
+
+
+C. FRONTEND / UI — MODIFY EXISTING
+-----------------------------------
+
+1. Dashboard
+------------
+Modify to include:
+- filters
+- clearer recency
+- job detail navigation
+- Apply CTA from detail
+- match explanation
+- pagination/infinite loading
+- intentional empty/error states
+
+2. Job cards
+------------
+Modify to show, where space allows:
+- company
+- title
+- location
+- work mode
+- experience
+- NEW/recent indicator
+- saved state
+- optional "why match" summary
+
+3. Companies page
+-----------------
+Modify to make watching state obvious and make each company clickable.
+
+4. Preferences page
+-------------------
+Modify for simpler progressive onboarding and clear edit mode.
+
+5. Settings
+-----------
+Retain:
+- pause notifications
+- export data
+- account deletion
+
+Add later:
+- email frequency/preferences
+
+6. Authentication UI
+--------------------
+Replace current custom auth UI behavior with Clerk's supported:
+- Google sign-in
+- email/password
+- verification
+- reset-password flow
+
+Keep the existing overall JobDrop visual identity around the auth experience.
+
+
+D. ADMIN UI — ADD
+-----------------
+
+Add a private internal admin area.
+
+Core dashboard:
+- active companies
+- active jobs
+- new jobs today
+- queued notifications
+- failed notifications
+- dead-letter notifications
+- source health
+
+Source detail:
+- last successful sync
+- last attempt
+- current failure count
+- sync history
+- discovered/created/updated/closed counts
+- latest error
+
+Notification detail:
+- notification ID
+- user
+- job
+- state
+- attempts
+- last error
+- provider message ID
+- delivery feedback where available
+
+This replaces the need to rely entirely on CLI output once JobDrop is operating
+as a real service.
+
+
+E. PRODUCTION MODIFICATIONS
+---------------------------
+
+1. Add PostgreSQL backups.
+2. Test database restore.
+3. Add environment separation.
+4. Use proper secrets management.
+5. Add HTTPS/TLS.
+6. Ensure worker restart/supervision.
+7. Add health checks.
+8. Add alerting for stale sources and notification failures.
+9. Add database migration discipline.
+10. Add deployment documentation.
+
+
+F. DO NOT ADD NOW
+-----------------
+
+Do not introduce:
+- Kafka
+- Elasticsearch
+- Kubernetes
+- unnecessary microservices
+- Redis everywhere
+- vector database
+- LLM job matching
+- ML recommendations
+- native mobile application
+- automated application filling
+- controlled browser application sessions
+- CAPTCHA automation
+- automatic application submission
+
+The current limits do not justify them.
+
+
+FINAL IMPLEMENTATION ORDER
+--------------------------
+
+PHASE 1 — AUTH + SAFETY
+1. Clerk: Google + email/password
+2. Clerk verification/reset/session integration
+3. Fastify Clerk auth middleware
+4. Local User <-> clerkUserId mapping
+5. API validation/authorization audit
+
+PHASE 2 — PRODUCTION BACKEND
+6. Source timeout/retry/429 hardening
+7. lastSuccessfulSyncAt
+8. SyncRun history
+9. structured logging
+10. metrics/health
+11. notification delivery feedback
+12. backup/restore/deployment
+
+PHASE 3 — CORE UX
+13. Job detail page
+14. Apply CTA
+15. Why-this-matches
+16. Recency indicators
+17. Filters/sorting
+18. Pagination/infinite loading
+19. Mobile polish
+20. Empty/loading/error states
+
+PHASE 4 — USER JOB MANAGEMENT
+21. Saved jobs
+22. Applied state
+23. Dismissed state
+24. Notification history
+25. Company detail pages
+
+PHASE 5 — OPERATIONS
+26. Admin dashboard
+27. Source sync history UI
+28. Notification monitoring UI
+
+PHASE 6 — DATA QUALITY / COVERAGE
+29. Classification diagnostics
+30. Location normalization
+31. Workday adapter
+32. Add more reliable companies toward the 50-company maximum
+
+CORE PRINCIPLE
+--------------
+The next work should make the existing JobDrop system:
+- safer
+- more observable
+- easier to operate
+- easier to understand
+- easier to act on
+
+Do not make the architecture more complex just to make it look more complex.
+
+
+separate instructions for UI:
+
+You are now responsible for redesigning and polishing the **JobDrop web UI**.
+
+First, read the existing README/project documentation and inspect the current frontend code carefully. Understand the existing product, routes, components, data flow, and functionality before changing anything.
+
+Your primary goal is to make JobDrop look and feel like a **premium, modern SaaS product**, not like a generic CRUD dashboard.
+
+## DESIGN DIRECTION
+
+The visual quality should be inspired by high-end SaaS products such as:
+
+* Linear
+* Vercel
+* Stripe
+* Raycast
+* Arc
+* Superhuman
+* Resend
+* Framer
+* modern premium AI/SaaS products
+
+However, do NOT simply copy any one product.
+
+Create a distinct visual identity for JobDrop.
+
+### IMPORTANT: DO NOT DEFAULT TO GENERIC BLACK/WHITE SAAS
+
+Avoid the extremely common:
+
+* black background
+* dark gray cards
+* white text
+* monochrome UI
+* excessive gray borders
+* generic "developer dashboard" appearance
+
+JobDrop should have a **lighter, more distinctive visual identity**.
+
+Think:
+
+* sophisticated off-white / warm-white surfaces
+* very subtle tinted backgrounds
+* carefully chosen accent color
+* soft gradients
+* elegant color transitions
+* restrained use of saturation
+* premium typography
+* layered surfaces
+* generous whitespace
+* subtle depth
+* refined shadows
+* beautiful hover/focus states
+
+The result should feel:
+**calm + premium + intelligent + modern + trustworthy + slightly playful**
+
+rather than:
+**corporate + boring + overly dark + generic + template-like**
+
+## COLOR SYSTEM
+
+Create a coherent design system rather than choosing random colors page by page.
+
+Use:
+
+* warm white / soft neutral background
+* slightly tinted secondary surfaces
+* dark but not pure-black typography
+* one strong primary accent
+* one or two supporting accent colors
+* subtle success/warning/error colors
+
+The accent should feel distinctive enough that users can recognize JobDrop immediately.
+
+Use gradients very selectively.
+
+Do NOT make every component colorful.
+
+The page should remain elegant and restrained.
+
+## TYPOGRAPHY
+
+Typography is a major part of the design.
+
+Use a high-quality modern sans-serif system and establish a clear hierarchy:
+
+* large expressive hero headline
+* strong section headings
+* compact but readable UI labels
+* excellent body-text readability
+* clear metadata typography
+* carefully controlled letter spacing
+
+Avoid oversized text everywhere.
+
+Use typography to create hierarchy instead of relying on borders and cards.
+
+## DESIGN PRINCIPLES
+
+Prioritize:
+
+1. Visual hierarchy
+2. Whitespace
+3. Typography
+4. Alignment
+5. Consistent spacing
+6. Subtle motion
+7. Clear information density
+8. Excellent responsive behavior
+
+Avoid:
+
+* excessive cards
+* excessive borders
+* excessive shadows
+* unnecessary gradients
+* giant rounded rectangles everywhere
+* excessive pill-shaped UI
+* random animations
+* visual clutter
+* "dashboard template" aesthetics
+
+A component should only look like a card when it genuinely represents a distinct surface.
+
+## LANDING PAGE
+
+The landing page should feel like a premium SaaS launch site.
+
+The hero should immediately communicate the JobDrop value proposition:
+
+JobDrop watches company career sites and alerts users when relevant jobs appear.
+
+The hero should include:
+
+* strong headline
+* concise supporting text
+* primary CTA
+* secondary CTA where appropriate
+* subtle visual product demonstration
+* attractive animated background treatment
+* company/source credibility
+
+Create a strong visual composition rather than simply stacking text and buttons vertically.
+
+The landing page should contain polished sections such as:
+
+* Hero
+* Social proof / company coverage
+* How JobDrop works
+* Product preview
+* Personalization / matching explanation
+* Why JobDrop is different
+* CTA
+
+Use subtle scroll-based motion and Framer Motion where it adds real value.
+
+## DASHBOARD
+
+The dashboard is the most important authenticated screen.
+
+It should feel like a premium product, not an admin panel.
+
+The visual priority should be:
+
+1. New relevant jobs
+2. Search/filter
+3. Job cards
+4. Useful summary information
+5. Company/watch information
+
+Create excellent job cards.
+
+A job card could visually communicate:
+
+* NEW
+* Software Engineer
+* Figma
+* Bengaluru / Remote
+* 2–4 years
+* Full-time
+* discovered recently
+* saved state
+* apply action
+
+Avoid making every piece of information a badge.
+
+Use typography and spacing intelligently.
+
+## JOB DETAIL PAGE
+
+Create a beautiful dedicated job detail experience.
+
+Suggested structure:
+
+Job title
+Company
+Location / work mode / opportunity type / experience
+
+[ Apply on company site ]
+
+## Why this matches you
+
+✓ Role
+✓ Level
+✓ Experience
+✓ Location
+✓ Work mode
+
+Description
+Requirements
+Additional information
+
+The page should feel more like a premium product detail page than a raw job-board page.
+
+The Apply CTA should be visually important but not obnoxious.
+
+## "WHY THIS MATCHES"
+
+This should become a signature JobDrop feature.
+
+Present matching criteria elegantly.
+
+For example:
+
+"Why this matches"
+
+Role               ✓
+Experience         ✓
+Location           ✓
+Work mode          ✓
+Opportunity type   ✓
+
+Use subtle positive visual feedback.
+
+The user should immediately understand why JobDrop selected the opening.
+
+## COMPANIES
+
+The company page should feel like a polished discovery experience.
+
+Use:
+
+* company logos/avatars
+* watch state
+* open-job counts
+* subtle hover motion
+* company-specific visual identity where appropriate
+* strong typography
+
+Consider a refined grid/list hybrid rather than a generic table.
+
+## PREFERENCES
+
+The onboarding flow should feel like a premium setup wizard rather than a long form.
+
+Use progressive disclosure.
+
+Example:
+
+Step 1:
+What kind of role are you looking for?
+
+Step 2:
+How much experience do you have?
+
+Step 3:
+Where do you want to work?
+
+Step 4:
+What work setup do you prefer?
+
+Step 5:
+Which opportunities do you want?
+
+Step 6:
+Which companies should JobDrop watch?
+
+Show progress clearly.
+
+At the end, show a polished confirmation state.
+
+## SETTINGS
+
+Keep settings simple and elegant.
+
+Group:
+
+* Account
+* Notifications
+* Data
+* Security
+
+Use clear hierarchy and whitespace.
+
+Destructive actions such as account deletion should be visually distinct but not visually overwhelming.
+
+## AUTHENTICATION
+
+The authentication experience will use:
+
+* Clerk
+* Google
+* email/password
+
+Design the Clerk integration so that the authentication screens feel consistent with the JobDrop brand.
+
+Do not make the auth experience look like an unrelated third-party template.
+
+## NAVIGATION
+
+Create a refined navigation system.
+
+Authenticated navigation should make these destinations obvious:
+
+* Dashboard
+* Companies
+* Saved
+* Notifications
+* Preferences
+* Settings
+
+Avoid an overly dense sidebar.
+
+Consider a clean, lightweight SaaS navigation model.
+
+## MICRO-INTERACTIONS
+
+Use Framer Motion deliberately.
+
+Good examples:
+
+* page entrance
+* card hover
+* subtle scale on interactive elements
+* button feedback
+* filter transitions
+* dropdown animation
+* modal transitions
+* onboarding transitions
+* notification appearance
+* skeleton transitions
+
+Do NOT animate everything.
+
+Animations should make the UI feel alive, not distracting.
+
+Use short, polished transitions.
+
+## ICONOGRAPHY
+
+Use lucide-react consistently.
+
+Do not use random icon libraries simultaneously.
+
+Icons should:
+
+* have consistent stroke weight
+* have consistent sizing
+* support the hierarchy rather than dominate it
+
+## SHADCN / COMPONENT SYSTEM
+
+Continue using shadcn/ui and the existing component architecture.
+
+Do not throw away the component system just to redesign the visuals.
+
+Instead:
+
+* improve the theme
+* refine component variants
+* create a strong design token system
+* improve spacing
+* improve typography
+* improve states
+* improve interaction behavior
+
+Create reusable variants rather than styling every component independently.
+
+## DESIGN TOKENS
+
+Create centralized design tokens for:
+
+* colors
+* typography
+* spacing
+* radius
+* shadows
+* borders
+* transitions
+* surfaces
+
+The entire site should look like one coherent product.
+
+## RESPONSIVE DESIGN
+
+The design must be excellent on:
+
+* desktop
+* tablet
+* mobile
+
+Pay particular attention to:
+
+* dashboard job cards
+* filters
+* job detail page
+* onboarding
+* navigation
+* company grid
+* settings
+
+Do not simply shrink desktop components for mobile.
+
+Design mobile layouts intentionally.
+
+## ACCESSIBILITY
+
+Maintain:
+
+* keyboard navigation
+* visible focus states
+* semantic HTML
+* sufficient text contrast
+* accessible labels
+* accessible dialogs
+* accessible form controls
+
+Premium visual design must not reduce accessibility.
+
+## PERFORMANCE
+
+Do not sacrifice performance for visual effects.
+
+Avoid:
+
+* unnecessary client-side rendering
+* huge animation bundles
+* expensive effects on every element
+* unnecessary re-renders
+
+Use animation where it provides meaningful UX value.
+
+## IMPORTANT PRODUCT RULE
+
+Do not invent new backend functionality merely to make the UI look better.
+
+Use the existing APIs and data model unless a UI requirement clearly needs a backend change.
+
+Where a required backend endpoint does not exist, identify it explicitly instead of faking the behavior.
+
+## IMPORTANT SCOPE RULE
+
+The current JobDrop product ends at:
+
+DETECT
+→ NORMALIZE
+→ DEDUPLICATE
+→ CLASSIFY
+→ MATCH
+→ EMAIL NOTIFY
+
+Do NOT build the future automated application-assistance experience.
+
+Do NOT add:
+
+* mini application browser
+* controlled browser session
+* automatic form filling
+* LLM application-field mapping
+* CAPTCHA automation
+* automatic application submission
+
+The current frontend should instead make:
+"Apply on company website"
+a polished and obvious action.
+
+## QUALITY BAR
+
+Do not stop once the UI is merely functional.
+
+Before considering the redesign complete, inspect every page and ask:
+
+* Does this look like a premium SaaS product?
+* Is the visual hierarchy obvious?
+* Does the page feel spacious?
+* Are there too many cards or borders?
+* Are colors distinctive?
+* Does JobDrop have a recognizable visual identity?
+* Do animations feel intentional?
+* Does mobile look designed rather than compressed?
+* Are empty/loading/error states polished?
+* Does every major interaction have proper hover/focus/active states?
+* Does the application feel cohesive from landing page through dashboard?
+
+The final result should make someone think:
+
+"This looks like a serious, polished SaaS product."
+
+not:
+
+"This is a functional developer project."
+
+## IMPLEMENTATION APPROACH
+
+Before changing code:
+
+1. Inspect the current frontend structure.
+2. Understand all existing routes/components.
+3. Preserve existing functionality.
+4. Establish the new design system/tokens first.
+5. Redesign shared components.
+6. Redesign the landing page.
+7. Redesign authenticated navigation.
+8. Redesign dashboard/job cards.
+9. Add/refine job detail.
+10. Redesign companies/preferences/settings.
+11. Add polished loading/error/empty states.
+12. Test desktop and mobile.
+13. Remove inconsistent old styling.
+14. Ensure all pages feel like the same product.
+
+Do not create a collection of individually beautiful pages that feel unrelated.
+
+The goal is a **single, coherent JobDrop design system**.
+
+Above all, prioritize:
+**tasteful visual design + strong UX + consistency + restraint.**

@@ -1,0 +1,321 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * ==========================================================================
+ * JobDrop design tokens
+ * ==========================================================================
+ * One palette, one type scale, one set of surfaces -- every page reads from
+ * here rather than styling itself, so the product looks like one thing.
+ *
+ * The identity is deliberately warm: an off-white paper canvas rather than
+ * the cool gray / pure white most SaaS dashboards default to, warm-tinted
+ * neutrals, and a deep emerald that carries the brand. Terracotta is the
+ * single supporting accent and is used sparingly (recency, highlights) --
+ * it exists to add warmth, not to make everything colorful.
+ *
+ * Surfaces are layered rather than boxed: canvas < surface < raised. A
+ * component only gets a border or a shadow when it genuinely sits on its
+ * own layer; grouping is otherwise done with spacing and type hierarchy.
+ */
+:root {
+  /* --- canvas & surfaces ------------------------------------------------ */
+  --canvas: #faf8f5; /* warm paper, the page ground */
+  --surface: #ffffff; /* raised surface: cards, popovers, nav */
+  --tint: #f3efe8; /* warm sand: secondary/inset surfaces */
+  --tint-strong: #ebe5da;
+
+  /* --- ink -------------------------------------------------------------- */
+  --ink: #1a1917; /* warm near-black, never pure #000 */
+  --ink-secondary: #46433d;
+  --ink-muted: #6f6a62;
+  --ink-faint: #948f85;
+
+  /* --- lines ------------------------------------------------------------ */
+  --line: #e7e1d7;
+  --line-strong: #d8d1c4;
+
+  /* --- brand ------------------------------------------------------------ */
+  --brand: #0e6b54; /* deep emerald */
+  --brand-hover: #0a5745;
+  --brand-ink: #084536; /* text-on-light brand tone */
+  --brand-tint: #e9f2ef; /* light emerald wash */
+  --brand-tint-strong: #d3e6e0;
+
+  /* --- supporting accent (used sparingly) -------------------------------- */
+  --warm: #b5623c; /* terracotta */
+  --warm-ink: #8f4a2c;
+  --warm-tint: #fbf0e9;
+
+  /* --- feedback --------------------------------------------------------- */
+  --warn-ink: #86611c;
+  --warn-tint: #fdf5e5;
+  --warn-line: #ecdcb6;
+  --danger: #a53f2f;
+  --danger-ink: #8a3324;
+  --danger-tint: #fbeeeb;
+
+  /* --- depth ------------------------------------------------------------ */
+  /* Warm-tinted alpha rather than neutral black -- a black shadow on a warm
+     canvas reads gray and cheap. */
+  --shadow-xs: 0 1px 2px rgba(26, 25, 23, 0.04);
+  --shadow-sm: 0 1px 3px rgba(26, 25, 23, 0.05), 0 1px 2px rgba(26, 25, 23, 0.03);
+  --shadow-md: 0 4px 14px rgba(26, 25, 23, 0.06), 0 1px 3px rgba(26, 25, 23, 0.04);
+  --shadow-lg: 0 14px 36px rgba(26, 25, 23, 0.09), 0 3px 10px rgba(26, 25, 23, 0.04);
+  --shadow-brand: 0 8px 24px rgba(14, 107, 84, 0.18);
+
+  /* --- geometry --------------------------------------------------------- */
+  /* Tighter than shadcn's default: precise, not pillowy. */
+  --radius: 0.5rem;
+
+  /* --- motion ----------------------------------------------------------- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ======================================================================
+   * shadcn semantic tokens, mapped onto the palette above.
+   * Every shadcn component reads these, so theming happens here once
+   * rather than per-component.
+   * ====================================================================== */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--tint);
+  --secondary-foreground: var(--ink-secondary);
+  --muted: var(--tint);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand-ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: var(--warm);
+  --chart-3: #4a7c6d;
+  --chart-4: #c79a52;
+  --chart-5: #7a8b84;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-tint);
+  --sidebar-accent-foreground: var(--brand-ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
+
+  /* ======================================================================
+   * Landing page palette (dark)
+   * ----------------------------------------------------------------------
+   * The marketing page runs its own dark, warm-black + orange identity,
+   * deliberately separate from the light app palette above -- a dark
+   * marketing site in front of a light product is a normal split, and
+   * keeping these tokens namespaced (`lp-`) means the landing page can be
+   * dark without any risk of leaking into the authenticated screens.
+   * ====================================================================== */
+  --lp-bg: #000000;
+  --lp-bg-2: #070707;
+  --lp-surface: #0d0d0d;
+  --lp-surface-2: #161616;
+  --lp-line: #1d1d1d;
+  --lp-line-2: #2b2b2b;
+  --lp-text: #ffffff;
+  --lp-muted: #a1a1a1;
+  --lp-faint: #6b6b6b;
+  --lp-accent: #3b5bff;
+  --lp-accent-2: #6480ff;
+  --lp-accent-ink: #c6d0ff;
+}
+
+@theme inline {
+  /* Type: Geist carries the UI, the serif is reserved for marketing
+     surfaces (landing hero, auth panel) so the app itself stays crisp. */
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-hand: var(--font-hand);
+  --font-pixel: var(--font-pixel);
+
+  /* Landing-page (dark) scale -- see the lp- block in :root. */
+  --color-lp-bg: var(--lp-bg);
+  --color-lp-bg-2: var(--lp-bg-2);
+  --color-lp-surface: var(--lp-surface);
+  --color-lp-surface-2: var(--lp-surface-2);
+  --color-lp-line: var(--lp-line);
+  --color-lp-line-2: var(--lp-line-2);
+  --color-lp-text: var(--lp-text);
+  --color-lp-muted: var(--lp-muted);
+  --color-lp-faint: var(--lp-faint);
+  --color-lp-accent: var(--lp-accent);
+  --color-lp-accent-2: var(--lp-accent-2);
+  --color-lp-accent-ink: var(--lp-accent-ink);
+
+  /* JobDrop-specific tokens, registered so `bg-tint`, `text-warm`,
+     `shadow-brand` etc. generate as real utilities. */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-tint: var(--tint);
+  --color-tint-strong: var(--tint-strong);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-tint-strong: var(--brand-tint-strong);
+  --color-warm: var(--warm);
+  --color-warm-ink: var(--warm-ink);
+  --color-warm-tint: var(--warm-tint);
+  --color-warn-ink: var(--warn-ink);
+  --color-warn-tint: var(--warn-tint);
+  --color-warn-line: var(--warn-line);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-tint: var(--danger-tint);
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-brand: var(--shadow-brand);
+
+  /* shadcn semantic colors */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* Warm canvas benefits from slightly softer rendering than the browser
+       default, which over-thickens dark-on-warm text. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  /* In-page anchor links (the landing nav) glide rather than jump -- but
+     never for someone who has asked the OS for reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Headings carry hierarchy through weight + tracking rather than sheer
+     size -- the brief's "avoid oversized text everywhere." */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight text-balance;
+  }
+
+  /* One visible, brand-tinted focus ring everywhere, including keyboard
+     navigation through links and custom controls. */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--brand-tint-strong);
+    color: var(--brand-ink);
+  }
+}
+
+@layer components {
+  /* A page's outermost content column. Two widths: `app` for authenticated
+     screens (denser, reading-width) and `wide` for marketing. */
+  .container-app {
+    @apply mx-auto w-full max-w-3xl px-5 sm:px-6;
+  }
+
+  .container-wide {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6;
+  }
+
+  /* Section label: the small, tracked, uppercase kicker used above section
+     headings on marketing surfaces and above grouped settings. */
+  .eyebrow {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-muted;
+  }
+
+  /* A hairline-divided list -- the default way JobDrop groups repeated
+     records (jobs, companies). Deliberately NOT a stack of bordered cards:
+     twenty individual boxes reads as clutter, one divided surface reads as
+     a list. */
+  .list-surface {
+    @apply divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface;
+  }
+
+  .list-row {
+    @apply flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 sm:px-5;
+  }
+
+  .list-row-interactive {
+    @apply hover:bg-tint/60 focus-visible:bg-tint/60;
+  }
+
+  /* Decorative dot matrix used behind the landing hero's product shot. */
+  .dot-grid {
+    background-image: radial-gradient(circle, var(--lp-line-2) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+}

@@ -1,0 +1,79 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobdrop
+      POSTGRES_PASSWORD: jobdrop
+      POSTGRES_DB: jobdrop
+    ports:
+      - "5433:5432"
+    volumes:
+      - jobdrop_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobdrop -d jobdrop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # The three services below run the same built image (server/Dockerfile)
+  # with different entrypoints -- API, source poller, notification sender,
+  # exactly the three-process architecture the codebase's own comments
+  # describe (one Postgres, never one monolith). Not used for local
+  # day-to-day development (that's `npm run dev` / `npm run dev:worker` /
+  # `npm run dev:notification-worker` on the host, for fast iteration and
+  # hot reload) -- this is the containerized path for a staging/production
+  # run, and what gives every process real restart supervision (Docker
+  # restarts a crashed container per its `restart` policy; nothing
+  # supervises a bare `npm run dev` process today). DATABASE_URL here
+  # deliberately points at the "db" service name, not localhost -- that's
+  # the container-network address, different from server/.env's
+  # host-machine value.
+  api:
+    build: ./server
+    command: ["node", "dist/index.js"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
+      NODE_ENV: production
+      PORT: 4000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      SES_FROM_EMAIL: ${SES_FROM_EMAIL:-}
+      SES_REGION: ${SES_REGION:-us-east-1}
+      SES_WEBHOOK_SECRET: ${SES_WEBHOOK_SECRET:-}
+    ports:
+      - "4000:4000"
+
+  source-worker:
+    build: ./server
+    command: ["node", "dist/worker.js"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+
+  notification-worker:
+    build: ./server
+    command: ["node", "dist/notificationWorker.js"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SES_FROM_EMAIL: ${SES_FROM_EMAIL:-}
+      SES_REGION: ${SES_REGION:-us-east-1}
+
+volumes:
+  jobdrop_db_data:
