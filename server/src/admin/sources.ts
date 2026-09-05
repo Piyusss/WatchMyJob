@@ -1,9 +1,3 @@
-// Minimal admin CLI for attaching job sources to a company. See companies.ts
-// for the operating model (no HTTP surface, no auth: a local script).
-//
-// Usage:
-//   npm run admin:sources -- add --company microsoft --platform GREENHOUSE --config '{"boardToken":"microsoft"}'
-//   npm run admin:sources -- list --company microsoft
 import { parseArgs } from "node:util";
 import { ZodError } from "zod";
 import { prisma } from "../db/prisma.js";

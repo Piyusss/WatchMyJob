@@ -1,10 +1,3 @@
-// One-shot manual sync for a company's sources: the same discover ->
-// diff-against-Postgres -> persist pass the worker (src/worker.ts) runs on
-// each source's own schedule. Useful for triggering a sync on demand
-// without waiting for the next scheduled tick.
-//
-// Usage:
-//   npm run admin:sync -- --company figma
 import { parseArgs } from "node:util";
 import { prisma } from "../db/prisma.js";
 import { syncCompany } from "../sources/sync.js";

@@ -1,6 +1,3 @@
-// Same rationale as resendProvider.test.ts: the pipeline's retry/backoff/
-// dead-letter behaviour keys entirely off whether send() resolves or
-// throws, so every failure mode is covered here.
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BrevoEmailProvider } from "./brevoProvider.js";

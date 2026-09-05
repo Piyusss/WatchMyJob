@@ -9,27 +9,23 @@ import { avatarColors } from "@/lib/avatar";
 // company always gets the same mark/color pair rather than a new one on
 // every render.
 const MARKS: ((props: { color: string }) => React.ReactElement)[] = [
-  // Orbit: two overlapping rings.
   ({ color }) => (
     <svg viewBox="0 0 24 24" fill="none" className="size-full">
       <circle cx="9" cy="12" r="6" stroke={color} strokeWidth="2" />
       <circle cx="15" cy="12" r="6" stroke={color} strokeWidth="2" />
     </svg>
   ),
-  // Peak: a jagged skyline.
   ({ color }) => (
     <svg viewBox="0 0 24 24" fill="none" className="size-full">
       <path d="M4 17 L9 8 L13 14 L16 9 L20 17 Z" fill={color} />
     </svg>
   ),
-  // Hex: a hexagon with a center dot.
   ({ color }) => (
     <svg viewBox="0 0 24 24" fill="none" className="size-full">
       <path d="M12 3 L19 7.5 V16.5 L12 21 L5 16.5 V7.5 Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
       <circle cx="12" cy="12" r="2.2" fill={color} />
     </svg>
   ),
-  // Spark: a four-point star.
   ({ color }) => (
     <svg viewBox="0 0 24 24" fill="none" className="size-full">
       <path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z" fill={color} />

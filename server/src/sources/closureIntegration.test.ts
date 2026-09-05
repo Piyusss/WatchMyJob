@@ -61,13 +61,13 @@ describe("closure integration", () => {
     const source = await baselinedSource(["job-1"]);
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [], status: "COMPLETE" }));
-    await syncSource(source); // miss 1
+    await syncSource(source);
     let job = await prisma.job.findFirstOrThrow({ where: { sourceId: source.id, externalJobId: "job-1" } });
     assert.equal(job.consecutiveMissCount, 1);
     assert.ok(job.firstMissingAt !== null);
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [makeJob("job-1")], status: "COMPLETE" }));
-    await syncSource(source); // reappears
+    await syncSource(source);
     job = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
     assert.equal(job.status, "ACTIVE");
     assert.equal(job.consecutiveMissCount, 0, "reappearance must fully reset the streak");
@@ -132,10 +132,8 @@ describe("closure integration", () => {
 
   it("the circuit breaker trips live: no miss counters touched, nothing closes, even at 3 consecutive missing cycles", async () => {
     const ids = Array.from({ length: 6 }, (_, i) => `job-${i}`);
-    const source = await baselinedSource(ids); // 6 active jobs
+    const source = await baselinedSource(ids);
 
-    // Only 2 of 6 reappear each cycle: 4/6 = 67% missing, well past the
-    // 50% breaker threshold, every single cycle.
     const survivors = [makeJob("job-0"), makeJob("job-1")];
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: survivors, status: "COMPLETE" }));
 

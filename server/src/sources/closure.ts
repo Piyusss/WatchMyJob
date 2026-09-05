@@ -4,7 +4,7 @@
 // flaky poll (needs several misses) and a fast-polling source racking up
 // "several" misses in a implausibly short window (needs real elapsed time).
 export const CLOSURE_MISS_THRESHOLD = 3;
-export const CLOSURE_MIN_MISSING_MS = 30 * 60 * 1000; // 30 minutes
+export const CLOSURE_MIN_MISSING_MS = 30 * 60 * 1000;
 
 // Below this many previously-active jobs, a "fraction missing" is
 // statistically meaningless (1 of 2 is not a signal). Matches the same

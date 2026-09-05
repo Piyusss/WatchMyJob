@@ -99,7 +99,7 @@ describe("matching engine integration", () => {
 
     let source = await createSource();
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [], status: "COMPLETE" }));
-    await syncSource(source, { initial: true, allowEmpty: true }); // establish baseline with zero jobs
+    await syncSource(source, { initial: true, allowEmpty: true });
     source = await refetch(source.id);
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
@@ -143,9 +143,9 @@ describe("matching engine integration", () => {
     source = await refetch(source.id);
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
-    await syncSource(source); // creates + notifies
+    await syncSource(source);
 
-    const secondResult = await syncSource(source); // identical content -> "unchanged"
+    const secondResult = await syncSource(source);
     assert.equal(secondResult.created, 0);
     assert.equal(secondResult.updated, 0);
     assert.equal(secondResult.queued, 0, "an unchanged job must not even re-enter the matching pass");
@@ -184,7 +184,7 @@ describe("matching engine integration", () => {
     source = await refetch(source.id);
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
-    await syncSource(source); // job now exists, firstSeenAt = now, no subscriber yet
+    await syncSource(source);
 
     // A user subscribes AFTER the job already existed.
     const user = await makeUser("late-subscriber");
@@ -204,7 +204,6 @@ describe("matching engine integration", () => {
     await syncSource(source, { initial: true, allowEmpty: true });
     source = await refetch(source.id);
 
-    // Posted requiring far more experience than the eventual subscriber has.
     setAdapterForTesting(
       "GREENHOUSE",
       fakeAdapter({
@@ -223,7 +222,6 @@ describe("matching engine integration", () => {
     let notifications = await prisma.notification.findMany({ where: { userId: user.id } });
     assert.equal(notifications.length, 0);
 
-    // Corrected to an entry-level requirement.
     setAdapterForTesting(
       "GREENHOUSE",
       fakeAdapter({
@@ -242,8 +240,7 @@ describe("matching engine integration", () => {
 
   it("preference widening: matchUserAgainstActiveJobs does not flood on jobs that predate the widen", async () => {
     const user = await makeUser("widen-noflood");
-    await subscribe(user.id, new Date(Date.now() - 86_400_000)); // subscribed a day ago
-    // Narrow preference that excludes the existing job.
+    await subscribe(user.id, new Date(Date.now() - 86_400_000));
     await setPreferences(user.id, { roleFamily: "Product Manager" });
 
     let source = await createSource();
@@ -254,8 +251,6 @@ describe("matching engine integration", () => {
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
     await syncSource(source); // exists, doesn't match the narrow preference, nothing queued
 
-    // Widen the preference directly (bypassing the HTTP layer, which is
-    // tested separately) and re-run the same matching pass the route calls.
     await prisma.userPreferences.update({
       where: { userId: user.id },
       data: { roleFamily: "Software Engineer", effectiveSince: new Date() },
@@ -282,7 +277,7 @@ describe("matching engine integration", () => {
     });
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
-    const result = await syncSource(source); // job appears after the widen
+    const result = await syncSource(source);
 
     assert.equal(result.queued, 1);
     const notifications = await prisma.notification.findMany({ where: { userId: user.id } });

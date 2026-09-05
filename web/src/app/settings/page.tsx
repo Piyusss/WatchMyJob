@@ -22,7 +22,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 
-/** One labelled setting on its own line, with the control on the right. */
 function SettingRow({
   title,
   description,

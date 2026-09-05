@@ -53,7 +53,6 @@ describe("concurrent sync of the same source", () => {
     await syncSource(source, { initial: true, allowEmpty: true });
     source = await prisma.jobSource.findUniqueOrThrow({ where: { id: source.id } });
 
-    // Both calls see the same "new job" from the adapter's point of view.
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job("race-job")], status: "COMPLETE" }));
 
     const results = await Promise.all([syncSource(source), syncSource(source)]);

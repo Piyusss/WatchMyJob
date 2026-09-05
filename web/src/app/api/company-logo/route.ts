@@ -84,7 +84,7 @@ type Candidate = { bytes: Uint8Array; contentType: string; width: number };
 async function fetchCandidate(url: string): Promise<Candidate | null> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
-    if (!res.ok) return null; // the placeholder-with-a-404 case
+    if (!res.ok) return null;
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.length === 0) return null;
     return {

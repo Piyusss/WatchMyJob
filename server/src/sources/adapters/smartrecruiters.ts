@@ -13,7 +13,7 @@ import type { OpportunityType, WorkMode } from "@prisma/client";
 // is where large industrial and service employers run their boards while
 // serving them under their own careers domain: Continental, Accor, Sodexo,
 // SIXT, Wabtec and Delivery Hero were all verified live against it.
-const PAGE_SIZE = 100; // the API's own maximum
+const PAGE_SIZE = 100;
 
 // A guard, not an expectation: the largest board seen while building this
 // was Delivery Hero at 983 postings (10 pages). Hitting this cap means

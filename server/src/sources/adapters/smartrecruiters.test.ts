@@ -84,9 +84,9 @@ describe("SmartRecruitersAdapter", () => {
     const jobs = (await new SmartRecruitersAdapter().discoverJobs(SOURCE)).jobs;
 
     const byId = new Map(jobs.map((j) => [j.externalJobId, j]));
-    assert.equal(byId.get("744000147457590")?.opportunityTypeHint, "FULL_TIME"); // permanent
-    assert.equal(byId.get("744000146656529")?.opportunityTypeHint, "OTHER"); // casual
-    assert.equal(byId.get("744000146388489")?.opportunityTypeHint, "PART_TIME"); // part-time
+    assert.equal(byId.get("744000147457590")?.opportunityTypeHint, "FULL_TIME");
+    assert.equal(byId.get("744000146656529")?.opportunityTypeHint, "OTHER");
+    assert.equal(byId.get("744000146388489")?.opportunityTypeHint, "PART_TIME");
   });
 
   it("only maps seniority values that line up with LEVEL_OPTIONS, leaving ambiguous ones null", async () => {
@@ -98,9 +98,9 @@ describe("SmartRecruitersAdapter", () => {
     // mid_senior_level spans mid AND senior; calling it "Senior" would
     // over-promote every mid-level posting through a hard matching gate.
     assert.equal(byId.get("744000147404280")?.levelHint, null);
-    assert.equal(byId.get("744000147415869")?.levelHint, null); // entry_level
-    assert.equal(byId.get("744000146683339")?.levelHint, null); // executive
-    assert.equal(byId.get("744000147143789")?.levelHint, null); // not_applicable
+    assert.equal(byId.get("744000147415869")?.levelHint, null);
+    assert.equal(byId.get("744000146683339")?.levelHint, null);
+    assert.equal(byId.get("744000147143789")?.levelHint, null);
   });
 
   it("reads work mode from the structured booleans rather than the location string", async () => {

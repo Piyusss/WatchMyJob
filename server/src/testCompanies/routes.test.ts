@@ -212,7 +212,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
   it("Test 5: a job published before the subscription does not notify (Scenario A)", async () => {
     const company = await createTestCompany();
     const job = await createTestJob(company.slug);
-    await publish(job.id); // published first, no subscriber exists yet
+    await publish(job.id);
 
     const user = await makeUser("t5-late");
     await subscribe(user.id, company.id);

@@ -76,7 +76,6 @@ export default function TestCompaniesClient() {
       setDomain("");
       const refreshed = await listTestCompanies();
       setCompanies(refreshed.companies);
-      // res.company.slug is where "Create Job" naturally continues.
       window.location.href = `/admin/test-companies/${res.company.slug}`;
     } catch (err) {
       const message = apiErrorMessage(err, "Couldn't create this company. Please try again.", {

@@ -60,9 +60,6 @@ export default function JobDetailPage() {
         </button>
 
         {loading ? (
-          // Mirrors what actually loads now: company line, title, meta, CTA
-          // row, match panel. No tall block at the end, which used to stand
-          // in for a description this page no longer shows.
           <div className="space-y-4">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-9 w-4/5" />

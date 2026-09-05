@@ -49,7 +49,6 @@ const SAMPLE_JOBS = [
   { title: "Staff Data Engineer", company: "Databricks", domain: "databricks.com", location: "Bengaluru", level: "Staff", type: "Full-time", recency: "New today · 1h ago" },
 ];
 
-/** Solid blue pill: the one action the page is actually asking for. */
 function PrimaryCta({ href = "/register", children }: { href?: string; children: React.ReactNode }) {
   return (
     <Link

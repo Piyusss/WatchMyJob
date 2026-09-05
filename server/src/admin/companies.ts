@@ -1,13 +1,3 @@
-// Minimal admin CLI for the company allowlist. No HTTP surface, no auth:
-// this runs against the database directly and is operated by whoever has
-// shell access to the server, matching "a script is enough at this scale."
-//
-// Usage:
-//   npm run admin:companies -- add --name "Microsoft" --slug microsoft --access-basis OFFICIAL_API --domain microsoft.com
-//   npm run admin:companies. List
-//   npm run admin:companies -- deactivate --slug microsoft
-//   npm run admin:companies -- activate --slug microsoft
-//   npm run admin:companies -- set-domain --slug microsoft --domain microsoft.com
 import { parseArgs } from "node:util";
 import { prisma } from "../db/prisma.js";
 import { AccessBasis, CompanyStatus } from "@prisma/client";

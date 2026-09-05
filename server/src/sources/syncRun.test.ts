@@ -1,8 +1,3 @@
-// SyncRun is the operational history admin:health (and a future admin UI)
-// need to answer "what actually happened the last N times this source was
-// synced": these tests exercise that a row is written for every real
-// attempt, with the right status and counts, across the paths syncSource
-// can take.
 import { after, afterEach, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "../db/prisma.js";

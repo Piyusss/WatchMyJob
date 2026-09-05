@@ -9,7 +9,6 @@ import type { Prisma } from "@prisma/client";
 // endpoint: two copies of this rule that drift apart is itself the hole.
 export const SELECTABLE_COMPANY: Prisma.CompanyWhereInput = {
   status: "ACTIVE",
-  // At least one source...
   sources: { some: {} },
   // ...and not a single one still missing its baseline.
   NOT: { sources: { some: { initialSyncCompletedAt: null } } },

@@ -52,7 +52,6 @@ describe("matchesPreferences: role family (prefix match, per Phase 8's un-normal
   });
 
   it("user's role family is a prefix of the job's more specific one", () => {
-    // Real Phase 8 output: "Senior Software Engineer, Ads" -> roleFamily "Software Engineer, Ads"
     assert.equal(
       matchesPreferences(job({ roleFamily: "Software Engineer, Ads" }), prefs({ roleFamily: "Software Engineer" })),
       true,

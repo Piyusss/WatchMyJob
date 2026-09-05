@@ -57,8 +57,6 @@ export interface SourceSyncResult {
   // so it's not even counted, and null also when the circuit breaker below
   // trips (missing is real, but not trustworthy enough to act on).
   missing: number | null;
-  // How many of this cycle's missing jobs crossed the close threshold:
-  // see src/sources/closure.ts for the exact rule.
   closed: number;
   // True when an anomalous fraction of previously-active jobs went missing
   // at once: the source likely broke, not the jobs. When true, no miss

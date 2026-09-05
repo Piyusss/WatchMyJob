@@ -57,7 +57,6 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
-/** A multi-select tile: label + one line of context, checked state on the left. */
 function OptionTile({
   active,
   label,
@@ -207,7 +206,6 @@ export default function PreferencesClient() {
     );
   }
 
-  /* ------------------------------------------------------------ onboarding */
   if (isOnboarding) {
     const current = STEPS[step];
     const slide = reduceMotion ? {} : { initial: { opacity: 0, x: 16 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 } };
@@ -381,7 +379,6 @@ export default function PreferencesClient() {
     );
   }
 
-  /* ------------------------------------------------------------- edit mode */
   return (
     <>
       <AuthNav />

@@ -9,10 +9,6 @@ const notificationsSchema = z.object({
 });
 
 export async function accountRoutes(fastify: FastifyInstance) {
-  // Everything this user's account holds, in one JSON document: the
-  // baseline "self-service export" a product collecting this much profile
-  // and preference data should offer, without building a compliance
-  // department around it.
   fastify.get("/export", { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.userId!;
 

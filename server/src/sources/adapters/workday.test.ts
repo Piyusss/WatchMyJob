@@ -51,9 +51,6 @@ interface MockOptions {
   details?: Record<string, unknown>;
 }
 
-// Serves the search endpoint from `pages` (indexed by offset/PAGE_SIZE) and
-// the detail endpoint from `details`, and records what was requested so a
-// test can assert how many detail calls actually happened.
 function mockWorkday(options: MockOptions) {
   const detailPathsFetched: string[] = [];
   let listRequests = 0;
@@ -82,7 +79,6 @@ function mockWorkday(options: MockOptions) {
 
 const noKnownJobs: KnownJobLoader = async () => new Map();
 
-// A full page of distinct synthetic postings starting at `start`.
 function syntheticPage(start: number): RawPosting[] {
   return Array.from({ length: PAGE_SIZE }, (_, i) => ({
     title: `Engineer ${start + i}`,
@@ -172,8 +168,6 @@ describe("WorkdayAdapter", () => {
     const result = await new WorkdayAdapter(noKnownJobs).discoverJobs(SOURCE);
 
     assert.equal(result.status, "PARTIAL", "a repeating page means the walk never reached the end");
-    // The frozen page's own postings were collected the first time it was
-    // served; what makes this PARTIAL is that pagination could go no further.
     assert.equal(result.jobs.length, 60);
     assert.equal(mock.listRequests, 4, "stops on the first fully-repeated page rather than looping");
   });

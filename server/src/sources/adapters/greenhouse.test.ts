@@ -57,7 +57,6 @@ describe("GreenhouseAdapter", () => {
     const adapter = new GreenhouseAdapter();
     const result = await adapter.discoverJobs({ id: "s1", companyId: "c1", config: { boardToken: "figma" } });
 
-    // None of these three real fixtures say "remote" in their location.
     for (const job of result.jobs) {
       assert.equal(job.workMode, null, `expected no work-mode inference for "${job.location}"`);
     }
