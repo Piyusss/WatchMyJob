@@ -6,6 +6,9 @@
     "web"
   ],
   "scripts": {
+    "test": "npm test -w server",
+    "build:web": "npm run build -w web",
+    "build:server": "npm run build -w server",
     "dev:server": "npm run dev -w server",
     "dev:worker": "npm run dev:worker -w server",
     "dev:notification-worker": "npm run dev:notification-worker -w server",

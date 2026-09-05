@@ -2,6 +2,21 @@
 // functions. This file covers the wiring: does processNotificationBatch
 // actually claim, recheck, send (or correctly skip/retry/dead-letter)
 // against a real database and a controllable fake provider.
+//
+// WHY THE SUITE RUNS WITH --test-concurrency=1 (see package.json's `test`).
+// processNotificationBatch claims from the notifications table with no user
+// or company filter, which is correct in production: a worker should pick up
+// any eligible row. It also means this file cannot be isolated from any other
+// test file that queues a notification. Run in parallel, node --test starts
+// matching/engine.test.ts and webhooks.test.ts alongside this one, a claim
+// here picks up one of THEIR rows, and that row is then cascade-deleted out
+// from under the transaction: PrismaClientUnknownRequestError, in whichever
+// file lost the race. Measured: 2 failures in parallel, 0 serialized.
+//
+// So the flag is load-bearing, not a performance choice. Removing it makes
+// the suite fail intermittently. Fixing it properly means giving the claim
+// query an optional scope for tests, which changes production code to suit
+// the tests; serializing was judged the smaller cost.
 import { after, afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "../db/prisma.js";
