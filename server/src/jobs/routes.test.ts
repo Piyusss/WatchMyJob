@@ -1,9 +1,9 @@
 // Exercises GET /api/jobs and GET /api/jobs/:id through a real Fastify
 // instance (route registration, requireAuth's preHandler, zod query
-// validation) -- not just the pagination/filter logic in isolation, since
+// validation): not just the pagination/filter logic in isolation, since
 // the auth wiring and query-string coercion are themselves real places to
 // get wrong. Auth itself is stubbed via setUserResolverForTesting (see
-// auth/authenticate.ts) rather than a real Clerk token -- a request's
+// auth/authenticate.ts) rather than a real Clerk token: a request's
 // x-test-user-id header stands in for whatever Clerk would have resolved.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";

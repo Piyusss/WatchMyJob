@@ -9,11 +9,11 @@ import { env } from "../config/env.js";
 // fallback.
 //
 // Brevo is first because it verifies a single SENDER ADDRESS rather than
-// requiring an owned domain -- the path that actually delivers real email
+// requiring an owned domain: the path that actually delivers real email
 // today, before anyone here owns a domain. Resend is kept as the option for
 // once a domain exists (better deliverability at scale). SES stays
 // supported for anyone already on AWS. The console provider means every
-// environment -- including one with no email account of any kind -- can
+// environment (including one with no email account of any kind) can
 // still run the full register -> verify -> match -> notify pipeline end to
 // end, with the email printed to the log instead of sent.
 //
@@ -34,7 +34,7 @@ function buildDefaultProvider(): EmailProvider {
     return new SesEmailProvider(env.SES_FROM_EMAIL, env.SES_REGION);
   }
   console.log(
-    "[email] no provider configured (set BREVO_API_KEY + BREVO_FROM_EMAIL) -- using the console provider: emails are printed, not sent.",
+    "[email] no provider configured (set BREVO_API_KEY + BREVO_FROM_EMAIL): using the console provider: emails are printed, not sent.",
   );
   return new ConsoleEmailProvider();
 }
@@ -45,7 +45,7 @@ export function getEmailProvider(): EmailProvider {
   return provider;
 }
 
-// Test-only seam, mirroring sources/registry.ts's setAdapterForTesting --
+// Test-only seam, mirroring sources/registry.ts's setAdapterForTesting:
 // lets a test observe exactly what would have been sent without a real
 // provider (or real AWS credentials) involved. Never called from
 // production code.

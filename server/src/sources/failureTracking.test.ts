@@ -1,5 +1,5 @@
 // The worker's health alert (src/worker.ts) fires off consecutiveFailures
-// crossing a threshold across repeated ticks -- this locks in that the
+// crossing a threshold across repeated ticks: this locks in that the
 // counter actually climbs correctly over multiple failures, not just once,
 // and resets cleanly the moment a source recovers.
 import { after, afterEach, before, describe, it } from "node:test";

@@ -11,11 +11,11 @@ const MAX_LOCATIONS = 10;
 // Base UI's Select decides controlled-vs-uncontrolled from whether `value`
 // is `undefined` on its FIRST render, and errors if that ever flips later.
 // countryCode/stateCode/cityName start out `null` (nothing picked yet), and
-// `null ?? undefined` evaluates to `undefined` -- so on first render every
+// `null ?? undefined` evaluates to `undefined`: so on first render every
 // Select here was uncontrolled, then became controlled the moment a real
 // code was picked, tripping exactly that check. Passing `countryCode`
 // itself (typed string | null, never actually undefined) keeps each Select
-// controlled from the very first render onward -- `null` is a real,
+// controlled from the very first render onward: `null` is a real,
 // distinct value Base UI's Select understands as "nothing selected" (its
 // own hasSelectedValue check is `value == null`), which is what makes the
 // placeholder text show correctly; a non-null sentinel string here instead
@@ -31,7 +31,7 @@ function sameLocation(a: PreferenceLocation, b: PreferenceLocation): boolean {
 }
 
 // Country -> state -> city, in that order, each disabled until its parent is
-// chosen and reset whenever that parent changes -- picking a new country
+// chosen and reset whenever that parent changes: picking a new country
 // with a state already selected would otherwise leave a state that belongs
 // to the PREVIOUS country silently attached. Selections are added to a chip
 // list rather than replacing a single value: multiple locations are allowed
@@ -91,7 +91,7 @@ export default function LocationPicker({
       stateName: state?.name ?? null,
       cityName: cityName,
     };
-    if (value.some((loc) => sameLocation(loc, next))) return; // already added -- adding again would be a silent duplicate chip
+    if (value.some((loc) => sameLocation(loc, next))) return; // already added: adding again would be a silent duplicate chip
     onChange([...value, next]);
     setCountryCode(null);
     setStateCode(null);

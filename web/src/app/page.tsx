@@ -2,114 +2,155 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { Bell, Radar, Search, SlidersHorizontal } from "lucide-react";
-import PixelGrid from "@/components/marketing/PixelGrid";
-import PersonaSwitcher from "@/components/marketing/PersonaSwitcher";
-import { DashboardMock, MatchMock, NotifyMock, WatchMock } from "@/components/marketing/DarkMockups";
+import { ArrowRight } from "lucide-react";
+import CompanyLogo from "@/components/CompanyLogo";
+import { GitHubIcon, LinkedInIcon, YouTubeIcon } from "@/components/BrandIcons";
+import { cn } from "@/lib/utils";
 
-const COMPANIES = [
-  "Stripe",
-  "Airbnb",
-  "Databricks",
-  "Cloudflare",
-  "LinkedIn",
-  "Spotify",
-  "Dropbox",
-  "Figma",
-  "Rubrik",
-  "Zscaler",
-  "Postman",
-  "Discord",
-  "Palantir",
+// The author's own profiles. An entry with an empty href is filtered out
+// below, so blanking one removes its icon rather than shipping a dead link.
+const SOCIAL_LINKS = [
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/piy777sus/", Icon: LinkedInIcon },
+  { label: "GitHub", href: "https://github.com/Piyusss", Icon: GitHubIcon },
+  { label: "YouTube", href: "https://www.youtube.com/@whyn0tdp/videos", Icon: YouTubeIcon },
 ];
 
-const NAV_LINKS = [
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#who-its-for", label: "Who it's for" },
-  { href: "#companies", label: "Companies" },
+const ACTIVE_SOCIALS = SOCIAL_LINKS.filter((s) => s.href.length > 0);
+
+// Three steps, one line each: the whole explanation. Anything longer
+// belongs in the product, not on the page in front of it.
+//
+// Each line states a mechanism rather than a benefit, and every number in
+// them is real: sources are re-polled on their own pollIntervalSeconds
+// (240s by default) by a worker ticking every 30s, matching gates on the
+// six criteria in matching/predicate.ts, and the notification worker
+// drains the send queue every 15s.
+const STEPS = [
+  { number: "01", title: "We Watch", body: "Company job boards, re-checked at the source every few minutes." },
+  { number: "02", title: "We Match", body: "Each new opening is checked against all six of your preferences." },
+  { number: "03", title: "You Apply Early", body: "An email lands within seconds of it going live, while the role is still new." },
 ];
 
-const FACTS = [
-  { value: "13", label: "Company boards watched" },
-  { value: "3,200+", label: "Open roles tracked" },
-  { value: "6", label: "Match criteria per alert" },
+// Every company here is one GettingShortlisted.in genuinely monitors, and
+// every recency string is a real output of `formatRecency`: the hero
+// shouldn't be the one place in the product showing data it can't produce.
+//
+// `level` is always one of LEVEL_OPTIONS (lib/api.ts) and always appears as
+// the title's prefix, because that is exactly how the classifier derives it
+// from a board's raw title (sources/classify.ts reads seniority as a prefix,
+// never a suffix). A card showing a level the title couldn't have produced
+// would be fiction.
+//
+// Ordered newest first; the first entry is the expanded one.
+const SAMPLE_JOBS = [
+  { title: "Associate Software Engineer", company: "LinkedIn", domain: "linkedin.com", location: "Bengaluru", level: "Associate", type: "Full-time", recency: "New · 4 min ago" },
+  { title: "Senior Backend Engineer", company: "Stripe", domain: "stripe.com", location: "Bengaluru", level: "Senior", type: "Full-time", recency: "New · 12 min ago" },
+  { title: "Lead Product Designer", company: "Figma", domain: "figma.com", location: "Remote", level: "Lead", type: "Full-time", recency: "New · 26 min ago" },
+  { title: "Staff Data Engineer", company: "Databricks", domain: "databricks.com", location: "Bengaluru", level: "Staff", type: "Full-time", recency: "New today · 1h ago" },
 ];
 
-/** White pill — the primary action, as on the reference. */
-function PrimaryCta({ children, href = "/register" }: { children: React.ReactNode; href?: string }) {
+/** Solid blue pill: the one action the page is actually asking for. */
+function PrimaryCta({ href = "/register", children }: { href?: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2.5 text-[0.875rem] font-semibold text-black transition-colors hover:bg-white/85"
+      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-[0.95rem] font-semibold text-white shadow-brand transition-colors duration-200 hover:bg-brand-hover"
     >
       {children}
+      <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
     </Link>
   );
 }
 
-/** Dark pill — the secondary action. */
-function SecondaryCta({ children, href = "/login" }: { children: React.ReactNode; href?: string }) {
+/**
+ * A deck of recent openings, tucked under one another so the stack reads as
+ * a stream rather than a single lucky result. The top card is expanded; the
+ * rest are inset and progressively dimmed so depth comes from the layering
+ * itself, not from a drop shadow doing all the work.
+ *
+ * Deliberately NOT links: this illustrates the app rather than pretending
+ * to be live listings.
+ */
+function SampleJobStack() {
   return (
-    <Link
-      href={href}
-      className="inline-flex items-center justify-center rounded-lg border border-lp-line-2 bg-lp-surface-2 px-4 py-2.5 text-[0.875rem] font-semibold text-lp-text transition-colors hover:bg-lp-line"
-    >
-      {children}
-    </Link>
-  );
-}
+    <div className="relative">
+      <span className="sr-only">Examples of how fresh openings appear inside GettingShortlisted.in:</span>
 
-/** The numbered chapter header used by each stage of the pipeline. */
-function ChapterHeading({
-  word,
-  number,
-  title,
-  body,
-}: {
-  word: string;
-  number: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="max-w-xl">
-      <h2 className="flex items-start gap-1.5 text-[2.6rem] font-bold leading-none tracking-[-0.04em] text-lp-text sm:text-[3.2rem]">
-        {word}
-        <sup className="mt-1 text-[0.9rem] font-semibold tracking-normal text-lp-accent sm:text-[1.05rem]">
-          {number}
-        </sup>
-      </h2>
-      <h3 className="mt-6 text-[1.05rem] font-semibold text-lp-text sm:text-[1.15rem]">{title}</h3>
-      <p className="mt-3 text-[0.95rem] leading-[1.7] text-lp-muted">{body}</p>
-      <div className="mt-7 flex flex-wrap gap-2.5">
-        <PrimaryCta>Create your free account</PrimaryCta>
-        <SecondaryCta>Log in</SecondaryCta>
-      </div>
-    </div>
-  );
-}
+      {SAMPLE_JOBS.map((job, i) => {
+        const expanded = i === 0;
+        return (
+          <div
+            key={job.company}
+            className={cn(
+              "relative rounded-2xl border border-line bg-surface",
+              expanded ? "p-5 shadow-lg" : "px-5 py-3.5 shadow-md",
+            )}
+            style={{
+              // Later cards sit further back: lower in the paint order, tucked
+              // up under the card above, and narrower on both sides.
+              zIndex: SAMPLE_JOBS.length - i,
+              marginTop: expanded ? 0 : -14,
+              marginInline: i * 12,
+              // Rounded rather than left as raw float arithmetic: 1 - 3*0.11
+              // serialises as 0.6699999999999999 in the style attribute.
+              opacity: Math.round((1 - i * 0.11) * 100) / 100,
+            }}
+          >
+            <div className={cn("flex gap-3.5", expanded ? "items-start" : "items-center")}>
+              <CompanyLogo name={job.company} domain={job.domain} size={expanded ? 42 : 34} />
+              <div className="min-w-0 flex-1">
+                <h3
+                  className={cn(
+                    "truncate font-semibold text-ink",
+                    expanded ? "text-[1.02rem]" : "text-[0.9rem]",
+                  )}
+                >
+                  {job.title}
+                </h3>
+                <p className={cn("mt-1 truncate text-ink-muted", expanded ? "text-[0.84rem]" : "text-[0.78rem]")}>
+                  {job.company} · {job.location}
+                </p>
 
-/** Caption under a product shot: coloured icon tile, name, one line. */
-function MockCaption({
-  icon,
-  tint,
-  name,
-  body,
-}: {
-  icon: React.ReactNode;
-  tint: string;
-  name: string;
-  body: string;
-}) {
-  return (
-    <div className="mt-6">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-6 place-items-center rounded-md" style={{ background: tint }}>
-          {icon}
-        </span>
-        <span className="text-[1rem] font-semibold text-lp-text">{name}</span>
-      </div>
-      <p className="mt-2.5 max-w-md text-[0.88rem] leading-relaxed text-lp-muted">{body}</p>
+                {/* Level and opportunity type, the same two fields JobCard
+                    surfaces as its right-hand meta. Only on the expanded
+                    card: on the collapsed rows the level is already
+                    carried by the title's prefix. */}
+                {expanded && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <span className="rounded-md bg-brand-tint px-2 py-0.5 text-[0.7rem] font-semibold text-brand-ink">
+                      {job.level}
+                    </span>
+                    <span className="rounded-md bg-tint px-2 py-0.5 text-[0.7rem] font-semibold text-warm-ink">
+                      {job.type}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Collapsed rows carry their own freshness inline: the whole
+                  point of the stack is that every one of them is recent. */}
+              {!expanded && (
+                <span className="hidden shrink-0 text-[0.72rem] font-medium text-ink-faint sm:block">
+                  {job.recency}
+                </span>
+              )}
+            </div>
+
+            {expanded && (
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4">
+                <span className="flex items-center gap-2 text-[0.8rem] font-medium text-ink-secondary">
+                  <span className="size-2 shrink-0 rounded-full bg-[#16a34a]" />
+                  {job.recency}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-[0.8rem] font-semibold text-white">
+                  Apply Now
+                  <ArrowRight className="size-3.5" />
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -117,47 +158,43 @@ function MockCaption({
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
 
-  const fadeUp = {
+  // Hero elements arrive in reading order rather than all at once, so the
+  // headline is legible before the stack beside it draws attention.
+  const rise = (delay: number) => ({
+    initial: reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
+  });
+
+  const riseInView = {
     initial: reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 },
     whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, amount: 0 as const, margin: "240px 0px 240px 0px" },
+    viewport: { once: true, amount: 0.25 },
     transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-lp-bg text-lp-text">
+    <div className="min-h-screen overflow-x-hidden bg-canvas text-ink">
       {/* ------------------------------------------------------------- nav */}
-      <nav className="sticky top-0 z-40 border-b border-lp-line/60 bg-lp-bg/85 backdrop-blur-lg">
+      <nav className="sticky top-0 z-40 border-b border-line/70 bg-white/85 backdrop-blur-md">
         <div className="container-wide flex h-16 items-center justify-between gap-4">
-          <span className="flex shrink-0 items-center gap-2 text-[1rem] font-bold tracking-tight text-lp-text">
-            <span className="grid size-6 place-items-center rounded-md bg-white text-[0.68rem] font-bold text-black">
+          <span className="flex shrink-0 items-center gap-2 text-[1rem] font-bold tracking-tight text-ink">
+            <span className="grid size-6 place-items-center rounded-md bg-brand text-[0.68rem] font-bold text-white">
               G
             </span>
-            GettingShortlisted.com
+            GettingShortlisted.in
           </span>
 
-          <div className="hidden items-center gap-8 md:flex">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-[0.85rem] font-medium text-lp-muted transition-colors hover:text-lp-text"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3">
-            <Link
-              href="/login"
-              className="text-[0.85rem] font-medium text-lp-text transition-opacity hover:opacity-70"
-            >
+          {/* No "How it works" link here: the hero's secondary CTA already
+              points at that section, and two links to one anchor in the same
+              viewport reads as duplication rather than navigation. */}
+          <div className="flex shrink-0 items-center gap-3 sm:gap-6">
+            <Link href="/login" className="text-[0.85rem] font-medium text-ink transition-opacity hover:opacity-70">
               Log in
             </Link>
             <Link
               href="/register"
-              className="rounded-lg bg-white px-3.5 py-2 text-[0.83rem] font-semibold text-black transition-colors hover:bg-white/85"
+              className="rounded-lg bg-brand px-3.5 py-2 text-[0.83rem] font-semibold text-white transition-colors hover:bg-brand-hover"
             >
               Get started
             </Link>
@@ -166,251 +203,141 @@ export default function HomePage() {
       </nav>
 
       {/* ------------------------------------------------------------ hero */}
-      <header className="relative overflow-hidden pb-20 pt-16 sm:pt-24">
-        {/* Clustered at the edges, well clear of the centred headline --
-            texture framing the type, not a backdrop behind it. */}
-        <PixelGrid seed={11} count={12} className="-left-20 top-0" />
-        <PixelGrid seed={29} count={12} className="-right-14 top-6" />
-        <PixelGrid seed={53} count={10} className="-left-14 bottom-0" />
-        <PixelGrid seed={97} count={11} className="-right-20 bottom-8" />
+      {/* Everything the page has to say lives above the fold: what it does,
+          who it's for, what it looks like, and the one action to take.
+          Laid out as two asymmetric columns: the pitch reads down the left
+          edge, the product sits opposite it: rather than one centred
+          stack, which is the layout every template defaults to. */}
+      <header className="relative overflow-hidden pb-20 pt-16 sm:pb-24 sm:pt-24">
+        {/* Ambient wash: blue behind the type, one soft pink counterweight
+            behind the cards. Low-opacity blur only; nothing here competes
+            with the headline. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-40 -top-64 size-[44rem] rounded-full bg-brand-tint/60 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-44 -right-24 size-[32rem] rounded-full bg-tint/70 blur-3xl"
+        />
 
-        <div className="container-wide relative text-center">
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {/* Factual counts rather than review-site badges -- GettingShortlisted.com has
-                no G2/Capterra presence, and inventing rating stars would be
-                fabricated social proof. */}
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              {FACTS.map((f) => (
-                <span key={f.label} className="flex items-baseline gap-2">
-                  <span className="text-[0.95rem] font-bold tabular-nums text-lp-text">{f.value}</span>
-                  <span className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-lp-faint">
-                    {f.label}
-                  </span>
-                </span>
-              ))}
-            </div>
+        <div className="container-wide relative">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+            {/* ---------------------------------------------- the pitch */}
+            <div className="max-w-xl">
+              <motion.h1
+                {...rise(0)}
+                className="text-[2.75rem] font-bold leading-[1.02] tracking-[-0.045em] text-ink sm:text-[3.7rem] lg:text-[4.15rem]"
+              >
+                Apply Early.
+                <br />
+                Get Shortlisted.
+              </motion.h1>
 
-            <h1 className="mx-auto mt-9 max-w-5xl text-[3rem] font-bold leading-[0.98] tracking-[-0.045em] text-lp-text sm:text-[4.6rem] lg:text-[5.8rem]">
-              Real openings,
-              <br />
-              not{" "}
-              {/* 3D keycap, built in CSS -- the reference's inline object */}
-              <span className="relative -mb-[0.08em] mx-1 inline-grid size-[0.86em] place-items-center rounded-[0.17em] bg-[#1f38c4] align-middle shadow-[0_0.075em_0_#152586,0_0.16em_0.24em_rgba(0,0,0,0.75)] sm:mx-3">
-                <span className="grid size-[0.8em] place-items-center rounded-[0.13em] bg-gradient-to-b from-[#6b85ff] to-[#3355ee]">
-                  <Bell className="size-[0.4em] text-white" strokeWidth={2.5} />
-                </span>
-              </span>{" "}
-              <span className="font-pixel text-[0.86em] font-bold tracking-[-0.02em]">noise</span>
-            </h1>
+              <motion.p {...rise(0.06)} className="mt-6 text-[1.02rem] leading-[1.65] text-ink-muted sm:text-[1.06rem]">
+                Get instant email alerts when a new job matching your preferences goes live so you can apply early before the crowd.
+              </motion.p>
 
-            <p className="mx-auto mt-8 max-w-xl text-[1rem] leading-[1.7] text-lp-muted">
-              GettingShortlisted.com watches company career pages directly and emails you the moment a role appears that matches your
-              experience, location and preferences. Every alert is checked against six criteria before it&apos;s sent.
-            </p>
-
-            <div className="mt-9 flex flex-wrap justify-center gap-2.5">
-              <PrimaryCta>Create your free account</PrimaryCta>
-              <SecondaryCta>Log in</SecondaryCta>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* logo wall */}
-        <div className="container-wide relative mt-24">
-          <p className="text-center text-[0.66rem] font-semibold uppercase tracking-[0.18em] text-lp-faint">
-            Monitoring open roles at
-          </p>
-          <div className="relative mt-7 overflow-hidden">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-lp-bg to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-lp-bg to-transparent" />
-            <motion.div
-              className="flex w-max items-center gap-10 sm:gap-12"
-              animate={reduceMotion ? undefined : { x: ["0%", "-50%"] }}
-              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            >
-              {[...COMPANIES, ...COMPANIES].map((name, i) => (
-                <span
-                  key={`${name}-${i}`}
-                  className="shrink-0 whitespace-nowrap text-[1rem] font-semibold tracking-tight text-lp-muted/55"
+              <motion.div {...rise(0.12)} className="mt-9 flex flex-wrap items-center gap-3">
+                <PrimaryCta>Find Fresh Jobs</PrimaryCta>
+                <a
+                  href="#how-it-works"
+                  className="inline-flex items-center justify-center rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition-colors duration-200 hover:border-brand/40 hover:bg-brand-tint/50"
                 >
-                  {name}
-                </span>
-              ))}
+                  How It Works
+                </a>
+              </motion.div>
+
+            </div>
+
+            {/* ------------------------------------------- the product */}
+            <motion.div {...rise(0.14)} className="w-full max-w-md lg:ml-auto lg:mr-0">
+              <SampleJobStack />
             </motion.div>
           </div>
         </div>
       </header>
 
-      {/* ------------------------------------------------------ hero product shot */}
-      <section className="container-wide pb-24">
-        <motion.div {...fadeUp}>
-          <DashboardMock />
-        </motion.div>
-      </section>
-
-      {/* ------------------------------------------------------------ 01 watch */}
-      <section id="how-it-works" className="relative scroll-mt-20 border-t border-lp-line py-20 sm:py-28">
-        <PixelGrid seed={17} count={16} className="-right-20 top-8 opacity-50" />
-        <div className="container-wide relative">
-          <motion.div {...fadeUp}>
-            <ChapterHeading
-              word="Watch"
-              number="01"
-              title="Company career pages, checked continuously"
-              body="Pick the companies you'd actually move for. GettingShortlisted.com polls each one's board directly at the source — no aggregator middle-man, no weekly scrape — and knows within minutes when something appears or disappears."
-            />
-          </motion.div>
-
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.08 }} className="mt-14 max-w-4xl">
-            <WatchMock />
-            <MockCaption
-              icon={<Radar className="size-3.5 text-white" />}
-              tint="#7c3aed"
-              name="Live source monitoring"
-              body="Every source reports its own health. A board that breaks is visibly broken, not silently empty."
-            />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------ 02 match */}
-      <section className="relative border-t border-lp-line py-20 sm:py-28">
-        <PixelGrid seed={41} count={16} className="-left-24 top-16 opacity-50" />
-        <div className="container-wide relative">
-          <motion.div {...fadeUp}>
-            <ChapterHeading
-              word="Match"
-              number="02"
-              title="Six criteria, checked before anything is sent"
-              body="Role, level, experience, location, work mode and opportunity type — each evaluated separately, all six required. An internship never arrives because a year-count overlapped, and a staff role never arrives because your tolerance window brushed its floor."
-            />
-          </motion.div>
-
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.08 }} className="mt-14 max-w-4xl">
-            <MatchMock />
-            <MockCaption
-              icon={<SlidersHorizontal className="size-3.5 text-white" />}
-              tint="#db2777"
-              name="Why this matches"
-              body="Open any role and see exactly which criteria it cleared — the same evaluation that decided to email you, not a guess reconstructed afterwards."
-            />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ----------------------------------------------------------- 03 notify */}
-      <section className="relative border-t border-lp-line py-20 sm:py-28">
-        <PixelGrid seed={73} count={16} className="-right-16 bottom-10 opacity-50" />
-        <div className="container-wide relative">
-          <motion.div {...fadeUp}>
-            <ChapterHeading
-              word="Notify"
-              number="03"
-              title="One email, the moment it matters"
-              body="Roles already open when you start watching stay visible in the app but never reach your inbox. Each genuine match emails you exactly once. A role that disappears from the source is confirmed gone across several checks before it closes."
-            />
-          </motion.div>
-
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.08 }} className="mt-14 max-w-3xl">
-            <NotifyMock />
-            <MockCaption
-              icon={<Bell className="size-3.5 text-white" />}
-              tint="#2563eb"
-              name="Quiet by design"
-              body="No backlog on day one, no duplicates, no alerts for roles that have already closed."
-            />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* -------------------------------------------------------- who it's for */}
-      <section id="who-its-for" className="relative scroll-mt-20 border-t border-lp-line py-20 sm:py-28">
-        <PixelGrid seed={131} count={14} className="-left-20 bottom-0 opacity-45" />
-        <div className="container-wide relative">
-          <motion.div {...fadeUp}>
-            <PersonaSwitcher />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------ companies */}
-      <section id="companies" className="relative scroll-mt-20 border-t border-lp-line py-20 sm:py-24">
+      {/* --------------------------------------------------- how it works */}
+      <section id="how-it-works" className="scroll-mt-16 border-t border-line py-20 sm:py-24">
         <div className="container-wide">
-          <motion.div {...fadeUp} className="max-w-xl">
-            <h2 className="text-[2rem] font-bold leading-tight tracking-[-0.03em] text-lp-text sm:text-[2.4rem]">
-              Thirteen companies, watched at the source.
-            </h2>
-            <p className="mt-4 text-[0.95rem] leading-[1.7] text-lp-muted">
-              Each of these publishes a public job board that GettingShortlisted.com reads directly and re-checks continuously. More
-              are added as their boards become reliably readable.
-            </p>
-          </motion.div>
+          <motion.p {...riseInView} className="eyebrow">
+            How it works
+          </motion.p>
 
-          {/* Per-cell borders rather than a gap-px grid over a coloured
-              background: with 14 items in a 4-column grid the final row is
-              short, and the gap technique would expose the background as a
-              large empty block where those cells would have been. */}
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.06 }} className="mt-10">
-            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-lp-line sm:grid-cols-3 lg:grid-cols-4">
-              {COMPANIES.map((name) => (
-                <div
-                  key={name}
-                  className="flex items-center gap-3 border-b border-r border-lp-line px-5 py-5"
-                >
-                  <span className="grid size-7 shrink-0 place-items-center rounded-md bg-lp-surface-2 text-[0.66rem] font-bold text-lp-muted">
-                    {name.charAt(0)}
-                  </span>
-                  <span className="truncate text-[0.9rem] font-medium text-lp-text">{name}</span>
-                </div>
-              ))}
-              <div className="flex items-center border-b border-r border-lp-line px-5 py-5">
-                <span className="text-[0.85rem] text-lp-faint">More on the way</span>
+          {/* Hairline dividers from a 1px gap over a line-coloured ground.
+              With exactly three cells the row always fills, so the ground is
+              never left showing as an empty block. */}
+          <motion.div
+            {...riseInView}
+            transition={{ ...riseInView.transition, delay: 0.06 }}
+            className="mt-8 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3"
+          >
+            {STEPS.map((step) => (
+              <div key={step.number} className="bg-surface p-7 transition-colors duration-200 hover:bg-brand-tint/25 sm:p-8">
+                <span className="text-[0.8rem] font-bold tabular-nums tracking-[0.12em] text-brand">{step.number}</span>
+                <h3 className="mt-4 text-[1.15rem] font-semibold text-ink">{step.title}</h3>
+                <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{step.body}</p>
               </div>
-            </div>
+            ))}
           </motion.div>
         </div>
       </section>
 
-      {/* --------------------------------------------------------- closing cta */}
-      <section className="relative overflow-hidden border-t border-lp-line py-24 sm:py-32">
-        <PixelGrid seed={181} count={20} className="-left-16 top-4 opacity-50" />
-        <PixelGrid seed={211} count={20} className="-right-20 bottom-0 opacity-50" />
-        <motion.div {...fadeUp} className="container-wide relative text-center">
-          <h2 className="mx-auto max-w-3xl text-[2.3rem] font-bold leading-[1.03] tracking-[-0.04em] text-lp-text sm:text-[3.4rem]">
-            Stop refreshing career pages.
+      {/* --------------------------------------------------------- closing */}
+      <section className="relative overflow-hidden border-t border-line py-24 sm:py-28">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-52 left-1/2 size-[36rem] -translate-x-1/2 rounded-full bg-brand-tint/60 blur-3xl"
+        />
+
+        <motion.div {...riseInView} className="container-wide relative text-center">
+          <h2 className="mx-auto max-w-2xl text-[2.1rem] font-bold leading-[1.06] tracking-[-0.04em] text-ink sm:text-[2.9rem]">
+            Don&apos;t Miss the Freshest Jobs.
           </h2>
-          <p className="mx-auto mt-5 max-w-md text-[0.98rem] leading-[1.7] text-lp-muted">
-            Set your preferences once. GettingShortlisted.com watches from there — and only writes when it&apos;s worth reading.
+          <p className="mx-auto mt-5 max-w-lg text-[1rem] leading-[1.65] text-ink-muted">
+            Find it early. Apply early. Give yourself a better shot at getting shortlisted.
           </p>
-          <div className="mt-9 flex flex-wrap justify-center gap-2.5">
-            <PrimaryCta>Create your free account</PrimaryCta>
-            <SecondaryCta>Log in</SecondaryCta>
+          <div className="mt-9 flex justify-center">
+            <PrimaryCta>Find Fresh Jobs</PrimaryCta>
           </div>
         </motion.div>
       </section>
 
-      <footer className="border-t border-lp-line">
-        <div className="container-wide flex flex-col items-center justify-between gap-4 py-9 sm:flex-row">
-          <span className="flex items-center gap-2 text-[0.9rem] font-semibold text-lp-text">
-            <span className="grid size-5 place-items-center rounded bg-white text-[0.6rem] font-bold text-black">
-              G
-            </span>
-            GettingShortlisted.com
+      {/* ---------------------------------------------------------- footer */}
+      <footer className="border-t border-line">
+        <div className="container-wide flex flex-col items-center justify-between gap-3 py-7 sm:flex-row">
+          <span className="flex items-center gap-2 text-[0.85rem] font-semibold text-ink">
+            <span className="grid size-5 place-items-center rounded bg-brand text-[0.6rem] font-bold text-white">G</span>
+            GettingShortlisted.in
           </span>
-          <div className="flex items-center gap-7 text-[0.85rem] text-lp-muted">
-            <a href="#how-it-works" className="transition-colors hover:text-lp-text">
-              How it works
-            </a>
-            <Link href="/register" className="transition-colors hover:text-lp-text">
-              Create account
-            </Link>
-            <Link href="/login" className="transition-colors hover:text-lp-text">
+          <div className="flex items-center gap-5 text-[0.83rem] text-ink-muted sm:gap-6">
+            <Link href="/login" className="transition-colors hover:text-ink">
               Log in
             </Link>
+            <Link href="/register" className="transition-colors hover:text-ink">
+              Create account
+            </Link>
+
+            {ACTIVE_SOCIALS.length > 0 && (
+              <>
+                <span aria-hidden className="h-4 w-px bg-line" />
+                <div className="flex items-center gap-0.5">
+                  {ACTIVE_SOCIALS.map(({ label, href, Icon }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      aria-label={label}
+                      className="grid size-8 place-items-center rounded-lg text-ink-muted transition-colors hover:bg-brand-tint hover:text-brand-ink"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </footer>

@@ -30,7 +30,7 @@ async function main() {
   //
   // 100/min was too tight to be safe. A single dashboard load legitimately
   // fires several requests, and when the frontend misbehaved it burned the
-  // whole budget in seconds -- after which *every* route returned 429,
+  // whole budget in seconds: after which *every* route returned 429,
   // including /health, which made a frontend bug look like a total outage
   // and masked the actual server error underneath it. The allowList keeps
   // the liveness probe honest: a monitor polling /health must never be able
@@ -42,7 +42,7 @@ async function main() {
   });
 
   // Decorates every request with getAuth(request) (see auth/authenticate.ts).
-  // Explicit keys rather than letting the plugin read process.env itself --
+  // Explicit keys rather than letting the plugin read process.env itself:
   // consistent with the rest of this file's config coming through the
   // validated env object, not ambient environment state.
   await fastify.register(clerkPlugin, {
@@ -50,12 +50,12 @@ async function main() {
     publishableKey: env.CLERK_PUBLISHABLE_KEY,
   });
 
-  // Liveness/readiness probe -- deliberately unauthenticated (that's the
+  // Liveness/readiness probe: deliberately unauthenticated (that's the
   // convention for this kind of endpoint, and it's what a load balancer or
   // uptime monitor would call) and deliberately coarse: counts only, never
   // an error message or any per-record detail. Full diagnostic detail
   // (per-source error text, sync history) stays behind admin:health, a
-  // local CLI script with no HTTP surface -- see its own file for why.
+  // local CLI script with no HTTP surface: see its own file for why.
   fastify.get("/health", async (_request, reply) => {
     const SOURCE_FAILURE_ALERT_THRESHOLD = 3;
     try {
@@ -89,7 +89,7 @@ async function main() {
   await fastify.register(geoRoutes, { prefix: "/api/locations" });
 
   // Section 17 of custom_company.txt: gated at registration, not just by
-  // requireAdmin inside each handler -- with the flag off, the whole
+  // requireAdmin inside each handler: with the flag off, the whole
   // surface 404s for everyone rather than existing-but-forbidden, which is
   // the stronger of the two "don't let test data touch production"
   // guarantees the spec asks for.

@@ -1,7 +1,7 @@
 // Covers another confirmed Phase 5 audit finding: neither syncCompany nor
 // runInitialSync checked company.status before, so a deactivated company
 // (ToS revoked, broken adapter, cap rebalance) could keep silently
-// accumulating jobs in the background -- exactly the kind of stale,
+// accumulating jobs in the background: exactly the kind of stale,
 // unattended sync gap that later floods whoever is still subscribed.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -38,7 +38,7 @@ describe("inactive-company sync guard", () => {
   it("reactivating the company allows sync to proceed again (guard is on status, not permanent)", async () => {
     await prisma.company.update({ where: { id: companyId }, data: { status: "ACTIVE" } });
     // GREENHOUSE adapter will actually attempt a network call and fail
-    // (bogus token) -- that's fine, we're only asserting the ACTIVE-company
+    // (bogus token): that's fine, we're only asserting the ACTIVE-company
     // guard no longer throws before reaching the sync logic.
     const results = await runInitialSync(SLUG, { allowEmpty: true });
     assert.equal(results.length, 1);

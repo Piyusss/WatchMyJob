@@ -1,8 +1,8 @@
 // The poller/ingestion worker: a separate process from the API server (see
-// the architecture note in the Phase 1 blueprint -- API, poller, and
+// the architecture note in the Phase 1 blueprint: API, poller, and
 // notification worker are three processes sharing one Postgres, not one
 // monolith). Ticks on a short internal interval, and on each tick syncs
-// whichever sources are actually due per their OWN pollIntervalSeconds --
+// whichever sources are actually due per their OWN pollIntervalSeconds:
 // that field has existed since Phase 2 and was never read by anything
 // until now.
 import { prisma } from "./db/prisma.js";
@@ -14,7 +14,7 @@ const log = createLogger("source-worker");
 
 const TICK_INTERVAL_MS = 30_000;
 // A source failing this many times in a row is worth an operator's
-// attention -- not paged, just made impossible to miss in the log, which is
+// attention: not paged, just made impossible to miss in the log, which is
 // proportionate at "a script is enough at this scale."
 const HEALTH_ALERT_THRESHOLD = 3;
 
@@ -28,7 +28,7 @@ interface DueSource {
 async function findDueSources(): Promise<DueSource[]> {
   const sources = await prisma.jobSource.findMany({
     where: {
-      // Only a baselined source is eligible for a regular sync -- syncSource
+      // Only a baselined source is eligible for a regular sync: syncSource
       // itself refuses otherwise, so filtering here just avoids a guaranteed
       // rejection (and its log line) every single tick.
       initialSyncCompletedAt: { not: null },
@@ -83,7 +83,7 @@ function logResult(due: DueSource, result: SourceSyncResult) {
     return;
   }
 
-  log.info(fields, `sync ok: ${due.companyName} / ${due.platform} — ${summarizeSyncResult(result)}`);
+  log.info(fields, `sync ok: ${due.companyName} / ${due.platform} · ${summarizeSyncResult(result)}`);
 }
 
 async function tick() {

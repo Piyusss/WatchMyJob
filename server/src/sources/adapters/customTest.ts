@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma.js";
 import type { DiscoveryResult, JobSourceAdapter, JobSourceConfig, NormalizedJob } from "../types.js";
 
-// Mirrors web/src/components/LocationPicker.tsx's own locationLabel -- a
+// Mirrors web/src/components/LocationPicker.tsx's own locationLabel: a
 // job posting only ever has ONE location string (see schema.prisma's
 // Job.location comment), so multiple admin-picked locations are joined the
 // same way a real multi-location Greenhouse/Lever posting's raw location
@@ -11,12 +11,12 @@ function locationLabel(loc: { cityName: string | null; stateName: string | null;
   return [loc.cityName, loc.stateName, loc.countryName].filter(Boolean).join(", ");
 }
 
-// The admin/test tab's own "ATS" (see testCompanies/routes.ts) -- discovers
+// The admin/test tab's own "ATS" (see testCompanies/routes.ts): discovers
 // jobs from CustomTestJob rows instead of an HTTP fetch, but is otherwise an
 // adapter like any other: sync.ts diffs its result against Postgres exactly
 // the same way. Only PUBLISHED drafts are visible; creating a draft alone
 // never enters the pipeline (Section 8's "creating must not itself send a
-// notification"). Always COMPLETE -- every call enumerates every published
+// notification"). Always COMPLETE: every call enumerates every published
 // row for this source, so a job an admin un-publishes would correctly read
 // as missing under the same closure logic a real source's disappearance
 // jobs use, without needing a separate code path for test data.
@@ -28,7 +28,7 @@ export class CustomTestAdapter implements JobSourceAdapter {
     });
 
     const jobs: NormalizedJob[] = drafts.map((draft) => {
-      // Structured admin input, not text to search -- an explicit KNOWN/
+      // Structured admin input, not text to search: an explicit KNOWN/
       // UNKNOWN choice rather than running the min/max regex classify.ts
       // uses for real descriptions (see classify.ts's experienceHint).
       const hasExperience = draft.requiredExperienceMin !== null || draft.requiredExperienceMax !== null;

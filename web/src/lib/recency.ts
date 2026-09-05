@@ -1,4 +1,4 @@
-// Recency labeling is deliberately keyed off firstSeenAt only -- JobDrop's
+// Recency labeling is deliberately keyed off firstSeenAt only: JobDrop's
 // own discovery timestamp, write-once at the database level (see
 // schema.prisma's Job model). Never derived from anything preference- or
 // subscription-related: a job doesn't get relabeled "new" just because a

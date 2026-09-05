@@ -8,47 +8,50 @@
  * ==========================================================================
  * JobDrop design tokens
  * ==========================================================================
- * One palette, one type scale, one set of surfaces -- every page reads from
+ * One palette, one type scale, one set of surfaces: every page reads from
  * here rather than styling itself, so the product looks like one thing.
  *
- * The identity is deliberately warm: an off-white paper canvas rather than
- * the cool gray / pure white most SaaS dashboards default to, warm-tinted
- * neutrals, and a deep emerald that carries the brand. Terracotta is the
- * single supporting accent and is used sparingly (recency, highlights) --
- * it exists to add warmth, not to make everything colorful.
+ * The identity is flat white with a confident blue that carries the brand:
+ * the same kind of saturated, recognizable blue used across developer
+ * tools like VS Code. Blue runs at two intensities: a pale wash for badges
+ * and highlights, and the bold, saturated blue itself for buttons, links
+ * and focus rings (it's dark enough on its own to carry white text, no
+ * separate pulled-down shade needed). A soft pink is the one supporting
+ * tint, used sparingly for secondary badges and hover surfaces, kept
+ * deliberately distinct from brand blue so the two never compete.
  *
- * Surfaces are layered rather than boxed: canvas < surface < raised. A
- * component only gets a border or a shadow when it genuinely sits on its
- * own layer; grouping is otherwise done with spacing and type hierarchy.
+ * Surfaces stay flat rather than layered: canvas and card are both pure
+ * white, so structure comes from borders and shadows, not from stacking
+ * shades of the same color.
  */
 :root {
   /* --- canvas & surfaces ------------------------------------------------ */
-  --canvas: #faf8f5; /* warm paper, the page ground */
+  --canvas: #ffffff; /* the page ground. Flat white everywhere */
   --surface: #ffffff; /* raised surface: cards, popovers, nav */
-  --tint: #f3efe8; /* warm sand: secondary/inset surfaces */
-  --tint-strong: #ebe5da;
+  --tint: #fbe9ef; /* soft pink: secondary/inset surfaces */
+  --tint-strong: #f6cbd9;
 
   /* --- ink -------------------------------------------------------------- */
-  --ink: #1a1917; /* warm near-black, never pure #000 */
-  --ink-secondary: #46433d;
-  --ink-muted: #6f6a62;
-  --ink-faint: #948f85;
+  --ink: #1e1e1e; /* neutral near-black, never pure #000 */
+  --ink-secondary: #3c3c3c;
+  --ink-muted: #5c5c5c;
+  --ink-faint: #9a9a9a;
 
   /* --- lines ------------------------------------------------------------ */
-  --line: #e7e1d7;
-  --line-strong: #d8d1c4;
+  --line: #e2e2e2;
+  --line-strong: #cccccc;
 
   /* --- brand ------------------------------------------------------------ */
-  --brand: #0e6b54; /* deep emerald */
-  --brand-hover: #0a5745;
-  --brand-ink: #084536; /* text-on-light brand tone */
-  --brand-tint: #e9f2ef; /* light emerald wash */
-  --brand-tint-strong: #d3e6e0;
+  --brand: #007acc; /* VS Code blue */
+  --brand-hover: #0062a3;
+  --brand-ink: #00497a; /* text-on-light brand tone */
+  --brand-tint: #e0f3ff; /* light blue wash */
+  --brand-tint-strong: #b8e2ff;
 
   /* --- supporting accent (used sparingly) -------------------------------- */
-  --warm: #b5623c; /* terracotta */
-  --warm-ink: #8f4a2c;
-  --warm-tint: #fbf0e9;
+  --warm: #e0779e; /* mid pink */
+  --warm-ink: #8c3556;
+  --warm-tint: #fbe9ef;
 
   /* --- feedback --------------------------------------------------------- */
   --warn-ink: #86611c;
@@ -59,13 +62,13 @@
   --danger-tint: #fbeeeb;
 
   /* --- depth ------------------------------------------------------------ */
-  /* Warm-tinted alpha rather than neutral black -- a black shadow on a warm
-     canvas reads gray and cheap. */
-  --shadow-xs: 0 1px 2px rgba(26, 25, 23, 0.04);
-  --shadow-sm: 0 1px 3px rgba(26, 25, 23, 0.05), 0 1px 2px rgba(26, 25, 23, 0.03);
-  --shadow-md: 0 4px 14px rgba(26, 25, 23, 0.06), 0 1px 3px rgba(26, 25, 23, 0.04);
-  --shadow-lg: 0 14px 36px rgba(26, 25, 23, 0.09), 0 3px 10px rgba(26, 25, 23, 0.04);
-  --shadow-brand: 0 8px 24px rgba(14, 107, 84, 0.18);
+  /* Neutral near-black alpha, matching ink: a flat white canvas has no
+     hue of its own for a shadow to inherit. */
+  --shadow-xs: 0 1px 2px rgba(30, 30, 30, 0.04);
+  --shadow-sm: 0 1px 3px rgba(30, 30, 30, 0.05), 0 1px 2px rgba(30, 30, 30, 0.03);
+  --shadow-md: 0 4px 14px rgba(30, 30, 30, 0.06), 0 1px 3px rgba(30, 30, 30, 0.04);
+  --shadow-lg: 0 14px 36px rgba(30, 30, 30, 0.09), 0 3px 10px rgba(30, 30, 30, 0.04);
+  --shadow-brand: 0 8px 24px rgba(0, 122, 204, 0.18);
 
   /* --- geometry --------------------------------------------------------- */
   /* Tighter than shadcn's default: precise, not pillowy. */
@@ -87,9 +90,14 @@
   --popover-foreground: var(--ink);
   --primary: var(--brand);
   --primary-foreground: #ffffff;
-  --secondary: var(--tint);
+  /* Blue, not the pink --tint: these two are shadcn's generic defaults
+     (skeleton loaders, avatar fallbacks, hover/tab/card-footer backgrounds),
+     so they should read as "the app's default surface", not as the
+     intentional pink accent that specific components opt into by name via
+     bg-tint/bg-tint-strong directly. */
+  --secondary: var(--brand-tint);
   --secondary-foreground: var(--ink-secondary);
-  --muted: var(--tint);
+  --muted: var(--brand-tint);
   --muted-foreground: var(--ink-muted);
   --accent: var(--brand-tint);
   --accent-foreground: var(--brand-ink);
@@ -111,51 +119,100 @@
   --sidebar-border: var(--line);
   --sidebar-ring: var(--brand);
 
-  /* ======================================================================
-   * Landing page palette (dark)
-   * ----------------------------------------------------------------------
-   * The marketing page runs its own dark, warm-black + orange identity,
-   * deliberately separate from the light app palette above -- a dark
-   * marketing site in front of a light product is a normal split, and
-   * keeping these tokens namespaced (`lp-`) means the landing page can be
-   * dark without any risk of leaking into the authenticated screens.
-   * ====================================================================== */
-  --lp-bg: #000000;
-  --lp-bg-2: #070707;
-  --lp-surface: #0d0d0d;
-  --lp-surface-2: #161616;
-  --lp-line: #1d1d1d;
-  --lp-line-2: #2b2b2b;
-  --lp-text: #ffffff;
-  --lp-muted: #a1a1a1;
-  --lp-faint: #6b6b6b;
-  --lp-accent: #3b5bff;
-  --lp-accent-2: #6480ff;
-  --lp-accent-ink: #c6d0ff;
+  /* Native form controls, scrollbars and the space behind the page follow
+     the theme too, otherwise a dark app still gets white scrollbars. */
+  color-scheme: light;
+}
+
+/*
+ * ==========================================================================
+ * Dark theme
+ * ==========================================================================
+ * Opt-in only. There is no `prefers-color-scheme` block anywhere in this
+ * file on purpose: light is the product's default look, and dark happens
+ * only when someone asks for it (see lib/theme.ts and ThemeProvider).
+ *
+ * Shades of near-black, never #000. The canvas sits at #17181b and each
+ * layer above it steps up a few points, so structure comes from the same
+ * quiet elevation the light theme gets from borders. Pure black would make
+ * every border and shadow either invisible or harsh, and it is the one
+ * thing this theme is meant not to be.
+ *
+ * Only the tokens that actually change are redeclared. Everything in the
+ * shadcn block above is written as var(--canvas), var(--ink) and so on, so
+ * it re-resolves through these automatically. That works because this class
+ * lands on <html>, the same element :root matches: on any inner wrapper the
+ * shadcn aliases would have already been substituted against the light
+ * values and would not follow.
+ */
+.dark {
+  /* --- canvas & surfaces ------------------------------------------------ */
+  --canvas: #17181b;
+  --surface: #1d1f22;
+  /* The light theme's soft pink reads as a stain on a dark ground, so the
+     inset surfaces go neutral here rather than carrying the accent. */
+  --tint: #24262a;
+  --tint-strong: #2d3035;
+
+  /* --- ink -------------------------------------------------------------- */
+  /* Off-white, mirroring the light theme's refusal to use pure black. */
+  --ink: #e9eaec;
+  --ink-secondary: #c2c5c9;
+  --ink-muted: #969aa0;
+  --ink-faint: #6a6e74;
+
+  /* --- lines ------------------------------------------------------------ */
+  --line: #2a2c31;
+  --line-strong: #3a3d43;
+
+  /* --- brand ------------------------------------------------------------ */
+  /* --brand is deliberately NOT lifted for dark mode, though the instinct
+     is to. It is a button fill carrying white text, and brightening it to
+     #0d8ae0 to sit better on charcoal drops white-on-brand from 4.5:1 to
+     3.7:1, i.e. under AA for the 14px semibold labels on those buttons.
+     The two requirements genuinely conflict: no single blue can be 4.5:1
+     against both white text and this canvas at once. So the fill keeps the
+     light theme's value (still 3.9:1 against the canvas, well past the 3:1
+     a non-text surface needs), and brand-ink below carries the readable
+     tone, exactly inverting the roles those two play in light mode.
+     hover DOES change: darkening on hover is invisible here, so it goes up
+     rather than down. */
+  --brand-hover: #2c9bea;
+  --brand-ink: #79c2f2;
+  --brand-tint: #16293a;
+  --brand-tint-strong: #1e3e58;
+
+  /* --- supporting accent ------------------------------------------------- */
+  --warm: #cf7897;
+  --warm-ink: #eaa9c0;
+  --warm-tint: #2b1f24;
+
+  /* --- feedback --------------------------------------------------------- */
+  --warn-ink: #ddb86f;
+  --warn-tint: #272115;
+  --warn-line: #463c22;
+  --danger: #d96a56;
+  --danger-ink: #efa091;
+  --danger-tint: #2b1a16;
+
+  /* --- depth ------------------------------------------------------------- */
+  /* A shadow tuned for a white page all but disappears on a dark one, so
+     these are the same geometry at roughly six times the opacity. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.34);
+  --shadow-brand: 0 8px 24px rgba(0, 122, 204, 0.28);
+
+  color-scheme: dark;
 }
 
 @theme inline {
-  /* Type: Geist carries the UI, the serif is reserved for marketing
-     surfaces (landing hero, auth panel) so the app itself stays crisp. */
+  /* Type: Geist carries the UI, the serif is reserved for the occasional
+     display line (see StatusScreen) so the app itself stays crisp. */
   --font-sans: var(--font-sans);
   --font-heading: var(--font-sans);
   --font-display: var(--font-display);
-  --font-hand: var(--font-hand);
-  --font-pixel: var(--font-pixel);
-
-  /* Landing-page (dark) scale -- see the lp- block in :root. */
-  --color-lp-bg: var(--lp-bg);
-  --color-lp-bg-2: var(--lp-bg-2);
-  --color-lp-surface: var(--lp-surface);
-  --color-lp-surface-2: var(--lp-surface-2);
-  --color-lp-line: var(--lp-line);
-  --color-lp-line-2: var(--lp-line-2);
-  --color-lp-text: var(--lp-text);
-  --color-lp-muted: var(--lp-muted);
-  --color-lp-faint: var(--lp-faint);
-  --color-lp-accent: var(--lp-accent);
-  --color-lp-accent-2: var(--lp-accent-2);
-  --color-lp-accent-ink: var(--lp-accent-ink);
 
   /* JobDrop-specific tokens, registered so `bg-tint`, `text-warm`,
      `shadow-brand` etc. generate as real utilities. */
@@ -249,7 +306,7 @@
     @apply font-sans;
   }
 
-  /* In-page anchor links (the landing nav) glide rather than jump -- but
+  /* In-page anchor links (the landing nav) glide rather than jump: but
      never for someone who has asked the OS for reduced motion. */
   @media (prefers-reduced-motion: no-preference) {
     html {
@@ -258,7 +315,7 @@
   }
 
   /* Headings carry hierarchy through weight + tracking rather than sheer
-     size -- the brief's "avoid oversized text everywhere." */
+     size: the brief's "avoid oversized text everywhere." */
   h1,
   h2,
   h3,
@@ -297,7 +354,7 @@
     @apply text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-muted;
   }
 
-  /* A hairline-divided list -- the default way JobDrop groups repeated
+  /* A hairline-divided list: the default way JobDrop groups repeated
      records (jobs, companies). Deliberately NOT a stack of bordered cards:
      twenty individual boxes reads as clutter, one divided surface reads as
      a list. */
@@ -311,11 +368,5 @@
 
   .list-row-interactive {
     @apply hover:bg-tint/60 focus-visible:bg-tint/60;
-  }
-
-  /* Decorative dot matrix used behind the landing hero's product shot. */
-  .dot-grid {
-    background-image: radial-gradient(circle, var(--lp-line-2) 1px, transparent 1px);
-    background-size: 14px 14px;
   }
 }

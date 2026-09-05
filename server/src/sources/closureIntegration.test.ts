@@ -1,7 +1,7 @@
 // closure.test.ts covers the pure decision function in isolation.
 // This file covers the WIRING: does syncSource actually read/write the
 // right rows, in the right order, when a job goes missing for real across
-// real syncSource calls -- including the case Phase 6's diff logic could
+// real syncSource calls: including the case Phase 6's diff logic could
 // not have survived on its own (a closed job's externalJobId reappearing,
 // which collides with the unique constraint unless reactivation is handled
 // explicitly).
@@ -74,12 +74,12 @@ describe("closure integration", () => {
     assert.equal(job.firstMissingAt, null);
   });
 
-  it("a job that misses enough times, for long enough, actually closes -- and then drops out of the dashboard query", async () => {
+  it("a job that misses enough times, for long enough, actually closes: and then drops out of the dashboard query", async () => {
     const source = await baselinedSource(["job-1"]);
     const job = await prisma.job.findFirstOrThrow({ where: { sourceId: source.id, externalJobId: "job-1" } });
 
     // Simulate "2 misses ago, past the time floor" as a precondition,
-    // rather than waiting 30 real minutes -- this tests the wiring
+    // rather than waiting 30 real minutes: this tests the wiring
     // (DB read -> evaluateMissedJob -> DB write) against a controlled
     // state, the same way the pure closure.test.ts controls "now".
     await prisma.job.update({
@@ -134,7 +134,7 @@ describe("closure integration", () => {
     const ids = Array.from({ length: 6 }, (_, i) => `job-${i}`);
     const source = await baselinedSource(ids); // 6 active jobs
 
-    // Only 2 of 6 reappear each cycle -- 4/6 = 67% missing, well past the
+    // Only 2 of 6 reappear each cycle: 4/6 = 67% missing, well past the
     // 50% breaker threshold, every single cycle.
     const survivors = [makeJob("job-0"), makeJob("job-1")];
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: survivors, status: "COMPLETE" }));

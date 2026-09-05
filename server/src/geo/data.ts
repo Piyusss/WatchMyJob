@@ -1,13 +1,13 @@
 // A curated (not exhaustive) country -> state/region -> city hierarchy,
 // covering the countries and hubs that actually appear in this product's
 // real job data today (see the companies' real postings) plus the other
-// major tech-hiring markets. Deliberately not a full worldwide gazetteer --
+// major tech-hiring markets. Deliberately not a full worldwide gazetteer:
 // a comprehensive dataset was considered and explicitly declined in favor
 // of this, kept small enough to hand-maintain and to render as a snappy
 // cascading picker with a single upfront fetch, no round-trip per level.
 //
 // City-scale countries (Singapore) get one pseudo-region matching the
-// country name rather than a special two-level case -- keeping every
+// country name rather than a special two-level case: keeping every
 // country exactly three levels deep means the picker UI never needs to
 // special-case "this country has no states."
 export interface GeoState {

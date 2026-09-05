@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 // Only states a user can act on or be reassured by are given words here.
-// PROVIDER_ACCEPTED/DELIVERED both read as "Sent" -- the distinction between
+// PROVIDER_ACCEPTED/DELIVERED both read as "Sent": the distinction between
 // "the provider took it" and "the provider confirmed delivery" is an
 // operational detail, and most providers never report the latter at all, so
 // surfacing it would leave most rows looking permanently unfinished.
@@ -90,7 +90,7 @@ export default function NotificationsPage() {
       setItems((prev) => [...prev, ...res.notifications]);
       setNextCursor(res.nextCursor);
     } catch {
-      // leave what's already loaded alone -- the user can click again
+      // leave what's already loaded alone: the user can click again
     } finally {
       setLoadingMore(false);
     }
@@ -125,8 +125,8 @@ export default function NotificationsPage() {
           <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">Notifications</h1>
           <p className="mt-1.5 text-[0.88rem] text-ink-muted">
             {total > 0
-              ? `A record of the ${total.toLocaleString()} alert${total === 1 ? "" : "s"} GettingShortlisted.com has sent you.`
-              : "A record of the job alerts GettingShortlisted.com has sent you."}
+              ? `A record of the ${total.toLocaleString()} alert${total === 1 ? "" : "s"} GettingShortlisted.in has sent you.`
+              : "A record of the job alerts GettingShortlisted.in has sent you."}
           </p>
         </header>
 

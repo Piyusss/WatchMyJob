@@ -6,7 +6,7 @@ import { env } from "../config/env.js";
 // That package builds its exported client at module-import time from
 // `process.env.CLERK_SECRET_KEY || ""`. ES imports evaluate in source
 // order, so @clerk/fastify is fully evaluated before config/env.js runs
-// its `import "dotenv/config"` -- the singleton captures an empty key and
+// its `import "dotenv/config"`: the singleton captures an empty key and
 // every call fails with "Missing Clerk Secret Key" at runtime. It's a
 // particularly nasty failure because clerkPlugin still gets its keys
 // explicitly, so token *verification* keeps working and only the Backend

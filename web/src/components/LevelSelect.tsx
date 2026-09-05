@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const ANY = "ANY";
 
-// A fixed, controlled dropdown rather than free text -- unlike Role, Level
+// A fixed, controlled dropdown rather than free text: unlike Role, Level
 // really is a small closed vocabulary in practice (the classifier only ever
 // produces a handful of distinct values; see preferences/schemas.ts's
 // LEVEL_VALUES comment for the full reasoning).

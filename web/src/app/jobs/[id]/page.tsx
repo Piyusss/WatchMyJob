@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft, ExternalLink, AlertCircle } from "lucide-react";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
@@ -61,12 +60,15 @@ export default function JobDetailPage() {
         </button>
 
         {loading ? (
+          // Mirrors what actually loads now: company line, title, meta, CTA
+          // row, match panel. No tall block at the end, which used to stand
+          // in for a description this page no longer shows.
           <div className="space-y-4">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-9 w-4/5" />
             <Skeleton className="h-4 w-2/5" />
             <Skeleton className="h-10 w-44" />
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
         ) : error ? (
           <Alert variant="destructive">
@@ -94,7 +96,7 @@ function JobDetailContent({ job }: { job: JobDetail }) {
   const recency = formatRecency(job.firstSeenAt);
   const showAsNew = recency.isNew && !job.discoveredInInitialSync;
 
-  // Meta reads as one sentence of facts rather than a row of badges --
+  // Meta reads as one sentence of facts rather than a row of badges:
   // location, arrangement, type, seniority and experience are all the same
   // kind of information and don't need six separate chips to say so.
   const meta = [
@@ -132,13 +134,13 @@ function JobDetailContent({ job }: { job: JobDetail }) {
 
         <p className="mt-1.5 text-[0.8rem] text-ink-faint">
           {job.discoveredInInitialSync
-            ? "Already open when you started watching — never emailed"
+            ? "Already open when you started watching, never emailed"
             : `First seen ${recency.label.replace(/^New(?: today)? · /, "")}`}
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           {/* A closed job keeps a de-emphasized, differently-worded link
-              rather than the normal Apply CTA -- the "No longer open" badge
+              rather than the normal Apply CTA: the "No longer open" badge
               above is easy to miss, and a prominent brand-colored "Apply"
               button would contradict it regardless. */}
           <a href={job.sourceUrl} target="_blank" rel="noreferrer">
@@ -167,47 +169,11 @@ function JobDetailContent({ job }: { job: JobDetail }) {
         </div>
       )}
 
-      {job.description ? (
-        <section className="mt-10 border-t border-line pt-8">
-          <h2 className="eyebrow">About this role</h2>
-          {/* The source's HTML is converted to plain text server-side (see
-              jobs/routes.ts -- rendering third-party markup directly would
-              be an XSS risk). Its line structure survives that conversion,
-              so each line becomes its own block here: that restores the
-              paragraph and bullet rhythm of the original posting without
-              trusting any of its markup. */}
-          <div className="mt-4 max-w-[68ch] space-y-2.5">
-            {job.description
-              .split("\n")
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .map((line, i) => (
-                <p key={i} className="text-[0.92rem] leading-[1.7] text-ink-secondary">
-                  {line}
-                </p>
-              ))}
-          </div>
-        </section>
-      ) : (
-        <section className="mt-10 border-t border-line pt-8">
-          <p className="text-[0.88rem] text-ink-muted">
-            This source didn&apos;t provide a description. Open the posting on {job.company.name}&apos;s site for the
-            full details.
-          </p>
-        </section>
-      )}
-
-      <footer className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
-        <a href={job.sourceUrl} target="_blank" rel="noreferrer">
-          <Button variant="outline" className="gap-2">
-            Apply on company site
-            <ExternalLink className="size-3.5" />
-          </Button>
-        </a>
-        <Link href="/companies" className="text-[0.85rem] font-medium text-brand-ink underline-offset-2 hover:underline">
-          Manage watched companies →
-        </Link>
-      </footer>
+      {/* Deliberately no job description here. The posting's own text lives
+          on the company's site and is better read there, first-hand and
+          fully formatted; repeating a plain-text copy of it only adds a
+          second, worse version of the same thing. This page's job is to say
+          what the role is, why it reached you, and where to apply. */}
     </article>
   );
 }

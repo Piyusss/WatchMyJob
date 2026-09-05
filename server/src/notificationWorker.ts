@@ -1,5 +1,5 @@
 // The notification worker: a third process alongside the API server
-// (src/index.ts) and the poller (src/worker.ts) -- three processes sharing
+// (src/index.ts) and the poller (src/worker.ts): three processes sharing
 // one Postgres, per the Phase 1 architecture note, not one monolith. Ticks
 // on a short interval, draining whatever is QUEUED or due for retry.
 import { processNotificationBatch } from "./notifications/pipeline.js";

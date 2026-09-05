@@ -15,7 +15,7 @@ export interface JobClassification {
 
 // ---- Opportunity type: title only. A title's ABSENCE of "intern" /
 // "contract" / "part-time" language is itself a reliable full-time signal
-// (standard job-board convention) -- unlike experience, this default is
+// (standard job-board convention): unlike experience, this default is
 // earned, not invented. The description isn't scanned: "contract" shows up
 // in ordinary full-time postings too (e.g. "negotiating contracts"),
 // making the title the only high-confidence source for this signal.
@@ -33,7 +33,7 @@ function classifyOpportunityType(title: string): OpportunityType {
 // prefix position is trusted for these. "Lead" is included on well-established
 // industry convention despite not appearing in that sample; anything not
 // in this list (Manager, Director, Head of, VP) is deliberately left
-// unparsed -- those routinely name the role itself on a management track
+// unparsed: those routinely name the role itself on a management track
 // ("Director, Business Operations"), not a modifier on some other base
 // role, and guessing which case applies would be exactly the kind of
 // invented structure Section 18 forbids for experience.
@@ -66,7 +66,7 @@ function cleanRoleFamily(text: string): string | null {
 }
 
 // A bare Roman numeral or digit 1-5 at the ABSOLUTE end of the title, per
-// the canonical "Software Engineer I" / "SDE 1" example -- deliberately
+// the canonical "Software Engineer I" / "SDE 1" example: deliberately
 // not extended to tolerate a trailing parenthetical (no real example
 // justifies that complexity; failing to extract is safer than guessing).
 const NUMBERED_LEVEL_SUFFIX = /\s+(I{1,3}|IV|V|[1-5])$/;
@@ -101,7 +101,7 @@ export function classifyLevelAndRoleFamily(rawTitle: string): { roleFamily: stri
 // dominant pattern by far is an open-ended floor ("5+ years of
 // experience"), with an explicit "N-M years" range appearing only rarely.
 // A required-vs-preferred split is real "5+ years required... nice to have
-// experience with X" -- section markers really do appear in practice) but
+// experience with X": section markers really do appear in practice) but
 // unvalidated against a positive real example in this dataset; it degrades
 // safely (marker never found -> everything is "required text", matching
 // Section 16's default when no distinction is stated).
@@ -149,25 +149,25 @@ function classifyExperience(descriptionText: string) {
   };
 }
 
-// Pure function of title + description -- no I/O, directly testable, and
+// Pure function of title + description: no I/O, directly testable, and
 // deliberately re-run only when contentHash changes (see sync.ts): the same
 // title+description always classifies the same way. Takes only the two
 // fields it actually reads (not the full NormalizedJob) so callers with a
-// differently-shaped record -- e.g. admin/reclassify.ts backfilling from
-// already-stored Job rows -- don't need to fake the rest of the interface.
+// differently-shaped record: e.g. admin/reclassify.ts backfilling from
+// already-stored Job rows: don't need to fake the rest of the interface.
 export function classifyJob(
   job: Pick<NormalizedJob, "title" | "description"> &
     Partial<Pick<NormalizedJob, "opportunityTypeHint" | "roleFamilyHint" | "levelHint" | "experienceHint">>,
 ): JobClassification {
   const parsed = classifyLevelAndRoleFamily(job.title);
   // A source-supplied structured signal beats parsing/guessing when
-  // available -- the same rule opportunityTypeHint already established,
+  // available: the same rule opportunityTypeHint already established,
   // extended to role/level/experience for the CUSTOM_TEST adapter (see
   // NormalizedJob's hint fields).
   const roleFamily = job.roleFamilyHint ?? parsed.roleFamily;
   const level = job.levelHint !== undefined ? job.levelHint : parsed.level;
   const opportunityType = job.opportunityTypeHint ?? classifyOpportunityType(job.title);
-  // A hint never carries a preferred-experience split -- it comes from a
+  // A hint never carries a preferred-experience split: it comes from a
   // structured admin form (required min/max only), not a description with
   // "nice to have" language to find a preferred SECTION within.
   const experience = job.experienceHint

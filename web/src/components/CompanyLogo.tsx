@@ -1,24 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { avatarColors, avatarInitial } from "@/lib/avatar";
+import SampleLogo from "@/components/SampleLogo";
 import { cn } from "@/lib/utils";
 
-// DuckDuckGo's public favicon-by-domain endpoint -- no API key, live and
-// network-verified as of this writing (Clearbit's equivalent free logo
-// endpoint, the more obvious choice, no longer resolves at all post-HubSpot
-// acquisition -- confirmed dead via two independent network paths before
-// picking this instead). Correctly 404s for an unknown domain rather than
-// always returning 200 with a generic placeholder, which is what makes the
-// onError fallback below actually work. Deliberately not stored as a URL on
-// the company: keeping only the domain lets this swap providers again later
-// without a migration or a backfill.
+// Routed through our own handler rather than straight at the icon provider.
+// The provider answers an unknown domain with a 404 that still carries a
+// valid grey-placeholder PNG, and browsers happily render an image served
+// with a 404, so onError never fired and made-up domains showed the grey
+// square instead of the mark below. api/company-logo collapses that into an
+// empty 404 that does fire onError (see the comment in that file).
+//
+// Deliberately not stored as a URL on the company: keeping only the domain
+// lets the provider change again later without a migration or a backfill.
 function logoUrl(domain: string): string {
-  return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+  return `/api/company-logo?domain=${encodeURIComponent(domain)}`;
 }
 
 // Every place a company appears gets the same fixed square, so a mix of
-// real logos (arbitrary aspect ratios) and initials tiles never causes a
+// real logos (arbitrary aspect ratios) and sample-mark tiles never causes a
 // row to jump around. object-contain preserves the logo's own aspect ratio
 // inside that square rather than stretching it.
 export default function CompanyLogo({
@@ -33,15 +33,21 @@ export default function CompanyLogo({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const colors = avatarColors(name);
 
+  // No domain on file, or one was given but its favicon didn't resolve (a
+  // test company created with a placeholder/made-up domain hits this exact
+  // path, since there's no real favicon to fetch). Either way, a sample mark
+  // reads as "a company with a plain icon", not "this one is broken",
+  // unlike a bare initial does.
   if (!domain || failed) {
     return (
       <span
-        className={cn("grid shrink-0 place-items-center rounded-lg font-bold", className)}
-        style={{ width: size, height: size, background: colors.bg, color: colors.fg, fontSize: size * 0.42 }}
+        className={cn("grid shrink-0 place-items-center overflow-hidden rounded-lg ring-1 ring-line", className)}
+        style={{ width: size, height: size }}
       >
-        {avatarInitial(name)}
+        {/* No bg-white here: the mark paints its own coloured tile edge to
+            edge, the way a real favicon fills its square. */}
+        <SampleLogo name={name} />
       </span>
     );
   }

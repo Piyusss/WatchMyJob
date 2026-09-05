@@ -1,5 +1,5 @@
 // Minimal admin CLI for attaching job sources to a company. See companies.ts
-// for the operating model (no HTTP surface, no auth -- a local script).
+// for the operating model (no HTTP surface, no auth: a local script).
 //
 // Usage:
 //   npm run admin:sources -- add --company microsoft --platform GREENHOUSE --config '{"boardToken":"microsoft"}'
@@ -92,8 +92,8 @@ async function listSources(argv: string[]) {
   console.log(`${company.name} sources:\n`);
   for (const s of sources) {
     console.log(
-      `- ${s.platform} — poll every ${s.pollIntervalSeconds}s — ${JSON.stringify(s.config)}${
-        s.consecutiveFailures > 0 ? ` — ${s.consecutiveFailures} consecutive failure(s)` : ""
+      `- ${s.platform} · poll every ${s.pollIntervalSeconds}s · ${JSON.stringify(s.config)}${
+        s.consecutiveFailures > 0 ? ` · ${s.consecutiveFailures} consecutive failure(s)` : ""
       }`,
     );
   }
@@ -108,7 +108,7 @@ async function main() {
     case "list":
       return listSources(rest);
     default:
-      console.log("Usage: admin:sources -- <add|list> [options]");
+      console.log("Usage: admin:sources. <add|list> [options]");
       process.exit(command ? 1 : 0);
   }
 }

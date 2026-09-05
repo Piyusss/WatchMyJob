@@ -15,7 +15,7 @@ const ROLE_FAMILY_MIN_COUNT = 2;
 const ROLE_FAMILY_LIMIT = 8;
 
 // Read-only. Only companies whose sources all have a committed baseline
-// appear here -- see selectable.ts for why that gate exists.
+// appear here: see selectable.ts for why that gate exists.
 export async function companyRoutes(fastify: FastifyInstance) {
   fastify.get("/", async (_request, reply) => {
     const [companies, openCounts] = await Promise.all([
@@ -72,7 +72,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         _count: true,
       }),
       // "Last data update" means the last time a sync of this company's
-      // sources actually SUCCEEDED -- a failing source must not be able to
+      // sources actually SUCCEEDED: a failing source must not be able to
       // present itself as freshly updated.
       prisma.jobSource.aggregate({
         where: { companyId: company.id },
@@ -85,7 +85,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         ...company,
         openRoles,
         // A row with active:false is an unsubscribed history record, not a
-        // subscription -- both read as "not watching".
+        // subscription: both read as "not watching".
         watching: subscription?.active === true,
         lastSyncedAt: lastSync._max.lastSuccessAt,
         roleFamilies: roleFamilies

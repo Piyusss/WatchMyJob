@@ -16,7 +16,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
 
-  // Clerk is the sole auth mechanism (see auth/authenticate.ts) -- both
+  // Clerk is the sole auth mechanism (see auth/authenticate.ts): both
   // required, boot fails without them rather than running with auth silently
   // broken.
   CLERK_PUBLISHABLE_KEY: z.string().min(1, "CLERK_PUBLISHABLE_KEY is required"),
@@ -31,11 +31,11 @@ const envSchema = z.object({
   // works before anyone here owns a domain.
   BREVO_API_KEY: optional(z.string()),
   BREVO_FROM_EMAIL: optional(z.string().email()),
-  BREVO_FROM_NAME: z.string().default("GettingShortlisted.com"),
+  BREVO_FROM_NAME: z.string().default("GettingShortlisted.in"),
 
   RESEND_API_KEY: optional(z.string()),
-  // Deliberately not .email() -- Resend accepts a display-name form too,
-  // e.g. "GettingShortlisted.com <onboarding@resend.dev>".
+  // Deliberately not .email(): Resend accepts a display-name form too,
+  // e.g. "GettingShortlisted.in <onboarding@resend.dev>".
   RESEND_FROM_EMAIL: optional(z.string()),
 
   SES_FROM_EMAIL: optional(z.string().email()),
@@ -43,14 +43,14 @@ const envSchema = z.object({
   // Shared secret expected as ?token=... on the SES/SNS delivery-feedback
   // webhook (see notifications/webhooks.ts). Optional: unset in local dev
   // (where no real SNS topic exists to call it anyway), required in
-  // practice once a real subscription is configured -- the subscription's
+  // practice once a real subscription is configured: the subscription's
   // endpoint URL is the one place this secret needs to be embedded.
   SES_WEBHOOK_SECRET: optional(z.string()),
 
   // Comma-separated list of Clerk account emails allowed to reach the
   // admin/test-companies surface (see auth/authenticate.ts's requireAdmin).
   // Reuses the existing Clerk-authenticated session rather than a second
-  // credential system -- this only adds an authorization check on top of
+  // credential system: this only adds an authorization check on top of
   // "already signed in", the same way every other admin surface in this
   // codebase (admin:companies et al.) assumes whoever can reach it is
   // trusted, except this one has a real HTTP surface so that trust has to

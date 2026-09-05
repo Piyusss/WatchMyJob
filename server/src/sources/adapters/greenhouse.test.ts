@@ -1,10 +1,10 @@
 // Every other test in this codebase exercises adapter BEHAVIOR through the
-// setAdapterForTesting seam with a fake adapter -- correctly, since that's
+// setAdapterForTesting seam with a fake adapter: correctly, since that's
 // what sync.ts's own logic needs. But that means the REAL GreenhouseAdapter
 // parsing code (raw Greenhouse JSON -> NormalizedJob) has never itself been
 // tested. This file closes that gap using a recorded real response
 // (__fixtures__/greenhouse-figma.json, three real Figma postings) with
-// global fetch mocked -- never a live request, respecting the same ToS
+// global fetch mocked: never a live request, respecting the same ToS
 // principle Section 9 states for the product itself, applied to testing it.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -63,7 +63,7 @@ describe("GreenhouseAdapter", () => {
     }
   });
 
-  it("never sets opportunityTypeHint -- Greenhouse has no structured field for it (unlike Lever)", async () => {
+  it("never sets opportunityTypeHint: Greenhouse has no structured field for it (unlike Lever)", async () => {
     mockFetch(200, fixture);
     const adapter = new GreenhouseAdapter();
     const result = await adapter.discoverJobs({ id: "s1", companyId: "c1", config: { boardToken: "figma" } });

@@ -13,7 +13,7 @@ function sameSet(a: string[], b: string[]): boolean {
   return sa.every((v, i) => v === sb[i]);
 }
 
-// One string per location so set-equality can reuse sameSet -- order never
+// One string per location so set-equality can reuse sameSet: order never
 // matters for either preferences (workMode/opportunityTypes) or locations.
 function locationKey(loc: { countryCode: string; stateCode: string | null; cityName: string | null }): string {
   return `${loc.countryCode}|${loc.stateCode ?? ""}|${loc.cityName ?? ""}`;
@@ -62,7 +62,7 @@ export async function preferencesRoutes(fastify: FastifyInstance) {
     const input = parsed.data;
 
     // roleFamily has no fixed taxonomy to validate against statically (see
-    // jobs/routes.ts's /role-families comment) -- "controlled selection, not
+    // jobs/routes.ts's /role-families comment): "controlled selection, not
     // free text" here means it must be a value that's actually on a real
     // active job right now, checked live against the database rather than a
     // list that would drift from reality.
@@ -100,7 +100,7 @@ export async function preferencesRoutes(fastify: FastifyInstance) {
       update: {
         ...scalarData,
         ...(changed ? { effectiveSince: new Date() } : {}),
-        // Full replace, not a diff -- the form always submits the complete
+        // Full replace, not a diff: the form always submits the complete
         // current list, so clearing and recreating is both simpler and
         // correct (a partial add/remove API would need its own id-based
         // contract the frontend has no reason to carry).
@@ -110,7 +110,7 @@ export async function preferencesRoutes(fastify: FastifyInstance) {
     });
 
     // Only worth re-running when something matching-relevant actually
-    // changed -- an unchanged resubmission can't newly match anything, and
+    // changed: an unchanged resubmission can't newly match anything, and
     // effectiveSince didn't move, so the eligibility check would find
     // nothing new either. Never lets a matching-engine failure fail the
     // save itself: the preferences ARE correctly persisted regardless.

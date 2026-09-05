@@ -13,7 +13,7 @@ describe("backoffDelayMs", () => {
 
   it("is capped, not unbounded", () => {
     // Doubling from a small base reaches a 30-minute-scale cap well before
-    // attempt 10 -- MAX_SEND_ATTEMPTS itself (5) is too low for the cap to
+    // attempt 10: MAX_SEND_ATTEMPTS itself (5) is too low for the cap to
     // matter in practice today; this checks the safety bound exists
     // independent of that, e.g. for whenever it's raised later.
     const atCeiling = backoffDelayMs(10);

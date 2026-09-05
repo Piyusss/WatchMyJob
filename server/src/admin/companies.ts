@@ -1,10 +1,10 @@
-// Minimal admin CLI for the company allowlist. No HTTP surface, no auth --
+// Minimal admin CLI for the company allowlist. No HTTP surface, no auth:
 // this runs against the database directly and is operated by whoever has
 // shell access to the server, matching "a script is enough at this scale."
 //
 // Usage:
 //   npm run admin:companies -- add --name "Microsoft" --slug microsoft --access-basis OFFICIAL_API --domain microsoft.com
-//   npm run admin:companies -- list
+//   npm run admin:companies. List
 //   npm run admin:companies -- deactivate --slug microsoft
 //   npm run admin:companies -- activate --slug microsoft
 //   npm run admin:companies -- set-domain --slug microsoft --domain microsoft.com
@@ -68,10 +68,14 @@ async function listCompanies() {
     return;
   }
 
-  console.log(`${companies.length} companies (max 50):\n`);
+  // No "(max 50)" here any more: 50 was the original target from
+  // companies.txt, never a limit anything enforced, and the allowlist is
+  // past it now. Printing a cap that isn't real just invites someone to
+  // trust it.
+  console.log(`${companies.length} companies:\n`);
   for (const c of companies) {
     console.log(
-      `${c.status === "ACTIVE" ? "●" : "○"} ${c.name} (${c.slug}) — ${c.accessBasis} — ${c._count.sources} source(s)`,
+      `${c.status === "ACTIVE" ? "●" : "○"} ${c.name} (${c.slug}) · ${c.accessBasis} · ${c._count.sources} source(s)`,
     );
   }
 }
@@ -85,7 +89,7 @@ async function setStatus(argv: string[], status: CompanyStatus) {
 
   await prisma.company.update({ where: { slug: values.slug }, data: { status } });
 
-  // A disabled company must stop counting as "watched" -- left alone, a
+  // A disabled company must stop counting as "watched": left alone, a
   // subscriber's active subscription row would keep feeding the dashboard
   // job query and the matching engine, neither of which checks the
   // company's own status (see subscriptions/deactivateForCompany.ts).
@@ -124,7 +128,7 @@ async function main() {
     case "set-domain":
       return setDomain(rest);
     default:
-      console.log("Usage: admin:companies -- <add|list|activate|deactivate|set-domain> [options]");
+      console.log("Usage: admin:companies. <add|list|activate|deactivate|set-domain> [options]");
       process.exit(command ? 1 : 0);
   }
 }

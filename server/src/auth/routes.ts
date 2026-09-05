@@ -20,13 +20,13 @@ function toPublicUser(
     emailVerified: user.emailVerified,
     notificationsPaused: user.notificationsPaused,
     createdAt: user.createdAt,
-    // Drives the frontend's onboarding redirect -- the matching engine
+    // Drives the frontend's onboarding redirect: the matching engine
     // already refuses to queue notifications for a user with no saved
     // UserPreferences row (see matching/engine.ts), so this just surfaces
     // that same fact to the UI instead of leaving it silent.
     hasPreferences,
     // Drives whether AuthNav shows the admin/test-companies link. Purely a
-    // UI convenience -- the actual boundary is requireAdmin on the server,
+    // UI convenience: the actual boundary is requireAdmin on the server,
     // checked fresh on every admin request, not trusted from this field.
     isAdmin: isAdminEmail(user.email),
   };
@@ -38,7 +38,7 @@ async function checkHasPreferences(userId: string): Promise<boolean> {
 }
 
 // Registration, login, logout, email verification and password reset are
-// all Clerk's now (see web/src/app/login and /register, and proxy.ts) --
+// all Clerk's now (see web/src/app/login and /register, and proxy.ts):
 // this file only surfaces the JobDrop-specific profile fields once Clerk
 // has already authenticated the request.
 export async function authRoutes(fastify: FastifyInstance) {

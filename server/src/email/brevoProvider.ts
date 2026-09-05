@@ -1,10 +1,10 @@
 import type { EmailMessage, EmailProvider, EmailSendResult } from "./types.js";
 
-// Brevo's transactional email API (v3), called directly via fetch -- same
+// Brevo's transactional email API (v3), called directly via fetch: same
 // reasoning as resendProvider.ts: one less SDK to keep current, and it keeps
 // failure handling explicit. Chosen alongside Resend specifically because
 // Brevo verifies a single SENDER ADDRESS rather than requiring a domain
-// (Resend has no equivalent -- domain verification only), so a real user can
+// (Resend has no equivalent: domain verification only), so a real user can
 // receive real email without anyone here owning a domain.
 const ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 const TIMEOUT_MS = 15_000;
@@ -34,7 +34,7 @@ export class BrevoEmailProvider implements EmailProvider {
       response = await fetch(ENDPOINT, {
         method: "POST",
         headers: {
-          // The key is only ever placed here -- never logged, never included
+          // The key is only ever placed here: never logged, never included
           // in a thrown error message (see the failure paths below).
           "api-key": this.apiKey,
           "Content-Type": "application/json",
@@ -52,7 +52,7 @@ export class BrevoEmailProvider implements EmailProvider {
     } catch (err) {
       // Network failure or timeout. Thrown, not swallowed: the notification
       // pipeline's own catch records the attempt, schedules a backoff retry
-      // and eventually dead-letters -- exactly what should happen here.
+      // and eventually dead-letters: exactly what should happen here.
       const isAbort = err instanceof Error && err.name === "AbortError";
       throw new Error(
         isAbort
@@ -74,7 +74,7 @@ export class BrevoEmailProvider implements EmailProvider {
         const parsed = JSON.parse(body) as BrevoErrorBody;
         if (parsed.message) detail = parsed.code ? `${parsed.code}: ${parsed.message}` : parsed.message;
       } catch {
-        // non-JSON body -- the truncated raw text is the best detail we have
+        // non-JSON body: the truncated raw text is the best detail we have
       }
       throw new Error(`Brevo rejected the send (${response.status}): ${detail}`);
     }
@@ -83,7 +83,7 @@ export class BrevoEmailProvider implements EmailProvider {
       const parsed = JSON.parse(body) as BrevoSuccess;
       return { providerMessageId: parsed.messageId ?? null };
     } catch {
-      // A 2xx with an unreadable body means it very likely WAS accepted --
+      // A 2xx with an unreadable body means it very likely WAS accepted:
       // treat it as sent with an unknown id rather than throwing, which
       // would retry and risk a duplicate email.
       return { providerMessageId: null };

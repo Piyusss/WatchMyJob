@@ -8,7 +8,14 @@ import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { createTestCompany, listTestCompanies, updateTestCompanyStatus, ApiError, type TestCompanyListItem } from "@/lib/api";
+import {
+  createTestCompany,
+  listTestCompanies,
+  updateTestCompanyStatus,
+  ApiError,
+  apiErrorMessage,
+  type TestCompanyListItem,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +24,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Only reachable at all when the signed-in account is on the server's
-// ADMIN_EMAILS allowlist -- AuthNav already hides the link that gets here
+// ADMIN_EMAILS allowlist: AuthNav already hides the link that gets here
 // for anyone else, but a direct visit still has to be told, not silently
 // shown a broken/empty page. The real boundary is server-side (every
 // /api/admin/* call 403s regardless); this is purely so the page reads
-// honestly for the one case it can't prevent -- someone typing the URL.
+// honestly for the one case it can't prevent: someone typing the URL.
 function NotAuthorized() {
   return (
     <>
@@ -30,7 +37,7 @@ function NotAuthorized() {
         <EmptyState
           icon={ShieldAlert}
           title="Admin access required"
-          body="This account isn't on the admin allowlist for GettingShortlisted.com's test-company tools."
+          body="This account isn't on the admin allowlist for GettingShortlisted.in's test-company tools."
         />
       </main>
     </>
@@ -64,7 +71,7 @@ export default function TestCompaniesClient() {
     setCreating(true);
     try {
       const res = await createTestCompany({ name: name.trim(), domain: domain.trim() || null });
-      toast.success(`${name.trim()} created — selectable by users immediately`);
+      toast.success(`${name.trim()} created and selectable by users immediately`);
       setName("");
       setDomain("");
       const refreshed = await listTestCompanies();
@@ -72,7 +79,11 @@ export default function TestCompaniesClient() {
       // res.company.slug is where "Create Job" naturally continues.
       window.location.href = `/admin/test-companies/${res.company.slug}`;
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Couldn't create this company. Please try again.";
+      const message = apiErrorMessage(err, "Couldn't create this company. Please try again.", {
+        name: "Company name",
+        domain: "Website domain",
+        slug: "Slug",
+      });
       setCreateError(message);
       toast.error(message);
     } finally {
@@ -91,7 +102,7 @@ export default function TestCompaniesClient() {
           ? `${company.name} is now active`
           : `${company.name} is now disabled` +
               (res.subscriptionsDeactivated > 0
-                ? ` — ${res.subscriptionsDeactivated} subscriber(s) unsubscribed, no longer watching it`
+                ? `; ${res.subscriptionsDeactivated} subscriber(s) unsubscribed, no longer watching it`
                 : ""),
       );
     } catch (err) {
@@ -137,7 +148,7 @@ export default function TestCompaniesClient() {
           <div>
             <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">Test companies</h1>
             <p className="mt-1.5 max-w-xl text-[0.88rem] leading-relaxed text-ink-muted">
-              Admin-only. A test company runs through the exact same pipeline a real company does — publishing a job
+              Admin-only. A test company runs through the exact same pipeline a real company does. Publishing a job
               here queues real notifications for anyone genuinely subscribed and matching, sent by the real worker.
               Not visible to normal users as anything other than an ordinary company they can watch.
             </p>
@@ -155,7 +166,7 @@ export default function TestCompaniesClient() {
               <Label htmlFor="domain">Website domain (optional)</Label>
               <Input
                 id="domain"
-                placeholder="testcorp.com — used for the logo, if it resolves"
+                placeholder="testcorp.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
               />

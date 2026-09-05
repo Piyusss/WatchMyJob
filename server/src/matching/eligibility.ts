@@ -3,7 +3,7 @@ export type NotificationType = "NEW_JOB" | "MATCH_VIA_UPDATE";
 export interface EligibilityContext {
   jobFirstSeenAt: Date;
   // Only ever set for a genuine matching-relevant change (see sync.ts's
-  // matchRelevantFieldsChanged) -- never for a routine description edit,
+  // matchRelevantFieldsChanged): never for a routine description edit,
   // narrowing but not eliminating the limitation documented below.
   jobLastMatchRelevantChangeAt: Date | null;
   subscribedAt: Date;
@@ -17,9 +17,9 @@ export interface EligibilityContext {
 // blueprint's rule is "use firstSeenAt, UNLESS the match state only became
 // true because of a later change." Telling those apart exactly requires
 // knowing whether the job matched THIS USER'S preferences before that
-// change too -- which requires a snapshot of historical job state, and no
+// change too, which requires a snapshot of historical job state, and no
 // such history table exists (Job only stores current values; Phase 6/7
-// overwrite in place). What's implemented instead: try firstSeenAt first: if
+// overwrite in place). What's implemented instead: try firstSeenAt first. If
 // the job counts as new to this user's subscription/preference cutoff,
 // that alone decides it, full stop. Only if firstSeenAt predates the
 // cutoff does a later matching-relevant change get a chance to justify

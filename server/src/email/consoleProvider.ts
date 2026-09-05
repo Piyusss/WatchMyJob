@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import type { EmailMessage, EmailProvider, EmailSendResult } from "./types.js";
 
 // Local-dev stand-in: prints the email instead of sending it, so the
-// register -> verify -> login flow -- and now the notification pipeline --
+// register -> verify -> login flow (and now the notification pipeline)
 // works without real SES credentials. Used automatically whenever
 // SES_FROM_EMAIL isn't configured (see index.ts).
 export class ConsoleEmailProvider implements EmailProvider {

@@ -1,7 +1,7 @@
 // A real reliability scenario, not a hypothetical: an operator runs
 // admin:sync by hand while the scheduled worker's tick for the same source
 // is also in flight. Node's event loop is single-threaded, but Prisma's
-// $transaction sends real queries over the wire -- two overlapping
+// $transaction sends real queries over the wire: two overlapping
 // transactions genuinely race at the POSTGRES level, which is exactly what
 // Promise.all here exercises, not a simulation of one.
 import { after, afterEach, before, describe, it } from "node:test";
@@ -58,7 +58,7 @@ describe("concurrent sync of the same source", () => {
 
     const results = await Promise.all([syncSource(source), syncSource(source)]);
 
-    // Neither call may throw an unhandled exception -- both must resolve
+    // Neither call may throw an unhandled exception: both must resolve
     // to a normal SourceSyncResult, whichever one "lost" the race included.
     for (const r of results) {
       assert.equal(typeof r, "object");
@@ -88,7 +88,7 @@ describe("concurrent sync of the same source", () => {
     const after = await prisma.jobSource.findUniqueOrThrow({ where: { id: source.id } });
     // One of the two calls updates consecutiveFailures back to 0 on success
     // (whichever runs last), so this only confirms the source is left in a
-    // sane, queryable state -- not stuck, not corrupted -- after the race.
+    // sane, queryable state (not stuck, not corrupted) after the race.
     assert.ok(typeof after.consecutiveFailures === "number");
   });
 });

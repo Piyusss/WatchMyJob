@@ -1,5 +1,5 @@
 // Deterministic per-company avatar colors. Muted, desaturated tones drawn
-// to sit on the warm canvas -- a company mark should identify, not shout,
+// to sit on the warm canvas: a company mark should identify, not shout,
 // so these are deliberately low-chroma rather than a bright random palette.
 const AVATAR_PALETTE = [
   { bg: "#e3ede9", fg: "#0e6b54" }, // emerald

@@ -1,6 +1,6 @@
 // Exercises the SES/SNS delivery-feedback webhook end to end through a real
 // Fastify instance (route registration, the text/plain content-type parser,
-// the SNS-envelope/SES-event parsing, and the resulting DB writes) -- not
+// the SNS-envelope/SES-event parsing, and the resulting DB writes): not
 // just the inner logic in isolation, since the content-type parser wiring
 // is itself something that's broken before (SNS's text/plain quirk is easy
 // to get wrong) and is worth covering as a real HTTP request.

@@ -17,11 +17,11 @@ const historyQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
 });
 
-// Public, no auth -- the whole point of an email unsubscribe link is that
+// Public, no auth: the whole point of an email unsubscribe link is that
 // it works without logging in. POST, not GET: a GET link is exactly what
 // an email client's link-prefetch or a security scanner fetches
 // automatically (the same reasoning that kept email verification off a
-// bare GET in Phase 1) -- the frontend page at this link's target makes
+// bare GET in Phase 1): the frontend page at this link's target makes
 // this call deliberately, a prefetch never does.
 export async function notificationRoutes(fastify: FastifyInstance) {
   fastify.post("/unsubscribe", async (request, reply) => {
@@ -41,7 +41,7 @@ export async function notificationRoutes(fastify: FastifyInstance) {
   });
 
   // The user's own notification history. A read-only record of what was
-  // already sent, NOT a second delivery channel -- nothing here creates,
+  // already sent, NOT a second delivery channel: nothing here creates,
   // retries or re-sends anything.
   //
   // Scoped to request.userId with no way to widen it: there is no userId

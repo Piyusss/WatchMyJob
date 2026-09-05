@@ -106,7 +106,7 @@ describe("ResendEmailProvider", () => {
 
   it("treats a 2xx with an unparseable body as sent, not as a failure to retry", async () => {
     // Retrying a send the provider actually accepted is how duplicate emails
-    // happen -- this product's own priorities favour an unknown id over that.
+    // happen: this product's own priorities favour an unknown id over that.
     mockFetch(200, "not json");
     const result = await new ResendEmailProvider("k", "a@example.test").send(message);
     assert.equal(result.providerMessageId, null);

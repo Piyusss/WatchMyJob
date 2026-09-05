@@ -21,7 +21,7 @@ const jobsQuerySchema = z.object({
   // reliably resumes even if two jobs share the same sort-key timestamp.
   cursor: z.string().uuid().optional(),
   sort: z.enum(["newest", "updated"]).default("newest"),
-  // Comma-separated company slugs -- narrows the watchlist, doesn't expand
+  // Comma-separated company slugs: narrows the watchlist, doesn't expand
   // it; a slug the user doesn't watch has no effect.
   companies: z.string().optional(),
   roleFamily: z.string().trim().max(200).optional(),
@@ -75,7 +75,7 @@ type SelectedJob = Prisma.JobGetPayload<{ select: typeof JOB_SELECT }>;
 
 // "newest" = when JobDrop first saw it. "updated" = when it was last
 // matching-relevantly changed (a reopened or meaningfully-edited posting),
-// falling back to firstSeenAt for a job that's never had one -- there's no
+// falling back to firstSeenAt for a job that's never had one: there's no
 // single column that means "recently updated" on its own (lastSeenAt is
 // bumped by every sync cycle for every still-open job, unchanged or not,
 // so it can't distinguish "this job changed" from "we re-confirmed it's
@@ -87,14 +87,14 @@ function sortKey(job: SelectedJob, sort: "newest" | "updated"): number {
 
 // Active openings at the companies this user currently watches, filtered by
 // their saved preferences using the SAME predicate that gates notifications
-// (matching/predicate.ts) -- what's shown here is exactly "the jobs that
+// (matching/predicate.ts): what's shown here is exactly "the jobs that
 // would notify you," not a superset. A user with no saved preferences yet
-// (shouldn't normally reach this page -- the frontend redirects to
+// (shouldn't normally reach this page: the frontend redirects to
 // onboarding first, see auth/routes.ts's hasPreferences) falls back to the
 // unfiltered watch-list view rather than showing nothing.
 export async function jobRoutes(fastify: FastifyInstance) {
   // Backs the preferences form's Role combobox. There's no fixed role-family
-  // taxonomy to validate against -- classification (see sources/classify.ts)
+  // taxonomy to validate against: classification (see sources/classify.ts)
   // deliberately produces near-title-granular values rather than bucketing
   // into a small invented set, so "controlled selection, not free text" here
   // means "must be a value that's actually on a real job," sourced live from
@@ -134,7 +134,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
     let preferenceMatched: SelectedJob[];
 
     if (query.state) {
-      // A state view is a flat list of exactly the jobs the user marked --
+      // A state view is a flat list of exactly the jobs the user marked:
       // no watchlist gate, no preference gate. Closed jobs are kept (and
       // reported via `status`) rather than silently dropped: "the role I
       // applied to has closed" is information the user needs, not noise.
@@ -157,7 +157,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
         prisma.job.count({ where }),
       ]);
 
-      // Dismissing a job removes it from this user's feed only -- the job
+      // Dismissing a job removes it from this user's feed only: the job
       // stays ACTIVE globally and keeps notifying everyone else.
       allJobs = allJobs.filter((job) => stateByJobId.get(job.id) !== "DISMISSED");
 
@@ -206,7 +206,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
     if (query.cursor) {
       const cursorIndex = filtered.findIndex((j) => j.id === query.cursor);
       // An unrecognized cursor (the referenced job fell out of the filtered
-      // set since the previous page -- closed, or no longer matching a
+      // set since the previous page: closed, or no longer matching a
       // preference change) starts over from the top rather than erroring;
       // a page glitch is a better failure mode than a broken "load more."
       startIndex = cursorIndex === -1 ? 0 : cursorIndex + 1;
@@ -230,7 +230,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       nextCursor,
       total: filtered.length,
       unfilteredTotal,
-      // A state view is never "filtered by preferences" -- saying otherwise
+      // A state view is never "filtered by preferences": saying otherwise
       // would make the UI claim these are your matches when they're your saves.
       filtered: query.state ? false : preferences !== null,
     });
@@ -249,7 +249,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ error: "Job not found" });
     }
 
-    // Every authenticated user can view any job's detail page -- jobs
+    // Every authenticated user can view any job's detail page: jobs
     // aren't private data, unlike preferences/subscriptions/notifications
     // (see account & subscriptions routes for those boundaries). Only the
     // match-explanation portion is user-specific, computed fresh against
@@ -270,7 +270,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
         ...job,
         userState: userState?.state ?? null,
         // Reuses the same html->text conversion the classifier itself runs
-        // on this field (see sources/classify.ts) -- description is stored
+        // on this field (see sources/classify.ts): description is stored
         // as HTML whose tags are themselves entity-escaped (a real
         // Greenhouse/Lever quirk, confirmed against live data), and
         // rendering that with dangerouslySetInnerHTML on the frontend would
@@ -287,7 +287,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
 
   // Upsert rather than create: the three states are mutually exclusive
   // stances toward one job (see schema.prisma), so re-marking simply moves
-  // the existing row. Idempotent -- marking an already-APPLIED job APPLIED
+  // the existing row. Idempotent: marking an already-APPLIED job APPLIED
   // is a no-op, not a duplicate-key error.
   fastify.put<{ Params: { id: string } }>("/:id/state", { preHandler: requireAuth }, async (request, reply) => {
     const parsed = jobStateBodySchema.safeParse(request.body);
@@ -313,7 +313,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
     return reply.send({ jobId: job.id, state: saved.state });
   });
 
-  // Clearing is "I no longer have a stance on this job" -- un-saving, or
+  // Clearing is "I no longer have a stance on this job": un-saving, or
   // undoing a dismissal so it returns to the feed. Deleting a row that isn't
   // there is success, not 404: the caller's desired end state is already true.
   fastify.delete<{ Params: { id: string } }>("/:id/state", { preHandler: requireAuth }, async (request, reply) => {

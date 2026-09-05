@@ -1,7 +1,7 @@
 // Establishes a company's baseline inventory: imports everything its
 // sources currently have open, flagged as pre-existing, and only then marks
 // each source as having a baseline. A company is not selectable by users
-// until every one of its sources has been through this -- that gate is what
+// until every one of its sources has been through this: that gate is what
 // makes "existing jobs never notify a new subscriber" an enforced invariant
 // rather than a hope.
 //
@@ -28,14 +28,14 @@ async function main() {
   const results = await runInitialSync(values.company, { allowEmpty: values["allow-empty"] });
 
   if (results.length === 0) {
-    console.log(`Nothing to do — every source for "${values.company}" already has a baseline.`);
+    console.log(`Nothing to do: every source for "${values.company}" already has a baseline.`);
   } else {
     for (const r of results) {
       if (r.error) {
-        console.log(`✕ ${r.platform} (${r.sourceId}): FAILED — ${r.error}`);
+        console.log(`✕ ${r.platform} (${r.sourceId}): FAILED: ${r.error}`);
       } else {
         console.log(
-          `✓ ${r.platform} (${r.sourceId}): baseline established — ${r.created} existing job(s) imported, flagged as pre-existing`,
+          `✓ ${r.platform} (${r.sourceId}): baseline established: ${r.created} existing job(s) imported, flagged as pre-existing`,
         );
       }
     }

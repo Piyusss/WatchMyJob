@@ -1,11 +1,11 @@
 // Shared request layer for every source adapter. Centralized so timeout,
 // retry, 429/Retry-After, and response-size handling are defined once and
-// can't drift per-adapter -- an adapter author only has to think about
+// can't drift per-adapter: an adapter author only has to think about
 // parsing the response body, not how to fetch it safely.
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_ATTEMPTS = 3;
-const DEFAULT_MAX_RESPONSE_BYTES = 25 * 1024 * 1024; // 25MB -- generous enough for a large real board (Databricks: 864+ jobs with full descriptions) while still bounding a runaway/malformed response.
+const DEFAULT_MAX_RESPONSE_BYTES = 25 * 1024 * 1024; // 25MB: generous enough for a large real board (Databricks: 864+ jobs with full descriptions) while still bounding a runaway/malformed response.
 const BASE_BACKOFF_MS = 500;
 
 export class SourceFetchError extends Error {
@@ -22,7 +22,7 @@ function isRetryableStatus(status: number): boolean {
   return status === 429 || status === 502 || status === 503 || status === 504;
 }
 
-// Retry-After is either a whole number of seconds or an HTTP-date -- both
+// Retry-After is either a whole number of seconds or an HTTP-date: both
 // are valid per RFC 9110 and real APIs use both.
 function parseRetryAfterMs(header: string | null): number | null {
   if (!header) return null;
@@ -41,21 +41,43 @@ interface FetchJsonOptions {
   timeoutMs?: number;
   maxAttempts?: number;
   maxResponseBytes?: number;
+  // Some platforms expose their job search as a POST with a JSON body rather
+  // than a GET with query params: Workday's CXS endpoint is the first
+  // (see adapters/workday.ts). Supported here rather than letting that
+  // adapter call fetch() directly, so it keeps the timeout, retry, backoff,
+  // Retry-After and response-size handling every other adapter gets. The
+  // body is a plain serialized string, so re-sending it on a retry is safe
+  // in a way a stream body would not be.
+  method?: "GET" | "POST";
+  jsonBody?: unknown;
+  headers?: Record<string, string>;
 }
 
 // Fetches a URL and returns the parsed JSON body, with: a hard timeout per
 // attempt, bounded retries with exponential backoff for retryable failures
-// (429/502/503/504 and network errors -- never for other 4xx, which retrying
+// (429/502/503/504 and network errors: never for other 4xx, which retrying
 // can't fix), Retry-After respected when the server sends one, and a
 // response-size cap enforced before the body is ever handed to JSON.parse.
 // Throws SourceFetchError on any unrecoverable outcome; sync.ts's existing
 // per-source try/catch already isolates one source's failure from every
 // other source and from the closure/matching logic (see sync.ts's
-// syncSource -- the adapter call happens before any diff/closure work).
+// syncSource: the adapter call happens before any diff/closure work).
 export async function fetchJson<T = unknown>(url: string, options: FetchJsonOptions = {}): Promise<T> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+  const method = options.method ?? "GET";
+  const serializedBody = options.jsonBody === undefined ? undefined : JSON.stringify(options.jsonBody);
+
+  const requestInit: RequestInit = {
+    method,
+    ...(serializedBody === undefined ? {} : { body: serializedBody }),
+    headers: {
+      Accept: "application/json",
+      ...(serializedBody === undefined ? {} : { "Content-Type": "application/json" }),
+      ...options.headers,
+    },
+  };
 
   let lastError: unknown;
 
@@ -64,7 +86,7 @@ export async function fetchJson<T = unknown>(url: string, options: FetchJsonOpti
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetch(url, { ...requestInit, signal: controller.signal });
       clearTimeout(timer);
 
       if (!res.ok) {
@@ -104,12 +126,12 @@ export async function fetchJson<T = unknown>(url: string, options: FetchJsonOpti
 
       // A SourceFetchError reaching here was already thrown past the point
       // where a retry was possible (either genuinely non-retryable, or a
-      // retryable status that had already exhausted its attempts) -- pass
+      // retryable status that had already exhausted its attempts): pass
       // it straight through rather than re-wrapping it.
       if (err instanceof SourceFetchError) throw err;
 
       // Anything else is a timeout (AbortError) or a network-level failure
-      // (DNS, connection reset, ...) -- both worth retrying with backoff,
+      // (DNS, connection reset, ...): both worth retrying with backoff,
       // same as a retryable HTTP status.
       const isAbort = err instanceof Error && err.name === "AbortError";
       if (attempt < maxAttempts) {
@@ -125,7 +147,7 @@ export async function fetchJson<T = unknown>(url: string, options: FetchJsonOpti
     }
   }
 
-  // Unreachable -- the loop above always returns or throws -- but keeps the
+  // Unreachable (the loop above always returns or throws), but keeps the
   // function's return type honest without a non-null assertion.
   throw lastError instanceof Error ? lastError : new SourceFetchError(`Request to ${url} failed`, false);
 }

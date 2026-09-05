@@ -34,7 +34,7 @@ describe("evaluatePreSendCheck", () => {
     assert.equal(result.ok, false);
   });
 
-  it("blocks an unverified email -- Critical Issue #11's fix", () => {
+  it("blocks an unverified email: Critical Issue #11's fix", () => {
     const result = evaluatePreSendCheck(input({ userEmailVerified: false }));
     assert.equal(result.ok, false);
   });
@@ -49,7 +49,7 @@ describe("evaluatePreSendCheck", () => {
     assert.equal(result.ok, false);
   });
 
-  it("each condition is checked independently -- multiple failures don't cancel out", () => {
+  it("each condition is checked independently: multiple failures don't cancel out", () => {
     const result = evaluatePreSendCheck(input({ jobStatus: "CLOSED", userNotificationsPaused: true }));
     assert.equal(result.ok, false);
   });

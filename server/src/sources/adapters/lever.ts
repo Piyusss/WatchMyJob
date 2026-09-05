@@ -4,7 +4,7 @@ import { leverResponseSchema } from "../responseSchemas.js";
 import type { DiscoveryResult, JobSourceAdapter, JobSourceConfig, NormalizedJob } from "../types.js";
 import type { OpportunityType, WorkMode } from "@prisma/client";
 
-// Lever's public postings API (jobs.lever.co-backed companies) -- same
+// Lever's public postings API (jobs.lever.co-backed companies): same
 // spirit as Greenhouse's board API: designed for embedding on a company's
 // own careers page, no auth, no ToS conflict. mode=json is what returns
 // structured data instead of an HTML page.
@@ -14,7 +14,7 @@ function postingsUrl(site: string): string {
 
 // Confirmed against real data (Palantir's live board, 310 postings):
 // "hybrid" and "onsite" observed directly; "remote" is Lever's documented
-// third value for this field. Reliable and structured -- strictly better
+// third value for this field. Reliable and structured: strictly better
 // than Greenhouse's location-string regex guess, so used directly instead
 // of inferWorkMode() when this adapter has it.
 const WORKPLACE_TYPE_MAP: Record<string, WorkMode> = {
@@ -26,7 +26,7 @@ const WORKPLACE_TYPE_MAP: Record<string, WorkMode> = {
 // Confirmed against the same real data: "Full-time", "Fixed-Term",
 // "Internship", "Contractor" is the full set of values actually observed.
 // "Fixed-Term" doesn't map cleanly onto any single OpportunityType value
-// (not clearly a CONTRACT, not PART_TIME) -- OTHER is the honest choice
+// (not clearly a CONTRACT, not PART_TIME): OTHER is the honest choice
 // rather than guessing. Anything unrecognized falls through to title-based
 // classification (classify.ts) instead of being forced into a category.
 const COMMITMENT_MAP: Record<string, OpportunityType> = {
@@ -68,7 +68,7 @@ export class LeverAdapter implements JobSourceAdapter {
       } satisfies NormalizedJob;
     });
 
-    // One request, no pagination on this endpoint -- always the complete
+    // One request, no pagination on this endpoint: always the complete
     // list, same reasoning as GreenhouseAdapter.
     return { jobs, status: "COMPLETE" };
   }

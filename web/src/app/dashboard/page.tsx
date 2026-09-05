@@ -147,7 +147,7 @@ export default function DashboardPage() {
       setJobs((prev) => [...prev, ...res.jobs]);
       setNextCursor(res.nextCursor);
     } catch {
-      // a failed "load more" leaves the existing page intact -- the user
+      // a failed "load more" leaves the existing page intact: the user
       // can just click again, no need to disturb what's already shown
     } finally {
       setLoadingMore(false);
@@ -190,7 +190,7 @@ export default function DashboardPage() {
       <AuthNav />
       <main className="container-app py-9 sm:py-11">
         {/* Header: the summary is a single typographic line rather than a row
-            of stat cards -- it's context, not the point of the screen, and
+            of stat cards: it's context, not the point of the screen, and
             cards here would push the jobs themselves below the fold. */}
         <header>
           <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 .
               </>
             ) : (
-              "Pick some companies to watch and GettingShortlisted.com will start monitoring them for you."
+              "Pick some companies to watch and GettingShortlisted.in will start monitoring them for you."
             )}
           </p>
         </header>
@@ -257,9 +257,13 @@ export default function DashboardPage() {
           <Alert className="mt-3 border-warn-line bg-warn-tint text-warn-ink">
             <AlertTriangle className="text-warn-ink" />
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-warn-ink">
-              <span>You haven&apos;t set your preferences yet — no alerts will be sent until you do.</span>
+              <span>You haven&apos;t set your preferences yet. No alerts will be sent until you do.</span>
               <Link href="/preferences?onboarding=1">
-                <Button size="sm" className="bg-warn-ink text-white hover:bg-warn-ink/90">
+                {/* The one place an *-ink token is a FILL rather than text.
+                    warn-ink is a dark gold in light mode and a light one in
+                    dark, so white text works in exactly one of the two: the
+                    dark theme flips the label to the deep tint instead. */}
+                <Button size="sm" className="bg-warn-ink text-white hover:bg-warn-ink/90 dark:text-warn-tint">
                   Set preferences
                 </Button>
               </Link>
@@ -274,7 +278,7 @@ export default function DashboardPage() {
             <Input
               className="h-8 bg-surface pl-8"
               type="search"
-              placeholder="Search title, company, location…"
+              placeholder="Search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search open roles"
@@ -348,7 +352,7 @@ export default function DashboardPage() {
 
         {preExisting > 0 && !loadingJobs && !jobsError && (
           <p className="mt-4 text-[0.8rem] leading-relaxed text-ink-faint">
-            {preExisting} of these were already open when you started watching — visible here, but never emailed.
+            {preExisting} of these were already open when you started watching: visible here, but never emailed.
           </p>
         )}
 
@@ -398,7 +402,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon={Building2}
                 title="You're not watching any companies yet"
-                body="Choose the companies you care about and GettingShortlisted.com will email you when a matching role opens."
+                body="Choose the companies you care about and GettingShortlisted.in will email you when a matching role opens."
                 action={
                   <Link href="/companies">
                     <Button>Pick companies</Button>
@@ -409,7 +413,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon={SlidersHorizontal}
                 title="Nothing open matches your preferences"
-                body="Everything at your watched companies was checked — none of it fits right now. We'll email you the moment something does."
+                body="Everything at your watched companies was checked. None of it fits right now. We'll email you the moment something does."
                 action={
                   <Link href="/preferences">
                     <Button variant="outline">Adjust preferences</Button>

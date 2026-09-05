@@ -4,10 +4,10 @@ import { prisma } from "../db/prisma.js";
 import { env } from "../config/env.js";
 
 // Receives SES delivery/bounce/complaint events, published via SNS. SES
-// itself never calls a webhook directly -- an SNS topic subscribed to the
+// itself never calls a webhook directly: an SNS topic subscribed to the
 // SES configuration set delivers events here as an HTTP POST. Genuinely
-// wired up and correct against AWS's documented event shapes, but -- like
-// SesEmailProvider itself -- unverified against a live SNS subscription in
+// wired up and correct against AWS's documented event shapes, but (like
+// SesEmailProvider itself) unverified against a live SNS subscription in
 // this environment: there are no AWS credentials or SNS topic here to
 // confirm the subscription against. The console email provider (dev
 // default) never produces these events at all.
@@ -25,7 +25,7 @@ const sesEventSchema = z.object({
 
 export async function webhookRoutes(fastify: FastifyInstance) {
   // SNS posts with Content-Type: text/plain (a long-standing SNS quirk,
-  // not a client bug) -- Fastify's default JSON parser only engages for
+  // not a client bug): Fastify's default JSON parser only engages for
   // application/json, so without this the body would arrive as an
   // unparsed Buffer.
   fastify.addContentTypeParser("text/plain", { parseAs: "string" }, (_request, body, done) => {
@@ -38,12 +38,12 @@ export async function webhookRoutes(fastify: FastifyInstance) {
 
   fastify.post("/ses", async (request, reply) => {
     // Deliberately NOT full SNS message-signature verification (that
-    // requires fetching and caching AWS's rotating signing certificate --
+    // requires fetching and caching AWS's rotating signing certificate:
     // real added complexity). This shared secret is the proportionate
     // amount of protection for what the endpoint can actually do if
     // spoofed: flip already-idempotent, non-destructive notification
     // status fields and (for a fake Bounce/Complaint) suppress future
-    // sends to an address -- an availability nuisance, not a data
+    // sends to an address: an availability nuisance, not a data
     // exposure. Skipped entirely when unset, which is only true in local
     // dev where no real SNS subscription exists to call this anyway.
     if (env.SES_WEBHOOK_SECRET) {
@@ -65,7 +65,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
       // one-time setup step, not a recurring runtime concern.
       request.log.info(
         { event: "ses_webhook_subscription_confirmation" },
-        "SES/SNS subscription confirmation received -- visit SubscribeURL (see SNS console) to activate",
+        "SES/SNS subscription confirmation received: visit SubscribeURL (see SNS console) to activate",
       );
       return reply.code(200).send({ status: "subscription confirmation logged" });
     }
@@ -84,7 +84,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
     const parsed = sesEventSchema.safeParse(sesEvent);
     if (!parsed.success) {
       // Not every SES event type is one this app tracks (e.g. Open/Click
-      // tracking, if ever enabled) -- ignore unrecognized shapes rather
+      // tracking, if ever enabled): ignore unrecognized shapes rather
       // than rejecting them, so SNS doesn't retry a message this endpoint
       // was never going to act on anyway.
       return reply.code(200).send({ status: "ignored: unrecognized event shape" });
@@ -93,7 +93,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
     const { notificationType, mail, bounce } = parsed.data;
     const notification = await prisma.notification.findFirst({ where: { providerMessageId: mail.messageId } });
     if (!notification) {
-      // Acknowledge (200) either way -- an unmatched messageId isn't
+      // Acknowledge (200) either way: an unmatched messageId isn't
       // retryable into a match, and returning an error here would just
       // make SNS keep redelivering it.
       return reply.code(200).send({ status: "no matching notification" });
@@ -117,7 +117,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
         where: { id: notification.id },
         data: { status: "COMPLAINED", complainedAt: new Date() },
       });
-      // Treated the same as a permanent bounce for suppression purposes --
+      // Treated the same as a permanent bounce for suppression purposes:
       // continuing to email someone who marked a previous message as spam
       // damages sender reputation regardless of raw deliverability.
       await prisma.user.update({ where: { id: notification.userId }, data: { emailHardBounced: true } });

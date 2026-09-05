@@ -8,7 +8,7 @@ import { matchJobAgainstSubscribers } from "../matching/engine.js";
 
 // The exact field set the matching engine (Phase 9) actually reads. A raw
 // contentHash change (title/location/workMode/description, per hash.ts)
-// fires on routine, matching-irrelevant edits too -- a typo fix in the
+// fires on routine, matching-irrelevant edits too: a typo fix in the
 // description, a location string reformatted with the same meaning. Using
 // contentHash alone to decide "this job just became newly relevant" would
 // make lastMatchRelevantChangeAt fire far more often than something
@@ -48,24 +48,24 @@ export interface SourceSyncResult {
   created: number;
   updated: number;
   unchanged: number;
-  // A CLOSED job whose externalJobId reappeared in this cycle's discovery
-  // -- reopened, not recreated (the unique constraint on
+  // A CLOSED job whose externalJobId reappeared in this cycle's discovery:
+  // reopened, not recreated (the unique constraint on
   // (sourceId, externalJobId) means it couldn't be a new row anyway).
   reactivated: number;
   // Currently-ACTIVE jobs for this source that were not rediscovered this
-  // cycle. null when the fetch was PARTIAL -- absence proves nothing then,
+  // cycle. null when the fetch was PARTIAL: absence proves nothing then,
   // so it's not even counted, and null also when the circuit breaker below
   // trips (missing is real, but not trustworthy enough to act on).
   missing: number | null;
-  // How many of this cycle's missing jobs crossed the close threshold --
+  // How many of this cycle's missing jobs crossed the close threshold:
   // see src/sources/closure.ts for the exact rule.
   closed: number;
   // True when an anomalous fraction of previously-active jobs went missing
-  // at once -- the source likely broke, not the jobs. When true, no miss
+  // at once: the source likely broke, not the jobs. When true, no miss
   // counters were touched and nothing closed this cycle.
   circuitBreakerTripped: boolean;
-  // Notification rows newly queued this cycle across every matchableJobId
-  // -- see matching/engine.ts. Never counts a baseline (initial-sync) job,
+  // Notification rows newly queued this cycle across every matchableJobId:
+  // see matching/engine.ts. Never counts a baseline (initial-sync) job,
   // which never enters matchableJobIds at all.
   queued: number;
   consecutiveFailures: number;
@@ -77,7 +77,7 @@ interface SyncOptions {
   // already existed before JobDrop watched this source, so the rows are
   // flagged and can never fire a "new opening" notification.
   initial?: boolean;
-  // A source can genuinely have zero open roles right now -- that's not an
+  // A source can genuinely have zero open roles right now: that's not an
   // error. But a fetch that succeeds with zero results is indistinguishable
   // from one that silently returned bad/partial data, and getting this
   // wrong is unrecoverable: once initialSyncCompletedAt is set, every job
@@ -112,7 +112,7 @@ function errorResult(source: JobSource, error: string, consecutiveFailures: numb
 // function so both the scheduler and the manual CLIs call exactly this, not
 // separate reimplementations.
 // Finalizes the SyncRun row created at the start of an attempt. Called from
-// every exit path of syncSource (there are several -- guard rejections
+// every exit path of syncSource (there are several: guard rejections
 // aside, which never create a row at all) so a RUNNING row never outlives
 // the attempt it represents; a row still RUNNING past a sane duration is
 // exactly the "process died mid-sync" signal admin:health surfaces.
@@ -151,7 +151,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
 
   // Ordering guard. A regular sync against a source that never established
   // a baseline would import its entire pre-existing inventory as brand-new
-  // openings -- the exact flood the onboarding rule exists to prevent.
+  // openings: the exact flood the onboarding rule exists to prevent.
   // No SyncRun row is created for a guard rejection: no fetch was ever
   // attempted, so there's no attempt to record.
   if (!initial && source.initialSyncCompletedAt === null) {
@@ -166,12 +166,12 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
 
   const attemptStartedAt = new Date();
   // Marked before the fetch, not after: pollIntervalSeconds governs how
-  // often a source is ATTEMPTED, not how often it succeeds -- a failing
+  // often a source is ATTEMPTED, not how often it succeeds: a failing
   // source is still retried on schedule, and a slow in-flight fetch won't
   // look "overdue" to the next scheduler tick just because it hasn't
   // finished yet.
   await prisma.jobSource.update({ where: { id: source.id }, data: { lastAttemptedAt: attemptStartedAt } });
-  // Written before the adapter is ever called -- see SyncRunStatus's
+  // Written before the adapter is ever called: see SyncRunStatus's
   // RUNNING comment in schema.prisma.
   const syncRun = await prisma.syncRun.create({ data: { sourceId: source.id } });
 
@@ -194,21 +194,21 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
   if (initial && normalized.length === 0 && !options.allowEmpty) {
     const message =
       "Initial sync found 0 jobs. This could be a genuinely empty board, or a fetch that silently returned " +
-      "incomplete data -- re-run with allowEmpty to confirm the board really has no openings right now.";
+      "incomplete data: re-run with allowEmpty to confirm the board really has no openings right now.";
     await finalizeSyncRun(syncRun.id, attemptStartedAt, { status: "FAILED", error: message });
     return errorResult(source, message, source.consecutiveFailures);
   }
 
   const now = new Date();
 
-  // A second syncSource call for this SAME source -- a manual admin:sync
-  // overlapping the scheduled worker, most plausibly -- can genuinely race
+  // A second syncSource call for this SAME source (a manual admin:sync
+  // overlapping the scheduled worker, most plausibly) can genuinely race
   // this transaction at the database level: both read "no existing row"
   // before either commits, both attempt the INSERT, and Postgres rejects
   // the second with a real unique-constraint violation (23505) once the
   // first commits. That's an ordinary, recoverable condition here (this
   // cycle failed, the next one will simply see the row the other
-  // transaction created), not a reason to crash the process -- caught the
+  // transaction created), not a reason to crash the process: caught the
   // same way an adapter fetch failure is.
   let diffResult;
   try {
@@ -226,7 +226,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
         },
       });
 
-      // Only ACTIVE rows count toward "missing" -- a CLOSED job simply not
+      // Only ACTIVE rows count toward "missing": a CLOSED job simply not
       // reappearing is not a new event, it's the status quo.
       const activeCount = existing.filter((j) => j.status === "ACTIVE").length;
       const remaining = new Map(existing.filter((j) => j.status === "ACTIVE").map((j) => [j.externalJobId, j]));
@@ -237,7 +237,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
       let unchanged = 0;
       let reactivated = 0;
       // Every job whose matchable state just became true or changed this
-      // cycle -- what the matching engine (Phase 9) re-evaluates against
+      // cycle: what the matching engine (Phase 9) re-evaluates against
       // every subscriber afterward. Deliberately excludes "unchanged" and
       // matching-irrelevant updates (see matchRelevantFieldsChanged).
       const matchableJobIds: string[] = [];
@@ -267,7 +267,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
           // Rediscovered while still ACTIVE: whatever miss streak it was
           // partway through (missed a cycle or two, then reappeared) is
           // over. Reset unconditionally on every rediscovery, not just on
-          // reactivation from CLOSED -- "consecutive" has to mean
+          // reactivation from CLOSED: "consecutive" has to mean
           // consecutive, or a job that flickers over months would
           // eventually accumulate enough non-consecutive misses to close.
           const resetMissState = { consecutiveMissCount: 0, firstMissingAt: null };
@@ -303,7 +303,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
               status: "ACTIVE",
               lastSeenAt: now,
               // A reopened job is newly-relevant the same way an updated
-              // one is -- firstSeenAt (write-once) can't move, so this is
+              // one is: firstSeenAt (write-once) can't move, so this is
               // what a future notify predicate keys off instead.
               lastMatchRelevantChangeAt: now,
               consecutiveMissCount: 0,
@@ -327,7 +327,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
           });
           created++;
           // A baseline job (discoveredInInitialSync) is pre-existing
-          // inventory by definition -- it must never enter the matching
+          // inventory by definition: it must never enter the matching
           // pass at all, or it would be evaluated and could notify anyone
           // subscribed since before this sync, defeating the entire
           // baseline flag. See its comment in schema.prisma.
@@ -337,7 +337,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
 
       // Whatever's left in `remaining` is ACTIVE in the DB but wasn't in
       // this cycle's discovery. Only trustworthy when the fetch itself was
-      // known-complete -- a PARTIAL or failed fetch proves nothing about
+      // known-complete: a PARTIAL or failed fetch proves nothing about
       // absence.
       if (fetchStatus !== "COMPLETE") {
         return { created, updated, unchanged, reactivated, missing: null, closed: 0, circuitBreakerTripped: false, matchableJobIds };
@@ -365,7 +365,7 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
         }
       }
       // Tripped: deliberately leave every missing job's miss-tracking state
-      // untouched this cycle -- the anomaly gets reported, not acted on.
+      // untouched this cycle: the anomaly gets reported, not acted on.
 
       return {
         created,
@@ -377,7 +377,20 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
         circuitBreakerTripped: tripped,
         matchableJobIds,
       };
-    });
+    },
+    // Prisma's 5s interactive-transaction default is not enough for a first
+    // sync of a large board: every row is an INSERT carrying a full job
+    // description. Elastic (365 jobs) failed on it every time, and Datadog
+    // (441) and MongoDB (415) only just cleared it, so the default was
+    // leaving big boards flaky rather than merely slow.
+    //
+    // Raised rather than split into batches on purpose: the whole diff has
+    // to commit or roll back as one unit, otherwise a half-imported
+    // inventory becomes visible and the rest of the import reads as new
+    // openings, which is exactly what the baseline gate below exists to
+    // prevent.
+    { timeout: 120_000, maxWait: 10_000 },
+    );
   } catch (err) {
     const message = `Failed to persist discovered jobs, possibly a concurrent sync of the same source: ${err instanceof Error ? err.message : String(err)}`;
     const { consecutiveFailures } = await prisma.jobSource.update({
@@ -447,13 +460,13 @@ async function loadCompanyWithSources(companySlug: string) {
   if (!company) {
     throw new Error(`No company with slug "${companySlug}"`);
   }
-  // A deactivated company has no business being synced -- if it was turned
+  // A deactivated company has no business being synced: if it was turned
   // off deliberately (ToS revoked, broken adapter, cap rebalance), letting
   // it keep accumulating jobs in the background is never what was intended,
   // and doing so silently is how a stale-baseline flood risk (see
   // selectable.ts) accumulates unnoticed.
   if (company.status !== "ACTIVE") {
-    throw new Error(`"${companySlug}" is ${company.status}, not ACTIVE -- reactivate it first if this is intended`);
+    throw new Error(`"${companySlug}" is ${company.status}, not ACTIVE: reactivate it first if this is intended`);
   }
   return company;
 }

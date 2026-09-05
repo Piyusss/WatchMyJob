@@ -68,7 +68,7 @@ describe("change detection", () => {
     const after = await prisma.job.findUniqueOrThrow({ where: { id: before.id } });
     assert.ok(after.lastSeenAt > before.lastSeenAt, "lastSeenAt must advance on rediscovery");
     assert.equal(after.firstSeenAt.getTime(), before.firstSeenAt.getTime(), "firstSeenAt must not move");
-    assert.equal(after.lastMatchRelevantChangeAt, null, "no real change happened -- must not be stamped");
+    assert.equal(after.lastMatchRelevantChangeAt, null, "no real change happened: must not be stamped");
     assert.equal(after.contentHash, before.contentHash);
   });
 
@@ -116,11 +116,11 @@ describe("change detection", () => {
 
     assert.equal(result.missing, 1, "a COMPLETE fetch that omits a known job must count it as missing");
     const after = await prisma.job.findUniqueOrThrow({ where: { id: before.id } });
-    assert.equal(after.status, "ACTIVE", "Phase 6 only signals -- it must never close a job itself");
+    assert.equal(after.status, "ACTIVE", "Phase 6 only signals: it must never close a job itself");
     assert.equal(after.lastSeenAt.getTime(), before.lastSeenAt.getTime(), "an unseen job's lastSeenAt must stay stale");
   });
 
-  it("a job missing from a PARTIAL rediscovery is NOT counted as missing -- absence proves nothing there", async () => {
+  it("a job missing from a PARTIAL rediscovery is NOT counted as missing: absence proves nothing there", async () => {
     const source = await createBaselinedSource();
 
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [], status: "PARTIAL" }));

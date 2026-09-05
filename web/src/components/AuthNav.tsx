@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { LogOut, Settings, SlidersHorizontal, FlaskConical } from "lucide-react";
+import { LogOut, Settings, SlidersHorizontal, FlaskConical, Moon, Sun } from "lucide-react";
 import { useCurrentUser, invalidateCurrentUser } from "@/lib/useCurrentUser";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,9 +23,9 @@ import { cn } from "@/lib/utils";
 // its previous total width, so this still fits a 375px phone without a
 // hamburger. It remains reachable from the avatar menu.
 const LINKS = [
+  { href: "/companies", label: "Companies" },
   { href: "/dashboard", label: "Jobs" },
   { href: "/saved", label: "Saved" },
-  { href: "/companies", label: "Companies" },
   { href: "/notifications", label: "Alerts" },
 ];
 
@@ -32,31 +33,34 @@ export default function AuthNav() {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const { signOut } = useClerk();
+  const { theme, setTheme } = useTheme();
 
   async function logout() {
     // Clear before navigating, so the next signed-in user never renders
     // against the previous one's cached identity.
     invalidateCurrentUser();
-    await signOut({ redirectUrl: "/login" });
+    await signOut({ redirectUrl: "/" });
   }
 
   const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() ?? "·";
 
   return (
-    <nav className="sticky top-0 z-30 border-b border-line/80 bg-canvas/85 backdrop-blur-md">
+    // bg-surface, not bg-white: this bar has to follow the theme, and it is
+    // the only place in the app that had the literal colour hardcoded.
+    <nav className="sticky top-0 z-30 border-b border-line/80 bg-surface">
       <div className="container-app flex h-14 items-center gap-3">
         <Link
           href="/dashboard"
-          aria-label="GettingShortlisted.com home"
+          aria-label="GettingShortlisted.in home"
           className="flex shrink-0 items-center gap-2 text-[0.95rem] font-bold tracking-tight text-ink"
         >
           <span className="grid size-6 place-items-center rounded-md bg-brand text-[0.7rem] font-bold text-white">
             G
           </span>
-          {/* The wordmark is the first thing to go on a narrow screen -- the
+          {/* The wordmark is the first thing to go on a narrow screen: the
               mark alone still identifies the app, and the space it frees is
               what keeps the nav on one row at 375px. */}
-          <span className="hidden sm:inline">GettingShortlisted.com</span>
+          <span className="hidden sm:inline">GettingShortlisted.in</span>
         </Link>
 
         {/* min-w-0 is load-bearing: without it this flex child refuses to
@@ -80,6 +84,24 @@ export default function AuthNav() {
             );
           })}
         </div>
+
+        {/* On the bar rather than inside the account menu: it is a display
+            setting people flip on a whim and then flip back, so burying it
+            one click deep behind an avatar makes it feel missing. Sized to
+            match the avatar beside it, and shrink-0 like every other fixed
+            element here so the scrolling link strip is what gives way on a
+            narrow screen, not this.
+            No third "system" option: light is the product's default look,
+            not one of two equal choices the OS gets to pick between. */}
+        <button
+          type="button"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}
+          className="grid size-8 shrink-0 place-items-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+        >
+          {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
 
         <DropdownMenu>
           <DropdownMenuTrigger

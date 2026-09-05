@@ -1,5 +1,5 @@
 // A count alone can't tell a source polling every 60s from one polling
-// every 15 minutes apart -- 3 misses is 3 minutes for one and 45 for the
+// every 15 minutes apart: 3 misses is 3 minutes for one and 45 for the
 // other. A count AND a time floor together are robust to both a single
 // flaky poll (needs several misses) and a fast-polling source racking up
 // "several" misses in a implausibly short window (needs real elapsed time).
@@ -24,14 +24,14 @@ export interface MissState {
 
 export interface MissEvaluation {
   consecutiveMissCount: number;
-  // Always set on the way out -- either carried over from state, or
+  // Always set on the way out: either carried over from state, or
   // established as "now" on the first miss. Only the input can be null.
   firstMissingAt: Date;
   shouldClose: boolean;
 }
 
 // Pure function: given a job's current miss-tracking state and "now", what
-// should its next state be? No DB, no clock reads inside -- a test can
+// should its next state be? No DB, no clock reads inside: a test can
 // assert exact behavior at exact miss counts and durations without waiting
 // on real time or faking timers.
 export function evaluateMissedJob(state: MissState, now: Date): MissEvaluation {

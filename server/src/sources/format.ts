@@ -1,7 +1,7 @@
 import type { SourceSyncResult } from "./sync.js";
 
 // Shared between admin:sync (manual, one-shot) and the worker (scheduled)
-// so the two never drift into reporting the same result differently -- the
+// so the two never drift into reporting the same result differently: the
 // exact failure mode selectable.ts's own comment warns against, applied
 // here to output instead of a query predicate.
 export function summarizeSyncResult(result: SourceSyncResult): string {

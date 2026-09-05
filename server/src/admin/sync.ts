@@ -1,4 +1,4 @@
-// One-shot manual sync for a company's sources -- the same discover ->
+// One-shot manual sync for a company's sources: the same discover ->
 // diff-against-Postgres -> persist pass the worker (src/worker.ts) runs on
 // each source's own schedule. Useful for triggering a sync on demand
 // without waiting for the next scheduled tick.
@@ -28,7 +28,7 @@ async function main() {
 
   for (const r of results) {
     if (r.error) {
-      console.log(`✕ ${r.platform} (${r.sourceId}): FAILED — ${r.error}`);
+      console.log(`✕ ${r.platform} (${r.sourceId}): FAILED: ${r.error}`);
     } else {
       console.log(`✓ ${r.platform} (${r.sourceId}): ${summarizeSyncResult(r)}`);
     }

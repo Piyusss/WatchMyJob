@@ -1,4 +1,4 @@
-// At-a-glance source health across every company -- the Phase 6 deliverable
+// At-a-glance source health across every company: the Phase 6 deliverable
 // is "a broken adapter is visibly distinct from a quiet company," which
 // admin:sources (scoped to one company) doesn't give an operator on its own.
 //
@@ -44,9 +44,9 @@ async function main() {
 
     const marker = flags.length > 0 ? "⚠" : "●";
     console.log(
-      `${marker} ${s.company.name} / ${s.platform} — poll every ${s.pollIntervalSeconds}s — ` +
+      `${marker} ${s.company.name} / ${s.platform} · poll every ${s.pollIntervalSeconds}s · ` +
         `last attempt ${ago(s.lastAttemptedAt)}, last success ${ago(s.lastSuccessAt)}` +
-        (flags.length > 0 ? ` — ${flags.join(", ")}` : ""),
+        (flags.length > 0 ? ` · ${flags.join(", ")}` : ""),
     );
 
     const recentRuns = await prisma.syncRun.findMany({

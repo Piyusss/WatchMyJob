@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 // One row in a divided list, not a standalone card. Metadata is carried by
 // type weight, color and position rather than by giving every field its own
-// badge -- twenty rows of five badges each is noise, and it flattens the
+// badge: twenty rows of five badges each is noise, and it flattens the
 // hierarchy so nothing reads as important.
 export default function JobCard({
   job,
@@ -25,14 +25,14 @@ export default function JobCard({
 
   // A baseline job (inventory that already existed when this user started
   // watching) is never labelled "new", however recently JobDrop first
-  // indexed it -- discovery time is not the same thing as the opening being
+  // indexed it: discovery time is not the same thing as the opening being
   // new to this user, and conflating them is exactly the mislabelling the
   // "already open" concept exists to prevent.
   const showAsNew = recency.isNew && !job.discoveredInInitialSync;
 
   const rightMeta = [job.level, OPPORTUNITY_LABEL[job.opportunityType]].filter(Boolean).join(" · ");
 
-  // The row can't be a single <Link> any more -- the action buttons would be
+  // The row can't be a single <Link> any more: the action buttons would be
   // interactive elements nested inside an anchor, which is invalid HTML and
   // breaks keyboard navigation. A stretched overlay link keeps the whole row
   // clickable while leaving the buttons as siblings above it (z-10).
@@ -70,13 +70,16 @@ export default function JobCard({
       {/* The second line deliberately omits any "already open" marker: the
           list header already states how many of these predate the user's
           subscription, and repeating it on every row (often every row in
-          the list) is noise that competes with the New pill -- which is the
+          the list) is noise that competes with the New pill: which is the
           signal that actually matters here. Absence of the pill is the
           contrast. */}
       <div className="pointer-events-none hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
         {rightMeta && <span className="text-[0.78rem] text-ink-secondary">{rightMeta}</span>}
+        {/* Same reason as the Watching label on the companies page: --brand
+            is a fill tone, so small text switches to brand-ink once the
+            canvas goes dark. */}
         {(expLabel || !job.discoveredInInitialSync) && (
-          <span className={cn("text-[0.72rem]", showAsNew ? "text-brand" : "text-ink-faint")}>
+          <span className={cn("text-[0.72rem]", showAsNew ? "text-brand dark:text-brand-ink" : "text-ink-faint")}>
             {[expLabel, job.discoveredInInitialSync ? null : recency.label].filter(Boolean).join(" · ")}
           </span>
         )}

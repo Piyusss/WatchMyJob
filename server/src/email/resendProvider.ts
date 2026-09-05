@@ -1,7 +1,7 @@
 import type { EmailMessage, EmailProvider, EmailSendResult } from "./types.js";
 
 // Resend's REST API is a single POST, so this talks to it directly rather
-// than pulling in the `resend` SDK -- one less dependency to keep current,
+// than pulling in the `resend` SDK: one less dependency to keep current,
 // and it keeps the failure handling explicit and in our hands.
 const ENDPOINT = "https://api.resend.com/emails";
 const TIMEOUT_MS = 15_000;
@@ -25,7 +25,7 @@ export class ResendEmailProvider implements EmailProvider {
       response = await fetch(ENDPOINT, {
         method: "POST",
         headers: {
-          // The key is only ever placed here -- never logged, never included
+          // The key is only ever placed here: never logged, never included
           // in a thrown error message (see the failure paths below).
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
@@ -42,7 +42,7 @@ export class ResendEmailProvider implements EmailProvider {
     } catch (err) {
       // Network failure or timeout. Thrown, not swallowed: the notification
       // pipeline's own catch records the attempt, schedules a backoff retry
-      // and eventually dead-letters -- exactly what should happen here.
+      // and eventually dead-letters: exactly what should happen here.
       const isAbort = err instanceof Error && err.name === "AbortError";
       throw new Error(
         isAbort
@@ -63,7 +63,7 @@ export class ResendEmailProvider implements EmailProvider {
         const parsed = JSON.parse(body) as { message?: string; name?: string };
         if (parsed.message) detail = parsed.name ? `${parsed.name}: ${parsed.message}` : parsed.message;
       } catch {
-        // non-JSON body -- the truncated raw text is the best detail we have
+        // non-JSON body: the truncated raw text is the best detail we have
       }
       throw new Error(`Resend rejected the send (${response.status}): ${detail}`);
     }
@@ -72,7 +72,7 @@ export class ResendEmailProvider implements EmailProvider {
       const parsed = JSON.parse(body) as ResendSuccess;
       return { providerMessageId: parsed.id ?? null };
     } catch {
-      // A 2xx with an unreadable body means it very likely WAS accepted --
+      // A 2xx with an unreadable body means it very likely WAS accepted:
       // treat it as sent with an unknown id rather than throwing, which
       // would retry and risk a duplicate email.
       return { providerMessageId: null };

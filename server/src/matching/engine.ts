@@ -2,7 +2,7 @@ import { prisma } from "../db/prisma.js";
 import { matchesPreferences } from "./predicate.js";
 import { evaluateEligibility } from "./eligibility.js";
 
-// Company-active and user-paused checks are deliberately NOT here -- the
+// Company-active and user-paused checks are deliberately NOT here: the
 // blueprint's own predicate puts them at SEND time (Phase 10's final
 // pre-send recheck), not match time. A QUEUED row here records "this user
 // was eligible when matched"; whether it's still safe to actually deliver
@@ -49,7 +49,7 @@ async function queueNotification(userId: string, jobId: string, notificationType
 
 // Re-evaluates ONE job against every currently-active subscriber of its
 // company. Called after a job is created, meaningfully updated, or
-// reactivated (see sync.ts's matchableJobIds) -- never for a baseline
+// reactivated (see sync.ts's matchableJobIds): never for a baseline
 // (discoveredInInitialSync) job, which sync.ts excludes before this is
 // ever reached.
 export async function matchJobAgainstSubscribers(jobId: string): Promise<number> {
@@ -68,7 +68,7 @@ export async function matchJobAgainstSubscribers(jobId: string): Promise<number>
   let queued = 0;
   for (const sub of subscriptions) {
     const prefs = sub.user.preferences;
-    if (!prefs) continue; // hasn't configured preferences yet -- nothing to match against
+    if (!prefs) continue; // hasn't configured preferences yet: nothing to match against
 
     if (!matchesPreferences(job, prefs)) continue;
 
@@ -87,7 +87,7 @@ export async function matchJobAgainstSubscribers(jobId: string): Promise<number>
 
 // Re-evaluates every currently-ACTIVE job across a user's subscribed
 // companies against their CURRENT preferences. Called right after a
-// preference save that bumped effectiveSince (see preferences/routes.ts) --
+// preference save that bumped effectiveSince (see preferences/routes.ts):
 // the dashboard already reflects new preferences on every load; this is
 // what makes the notification side of a widened preference correct too,
 // instead of only ever catching jobs discovered after the fact.

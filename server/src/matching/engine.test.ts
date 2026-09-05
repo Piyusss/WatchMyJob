@@ -2,7 +2,7 @@
 // functions in isolation. This file covers the WIRING through the real
 // pipeline: does a real syncSource call, against a real subscribed user
 // with real preferences, actually produce (or correctly withhold) a
-// Notification row -- including the two behaviors that only exist at the
+// Notification row: including the two behaviors that only exist at the
 // integration level: baseline jobs never entering the matching pass at
 // all, and idempotency under the real unique constraint.
 import { after, afterEach, beforeEach, describe, it } from "node:test";
@@ -15,7 +15,7 @@ import type { DiscoveryResult, JobSourceAdapter, NormalizedJob } from "../source
 
 const RUN_ID = `test-matching-${Date.now()}`;
 // matchJobAgainstSubscribers/matchUserAgainstActiveJobs correctly operate
-// at the WHOLE-COMPANY level (every subscriber, every active job) --
+// at the WHOLE-COMPANY level (every subscriber, every active job):
 // exactly what production needs, but it means sharing one company across
 // tests in this file would leak every earlier test's subscribers and jobs
 // into every later test's matching pass. Each test gets its own company.
@@ -66,7 +66,7 @@ async function createSource() {
 }
 
 // syncSource's ordering guard reads initialSyncCompletedAt off the object
-// it's handed -- reusing the pre-baseline in-memory `source` for a
+// it's handed: reusing the pre-baseline in-memory `source` for a
 // follow-up call looks identical to never having baselined it at all, and
 // the ordering guard correctly (if confusingly, for a test) refuses it.
 // Every baseline call must be followed by a re-fetch before the same
@@ -120,7 +120,7 @@ describe("matching engine integration", () => {
 
     const source = await createSource();
     // The user is already subscribed and already has matching preferences
-    // BEFORE this company's baseline is even established -- the exact
+    // BEFORE this company's baseline is even established: the exact
     // "new company added, existing subscriber" case the flag protects.
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [job({ title: "Software Engineer" })], status: "COMPLETE" }));
     const result = await syncSource(source, { initial: true });
@@ -167,7 +167,7 @@ describe("matching engine integration", () => {
     await syncSource(source); // genuinely new, matches -> queues once already
     const dbJob = await prisma.job.findFirstOrThrow({ where: { sourceId: source.id } });
 
-    // Directly call the matcher again, simulating a redundant invocation --
+    // Directly call the matcher again, simulating a redundant invocation:
     // the unique constraint is the actual enforcement, not "only call it
     // once".
     const secondCallQueuedCount = await matchJobAgainstSubscribers(dbJob.id);
@@ -195,7 +195,7 @@ describe("matching engine integration", () => {
     await matchJobAgainstSubscribers(dbJob.id);
 
     const notifications = await prisma.notification.findMany({ where: { userId: user.id } });
-    assert.equal(notifications.length, 0, "the job existed before this user's subscription -- dashboard-only, never notified");
+    assert.equal(notifications.length, 0, "the job existed before this user's subscription: dashboard-only, never notified");
   });
 
   it("a non-matching job never queues, and a subsequent matching-relevant edit fires MATCH_VIA_UPDATE", async () => {
@@ -219,7 +219,7 @@ describe("matching engine integration", () => {
     await subscribe(user.id);
     await setPreferences(user.id, { roleFamily: "Software Engineer", yearsExperience: 1, toleranceYears: 1 });
 
-    // No notification yet -- it genuinely didn't match at subscribe time.
+    // No notification yet: it genuinely didn't match at subscribe time.
     let notifications = await prisma.notification.findMany({ where: { userId: user.id } });
     assert.equal(notifications.length, 0);
 
@@ -311,7 +311,7 @@ describe("matching engine integration", () => {
     // A README/Phase 12 named scenario ("Multiple matching users") that
     // was never actually exercised: matchJobAgainstSubscribers loops over
     // every subscriber, but nothing had confirmed several REAL matches in
-    // one pass stay independent -- no cross-user interference, no partial
+    // one pass stay independent: no cross-user interference, no partial
     // failures, no accidental sharing of the unique-constraint slot.
     const matchingA = await makeUser("multi-a");
     const matchingB = await makeUser("multi-b");

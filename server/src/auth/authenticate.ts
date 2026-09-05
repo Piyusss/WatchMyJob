@@ -5,7 +5,7 @@ import { prisma } from "../db/prisma.js";
 import { env } from "../config/env.js";
 import type { User } from "@prisma/client";
 
-// Test-only seam, mirroring email/index.ts's setEmailProviderForTesting --
+// Test-only seam, mirroring email/index.ts's setEmailProviderForTesting:
 // lets a test authenticate as a known local user without a real Clerk
 // session token (and without registering clerkPlugin at all). Never used
 // from production code.
@@ -28,7 +28,7 @@ function displayName(clerkUser: Awaited<ReturnType<typeof clerkClient.users.getU
 }
 
 // Lazily provisions the local User row the first time a given Clerk
-// identity is seen -- no webhook required (a user.created webhook would
+// identity is seen: no webhook required (a user.created webhook would
 // need a public URL for Clerk to call, which local dev doesn't have). One
 // Clerk API call, on first sign-in only; every request after this finds
 // the row by clerkUserId directly.
@@ -64,7 +64,7 @@ async function resolveLocalUser(clerkUserId: string): Promise<User> {
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   // Test mode: the resolver hands back the LOCAL user id directly (tests
-  // already have one, from creating the fixture) -- Clerk is never
+  // already have one, from creating the fixture): Clerk is never
   // consulted, so no network call and no clerkPlugin registration needed.
   if (testResolver) {
     const userId = testResolver(request);
@@ -87,7 +87,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   request.clerkUserId = clerkUserId;
 }
 
-// Test-only seam, same pattern as setUserResolverForTesting above -- lets a
+// Test-only seam, same pattern as setUserResolverForTesting above: lets a
 // test grant/revoke admin status for a specific email without depending on
 // (or colliding with) whatever ADMIN_EMAILS happens to be set to in the
 // environment the test suite runs in. Never used from production code.
@@ -97,7 +97,7 @@ export function setAdminEmailsForTesting(emails: string[] | undefined): void {
   testAdminEmails = emails;
 }
 
-// Parsed on every call rather than cached at module load -- ADMIN_EMAILS
+// Parsed on every call rather than cached at module load: ADMIN_EMAILS
 // only matters in test/admin contexts, never on the hot request path, so
 // there's no cost worth avoiding by caching it.
 function adminEmailSet(): Set<string> {
@@ -115,7 +115,7 @@ export function isAdminEmail(email: string): boolean {
 }
 
 // Gates the admin/test-companies HTTP surface (see testCompanies/routes.ts).
-// Builds on requireAuth rather than replacing it -- this is an
+// Builds on requireAuth rather than replacing it: this is an
 // authorization check on top of an already-authenticated Clerk session, not
 // a second credential system. A signed-in user whose email isn't in
 // ADMIN_EMAILS gets 403, not 404: existing (not a secret) but forbidden.

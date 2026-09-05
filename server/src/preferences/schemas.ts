@@ -7,7 +7,7 @@ const OPPORTUNITY_TYPE_VALUES = ["FULL_TIME", "INTERNSHIP", "CONTRACT", "PART_TI
 // Kept in sync with the frontend's own LEVEL_OPTIONS (PreferencesClient.tsx)
 // by hand, the same way WORK_MODE_VALUES/OPPORTUNITY_TYPE_VALUES above are
 // already duplicated between this file's zod schema and the frontend's
-// WORK_MODES/OPPORTUNITY_TYPES arrays -- an established pattern in this
+// WORK_MODES/OPPORTUNITY_TYPES arrays: an established pattern in this
 // codebase, not a new one, and small/stable enough not to warrant a shared
 // package for two six-line lists. Exported so testCompanies/schemas.ts can
 // validate its own Level field against the exact same vocabulary rather
@@ -23,7 +23,7 @@ const trimmedOrNull = z
 
 const MAX_LOCATIONS = 10;
 
-// The wire format sends only codes for country/state -- the server derives
+// The wire format sends only codes for country/state: the server derives
 // the display names from the same curated list it validates against
 // (geo/data.ts), so a stored name can never drift from what its code
 // actually means. City has no separate code (it's a dataset leaf), so it's
@@ -72,12 +72,12 @@ export const preferencesSchema = z.object({
 export type PreferencesInput = z.infer<typeof preferencesSchema>;
 export type LocationInput = z.infer<typeof locationInputSchema>;
 
-// Derives the denormalized display names from validated codes -- see
+// Derives the denormalized display names from validated codes: see
 // schema.prisma's UserPreferenceLocation comment for why matching needs
 // names (substring match against a job's raw location text) even though the
 // wire format and validation are code-based. Shared by preferences/routes.ts
 // and testCompanies/routes.ts (CustomTestJobLocation has the identical
-// shape/reasoning -- see schema.prisma).
+// shape/reasoning: see schema.prisma).
 export function toLocationRow(loc: LocationInput) {
   const country = findCountry(loc.countryCode)!; // already validated by locationInputSchema
   const state = loc.stateCode ? findState(loc.countryCode, loc.stateCode) : undefined;

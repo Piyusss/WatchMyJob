@@ -23,7 +23,7 @@ describe("evaluateMissedJob", () => {
   });
 
   it("enough consecutive misses but NOT enough elapsed time: stays open", () => {
-    // 3rd consecutive miss, but only 1 minute after the first -- fast-polling
+    // 3rd consecutive miss, but only 1 minute after the first: fast-polling
     // source racking up misses quickly must not close prematurely.
     const now = minutesAfter(T0, 1);
     const result = evaluateMissedJob({ consecutiveMissCount: CLOSURE_MISS_THRESHOLD - 1, firstMissingAt: T0 }, now);

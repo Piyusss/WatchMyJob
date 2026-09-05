@@ -1,5 +1,5 @@
 // A count alone can't tell "failed once, transient" from "failed
-// repeatedly, something's wrong" -- exponential backoff with a ceiling
+// repeatedly, something's wrong": exponential backoff with a ceiling
 // gives a transient provider blip room to clear without hammering it, and
 // a genuinely broken send (bad address, provider outage) a bounded number
 // of tries before it stops consuming worker cycles.

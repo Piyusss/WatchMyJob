@@ -4,10 +4,10 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-// Shown when /api/auth/me fails for a reason that isn't "signed out" -- a
+// Shown when /api/auth/me fails for a reason that isn't "signed out": a
 // server error, a rate limit, an unreachable API. Previously these were all
 // treated as a 401 and redirected to /login, which produced an endless
-// bounce between /login and /dashboard (see useCurrentUser). Telling the
+// bounce between /login and /companies (see useCurrentUser). Telling the
 // user the server is unhappy is both honest and, unlike the redirect, a
 // dead end rather than a loop.
 export default function AccountLoadError({ message }: { message: string }) {

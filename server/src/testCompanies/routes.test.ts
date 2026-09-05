@@ -1,10 +1,10 @@
 // End-to-end coverage of the admin/test-companies surface (custom_company.txt
-// Section 20) -- exercises the REAL pipeline through the REAL HTTP routes:
+// Section 20): exercises the REAL pipeline through the REAL HTTP routes:
 // create a synthetic company, create a synthetic job, publish it, and check
 // what actually happened to Notification rows. Publishing calls the exact
 // syncSource() a real source's scheduled sync calls (see routes.ts), so a
 // bug in the shared pipeline fails these the same way it'd fail a real
-// company's. Notification rows are asserted at QUEUED -- proof by itself
+// company's. Notification rows are asserted at QUEUED: proof by itself
 // that nothing here sent an email directly (the notification WORKER, a
 // separate process never started by this test run, is the only thing that
 // would move a row past QUEUED), matching Section 14's "no admin -> email
@@ -53,7 +53,7 @@ async function setPreferences(userId: string, data: Record<string, unknown>) {
 }
 
 // roleFamily is validated live against a real ACTIVE job (same rule
-// preferences enforces -- see testCompanies/schemas.ts) -- these two seed
+// preferences enforces, see testCompanies/schemas.ts), so these two seed
 // companies exist purely so "Software Engineer" and "Product Manager" are
 // real, currently-available role families for the whole suite to use.
 async function seedRealActiveJob(roleFamily: string, index: number): Promise<string> {
@@ -153,7 +153,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   });
 
-  it("Test 1 -- matching subscriber gets a queued notification", async () => {
+  it("Test 1: matching subscriber gets a queued notification", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t1-match");
     await subscribe(user.id, company.id);
@@ -169,7 +169,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications[0].status, "QUEUED", "must be queued, never sent directly by the publish request itself");
   });
 
-  it("Test 2 -- wrong role does not notify", async () => {
+  it("Test 2: wrong role does not notify", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t2-wrongrole");
     await subscribe(user.id, company.id);
@@ -182,7 +182,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 0);
   });
 
-  it("Test 3 -- wrong location does not notify", async () => {
+  it("Test 3: wrong location does not notify", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t3-wrongloc");
     await subscribe(user.id, company.id);
@@ -198,7 +198,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 0);
   });
 
-  it("Test 4 -- a matching non-subscriber does not notify", async () => {
+  it("Test 4: a matching non-subscriber does not notify", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t4-nonsub");
     await setPreferences(user.id, { roleFamily: "Software Engineer" }); // matches, but never subscribes
@@ -210,7 +210,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 0);
   });
 
-  it("Test 5 -- a job published before the subscription does not notify (Scenario A)", async () => {
+  it("Test 5: a job published before the subscription does not notify (Scenario A)", async () => {
     const company = await createTestCompany();
     const job = await createTestJob(company.slug);
     await publish(job.id); // published first, no subscriber exists yet
@@ -223,7 +223,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 0, "subscribing after the fact must not retroactively notify for pre-existing jobs");
   });
 
-  it("Test 6 -- a job published after the subscription notifies exactly once (Scenario B)", async () => {
+  it("Test 6: a job published after the subscription notifies exactly once (Scenario B)", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t6-new");
     await subscribe(user.id, company.id);
@@ -237,7 +237,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 1);
   });
 
-  it("Test 7 -- publishing (syncing) the same job twice does not duplicate the notification", async () => {
+  it("Test 7: publishing (syncing) the same job twice does not duplicate the notification", async () => {
     const company = await createTestCompany();
     const user = await makeUser("t7-dup");
     await subscribe(user.id, company.id);
@@ -257,7 +257,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 1, "still exactly one notification after re-publishing the unchanged job");
   });
 
-  it("Test 8 -- multiple matching users all notify, a non-matching one does not", async () => {
+  it("Test 8: multiple matching users all notify, a non-matching one does not", async () => {
     const company = await createTestCompany();
     const userA = await makeUser("t8-a");
     const userB = await makeUser("t8-b");
@@ -292,7 +292,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(res.statusCode, 403);
   });
 
-  it("creating a draft job never queues a notification -- only publish touches the pipeline", async () => {
+  it("creating a draft job never queues a notification: only publish touches the pipeline", async () => {
     const company = await createTestCompany();
     const user = await makeUser("draft-no-notify");
     await subscribe(user.id, company.id);
@@ -304,7 +304,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
     assert.equal(notifications.length, 0);
   });
 
-  it("disabling a company deactivates its subscribers -- it must stop counting as watched", async () => {
+  it("disabling a company deactivates its subscribers: it must stop counting as watched", async () => {
     const company = await createTestCompany();
     const userA = await makeUser("disable-a");
     const userB = await makeUser("disable-b");
@@ -327,7 +327,7 @@ describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () =
       assert.ok(sub.deactivatedAt, "deactivatedAt must be set the same way an explicit unsubscribe sets it");
     }
 
-    // Re-enabling must not retroactively resume anyone -- same "must
+    // Re-enabling must not retroactively resume anyone: same "must
     // explicitly re-subscribe" rule a reactivated real company already has.
     const reenable = await app.inject({
       method: "PATCH",

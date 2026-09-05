@@ -1,5 +1,5 @@
 // The onboarding no-flood rule is the single business rule the whole
-// product rests on, and it fails silently -- a broken version looks exactly
+// product rests on, and it fails silently: a broken version looks exactly
 // like a working one until real users get a mailbox full of jobs that were
 // already open when they signed up. So it gets a real test.
 //

@@ -74,7 +74,7 @@ export default function SettingsPage() {
       invalidateCurrentUser();
       toast.success(paused ? "Notifications paused" : "Notifications resumed");
     } catch {
-      // leave the displayed state as it was -- nothing changed server-side
+      // leave the displayed state as it was: nothing changed server-side
       toast.error("Couldn't update your notification setting. Please try again.");
     } finally {
       setTogglingNotifications(false);
@@ -108,7 +108,7 @@ export default function SettingsPage() {
     setDeleting(true);
     try {
       // Empty body: authentication (the Clerk session itself) is the only
-      // confirmation needed now -- see account/routes.ts, which also
+      // confirmation needed now: see account/routes.ts, which also
       // deletes the underlying Clerk account.
       await apiFetch("/api/account", { method: "DELETE" });
       invalidateCurrentUser();
@@ -199,7 +199,7 @@ export default function SettingsPage() {
           <SettingsGroup title="Data">
             <SettingRow
               title="Export your data"
-              description="Everything GettingShortlisted.com holds about you — profile, preferences and watchlist — as a JSON file."
+              description="Everything GettingShortlisted.in holds about you (profile, preferences and watchlist) as a JSON file."
               control={
                 <Button variant="outline" size="sm" onClick={downloadExport} disabled={exporting}>
                   {exporting ? "Preparing…" : "Download"}

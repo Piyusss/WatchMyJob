@@ -9,7 +9,7 @@ const notificationsSchema = z.object({
 });
 
 export async function accountRoutes(fastify: FastifyInstance) {
-  // Everything this user's account holds, in one JSON document -- the
+  // Everything this user's account holds, in one JSON document: the
   // baseline "self-service export" a product collecting this much profile
   // and preference data should offer, without building a compliance
   // department around it.
@@ -52,7 +52,7 @@ export async function accountRoutes(fastify: FastifyInstance) {
 
   // The in-app side of pausing/resuming notifications. The email-link side
   // (no login required, for the unsubscribe link every notification
-  // carries) is notifications/routes.ts -- both ultimately just flip this
+  // carries) is notifications/routes.ts: both ultimately just flip this
   // same field.
   fastify.patch("/notifications", { preHandler: requireAuth }, async (request, reply) => {
     const parsed = notificationsSchema.safeParse(request.body);
@@ -82,7 +82,7 @@ export async function accountRoutes(fastify: FastifyInstance) {
     // yet, so the request can just be retried.
     await clerkClient.users.deleteUser(request.clerkUserId);
 
-    // Cascades to preferences and subscriptions -- both declared
+    // Cascades to preferences and subscriptions: both declared
     // onDelete: Cascade in the schema.
     await prisma.user.delete({ where: { id: user.id } });
 

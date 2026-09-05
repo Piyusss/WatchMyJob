@@ -1,10 +1,10 @@
-// The admin/test tab's HTTP surface (see custom_company.txt) -- lets an
+// The admin/test tab's HTTP surface (see custom_company.txt): lets an
 // authorized admin create a synthetic company and publish synthetic jobs
 // through the SAME job pipeline real sources use (see sync.ts's syncSource
 // and sources/adapters/customTest.ts), to exercise the real end-to-end
 // notification system without depending on an external ATS actually having
 // a matching opening right now. Registration of this whole plugin is gated
-// on allowTestCompanies in index.ts -- every handler here additionally
+// on allowTestCompanies in index.ts: every handler here additionally
 // requires requireAdmin, so reaching it at all needs both the environment
 // gate AND an allowlisted Clerk account.
 import type { FastifyInstance } from "fastify";
@@ -55,7 +55,7 @@ function serializeJob(job: {
 }
 
 // roleFamily has no fixed taxonomy (see jobs/routes.ts's /role-families
-// comment) -- "controlled selection, not free text" means it must be a
+// comment): "controlled selection, not free text" means it must be a
 // value that's actually on a real active job right now, the exact same
 // live check preferences/routes.ts runs for a user's own roleFamily
 // preference. A test job is subject to the identical rule, not a looser one.
@@ -135,7 +135,7 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
         name: input.name,
         slug,
         // No real ToS to comply with for synthetic data the admin authored
-        // themselves -- WRITTEN_PERMISSION is the closest real value (you
+        // themselves: WRITTEN_PERMISSION is the closest real value (you
         // always have permission over your own fixture); a dedicated enum
         // value here would just duplicate what isTestCompany already says.
         accessBasis: "WRITTEN_PERMISSION",
@@ -144,14 +144,14 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
       },
     });
 
-    // Every test company gets exactly one CUSTOM_TEST source -- the
+    // Every test company gets exactly one CUSTOM_TEST source: the
     // "Custom Test Job API" from custom_company.txt's own architecture
     // diagram, reusing JobSource rather than inventing a parallel concept.
     await prisma.jobSource.create({ data: { companyId: company.id, platform: "CUSTOM_TEST", config: {} } });
 
     // Baselined immediately at zero jobs (no CustomTestJob rows exist yet)
     // so the company is selectable/watchable from the moment it's created,
-    // not deferred until the first job is published -- Section 12's
+    // not deferred until the first job is published: Section 12's
     // Scenario B (subscribe BEFORE any job exists) needs that to work.
     await runInitialSync(slug, { allowEmpty: true });
 
@@ -171,7 +171,7 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
 
     const updated = await prisma.company.update({ where: { id: company.id }, data: { status: parsed.data.status } });
 
-    // A disabled company must stop counting as "watched" -- see
+    // A disabled company must stop counting as "watched": see
     // deactivateForCompany.ts for why this can't just be left to the
     // send-time recheck alone.
     const subscriptionsDeactivated =
@@ -290,7 +290,7 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
         description: input.description,
         applicationUrl: input.applicationUrl,
         // Full replace, same convention preferences/routes.ts uses for its
-        // own one-to-many locations relation -- the form always submits the
+        // own one-to-many locations relation: the form always submits the
         // complete current list.
         locations: { deleteMany: {}, create: input.locations.map(toLocationRow) },
       },
@@ -302,8 +302,8 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
 
   // The one action in this whole surface that touches the real pipeline.
   // Everything before this point (creating the company, creating a draft
-  // job) only ever writes rows an adapter hasn't been asked to look at yet
-  // -- Section 8's "creating must not itself notify anyone".
+  // job) only ever writes rows an adapter hasn't been asked to look at yet:
+  // Section 8's "creating must not itself notify anyone".
   fastify.post<{ Params: { jobId: string } }>("/test-jobs/:jobId/publish", { preHandler: requireAdmin }, async (request, reply) => {
     const draft = await prisma.customTestJob.findUnique({
       where: { id: request.params.jobId },
@@ -313,10 +313,10 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ error: "No such test job" });
     }
     if (draft.source.company.status !== "ACTIVE") {
-      return reply.code(400).send({ error: `${draft.source.company.name} is disabled -- reactivate it first` });
+      return reply.code(400).send({ error: `${draft.source.company.name} is disabled. Reactivate it first` });
     }
 
-    // Set once, on the transition from draft to published -- left alone on
+    // Set once, on the transition from draft to published: left alone on
     // every later publish (an edit-then-republish), so this always records
     // when the job FIRST went live, not when it was last touched.
     if (!draft.publishedAt) {
@@ -328,7 +328,7 @@ export async function testCompanyRoutes(fastify: FastifyInstance) {
     // dedupe against Postgres, persist, then match against every
     // subscriber (sync.ts -> matching/engine.ts). This just triggers it
     // immediately instead of waiting for the background poller's next tick
-    // (worker.ts polls every baselined source regardless of platform) --
+    // (worker.ts polls every baselined source regardless of platform):
     // the same relationship admin:sync already has to the scheduled path
     // for real companies, not a shortcut around it.
     const source = await prisma.jobSource.findUniqueOrThrow({ where: { id: draft.source.id } });

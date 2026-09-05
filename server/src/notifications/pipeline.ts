@@ -7,7 +7,7 @@ import { env } from "../config/env.js";
 
 const CLAIM_BATCH_SIZE = 20;
 // How long a row can sit in SENDING before restart-reconciliation treats
-// it as ambiguous -- comfortably longer than any single send call should
+// it as ambiguous: comfortably longer than any single send call should
 // plausibly take.
 const SENDING_STUCK_THRESHOLD_MS = 2 * 60_000;
 
@@ -20,8 +20,8 @@ export interface ProcessResult {
   reconciled: number;
 }
 
-// Claims a batch atomically via FOR UPDATE SKIP LOCKED -- safe even if two
-// worker processes ran concurrently, though this project runs one -- and
+// Claims a batch atomically via FOR UPDATE SKIP LOCKED (safe even if two
+// worker processes ran concurrently, though this project runs one), and
 // transitions every claimed row to SENDING inside the SAME transaction,
 // before the function returns. This is the actual fix for "worker crashes
 // after the provider accepts but before the DB records it": the row is
@@ -48,7 +48,7 @@ async function claimBatch(limit: number): Promise<string[]> {
 }
 
 // A row stuck in SENDING past the threshold means the provider call's
-// outcome is genuinely unknown -- SES offers no cheap "did I already send
+// outcome is genuinely unknown: SES offers no cheap "did I already send
 // this" lookup without wiring SNS/CloudWatch event notifications, real
 // added infrastructure out of scope here. Never auto-retried: this
 // product's own priorities (the entire onboarding-flood design) value
@@ -96,14 +96,14 @@ async function processOne(id: string): Promise<"sent" | "skipped" | "failed" | "
       },
     },
   });
-  if (!notification) return "skipped"; // nothing to do -- shouldn't happen given onDelete: Cascade
+  if (!notification) return "skipped"; // nothing to do: shouldn't happen given onDelete: Cascade
 
   const subscription = await prisma.userCompanySubscription.findUnique({
     where: { userId_companyId: { userId: notification.userId, companyId: notification.job.company.id } },
     select: { active: true },
   });
 
-  // Everything re-verified fresh, right now -- never trusted from whatever
+  // Everything re-verified fresh, right now: never trusted from whatever
   // was true when this row was queued (Section 28, generalized to every
   // condition that could have changed in the gap, not just job.status).
   const check = evaluatePreSendCheck({

@@ -14,7 +14,7 @@ const RUN_ID = `test-pipeline-${Date.now()}`;
 let companyId: string;
 let sourceId: string;
 let testIndex = 0;
-// Incremented on every call, not just per-test -- a test that creates two
+// Incremented on every call, not just per-test: a test that creates two
 // users or two jobs (the multi-notification test does both) needs each
 // call to get its own unique identity, not just each test.
 let callIndex = 0;
@@ -149,7 +149,7 @@ describe("notification pipeline integration", () => {
     assert.equal(result.sent, 0);
   });
 
-  it("an unverified email is SKIPPED -- Critical Issue #11's fix, exercised end to end", async () => {
+  it("an unverified email is SKIPPED: Critical Issue #11's fix, exercised end to end", async () => {
     const user = await makeUser({ emailVerified: false });
     const job = await makeJob();
     await makeSubscription(user.id);
@@ -187,7 +187,7 @@ describe("notification pipeline integration", () => {
     assert.match(after.lastError ?? "", /SES throttled/);
     assert.ok(after.nextAttemptAt !== null && after.nextAttemptAt.getTime() > Date.now(), "must not be immediately retriable");
 
-    // A second pass right away must NOT reclaim it -- it's backing off.
+    // A second pass right away must NOT reclaim it: it's backing off.
     const secondPass = await processNotificationBatch();
     assert.equal(secondPass.claimed, 0);
   });
@@ -201,7 +201,7 @@ describe("notification pipeline integration", () => {
     setEmailProviderForTesting(alwaysFails("permanent failure"));
 
     // Drive it through every attempt by clearing nextAttemptAt directly
-    // between passes -- this test is about the ceiling, not real-time backoff.
+    // between passes: this test is about the ceiling, not real-time backoff.
     for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
       await prisma.notification.update({ where: { id: notification.id }, data: { nextAttemptAt: null } });
       await processNotificationBatch();

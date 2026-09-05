@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const MAX_VISIBLE_OPTIONS = 60;
 
-// A searchable, options-only select for Role -- classification produces
+// A searchable, options-only select for Role: classification produces
 // thousands of near-title-granular role families (see the server's
 // jobs/routes.ts /role-families comment), too many for a plain <Select>'s
 // fixed list to be usable, and far too many to invent a coarser fixed
@@ -97,7 +97,7 @@ export default function RoleFamilySelect({
                 <button
                   type="button"
                   // onMouseDown fires before the input's onBlur closes the
-                  // list -- onClick here would never run.
+                  // list: onClick here would never run.
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onChange(option);

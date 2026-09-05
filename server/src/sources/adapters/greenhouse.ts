@@ -5,7 +5,7 @@ import { greenhouseBoardResponseSchema } from "../responseSchemas.js";
 import type { DiscoveryResult, JobSourceAdapter, JobSourceConfig, NormalizedJob } from "../types.js";
 
 // Greenhouse's public job-board API is designed to be embedded on company
-// career pages -- no auth, no ToS conflict, and content=true returns full
+// career pages: no auth, no ToS conflict, and content=true returns full
 // descriptions in the same call, so this adapter never needs a second
 // per-job fetch the way a platform without that option would.
 function boardUrl(boardToken: string): string {
@@ -13,7 +13,7 @@ function boardUrl(boardToken: string): string {
 }
 
 // `new Date(isoStringWithOffset)` parses the source's stated offset and
-// stores the equivalent UTC instant -- Postgres's timestamptz column then
+// stores the equivalent UTC instant: Postgres's timestamptz column then
 // keeps it as UTC regardless of which timezone the source reported in.
 // This *is* "UTC normalization at ingestion": correct by construction, not
 // by an extra conversion step.
@@ -43,7 +43,7 @@ export class GreenhouseAdapter implements JobSourceAdapter {
       } satisfies NormalizedJob;
     });
 
-    // This endpoint is a single request returning the whole board -- no
+    // This endpoint is a single request returning the whole board: no
     // pagination, no partial-page concept. A 200 response is always the
     // complete list at that instant, so this adapter can only ever report
     // COMPLETE (or throw, on the paths above).

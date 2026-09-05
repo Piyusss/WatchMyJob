@@ -49,7 +49,7 @@ const STEPS = [
   { key: "opportunity", question: "Which opportunities should we send?" },
 ] as const;
 
-// The five questions here plus the company picker on /companies -- the
+// The five questions here plus the company picker on /companies: the
 // whole onboarding is one six-step flow and the progress bar says so.
 const TOTAL_ONBOARDING_STEPS = STEPS.length + 1;
 
@@ -220,7 +220,7 @@ export default function PreferencesClient() {
             {/* Progress: one segment per question, so "how much is left" is
                 visible at a glance rather than stated in words only. The
                 sixth segment is the company picker that follows this
-                wizard -- onboarding is one six-step flow, not a five-step
+                wizard: onboarding is one six-step flow, not a five-step
                 flow plus a surprise. */}
             <div className="flex items-center gap-2">
               {Array.from({ length: TOTAL_ONBOARDING_STEPS }).map((_, i) => (
@@ -303,7 +303,7 @@ export default function PreferencesClient() {
                   {current.key === "location" && (
                     <div className="space-y-4">
                       <p className="text-[0.88rem] leading-relaxed text-ink-muted">
-                        Add as many as you like — a job matching any one of them counts. Pick just a country for
+                        Add as many as you like. A job matching any one of them counts. Pick just a country for
                         &ldquo;anywhere in India&rdquo;, or narrow to a city. Add none if location isn&apos;t a
                         constraint.
                       </p>

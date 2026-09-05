@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { GEO_DATA } from "./data.js";
 
-// Static reference data -- public and unauthenticated, same reasoning as
+// Static reference data: public and unauthenticated, same reasoning as
 // GET /api/companies: nothing here is user-specific, so there's no boundary
 // to enforce. The whole curated tree is small enough to return in one
 // response; the frontend does the country->state->city filtering client-side

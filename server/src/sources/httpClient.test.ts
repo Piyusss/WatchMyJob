@@ -32,7 +32,7 @@ describe("fetchJson", () => {
       return fakeResponse(404, { error: "not found" });
     }) as typeof fetch;
     await assert.rejects(() => fetchJson("https://example.test/missing"), SourceFetchError);
-    assert.equal(calls, 1, "a 404 must not be retried -- retrying can't fix a not-found");
+    assert.equal(calls, 1, "a 404 must not be retried: retrying can't fix a not-found");
   });
 
   it("retries a 503 with backoff and succeeds once the server recovers", async () => {

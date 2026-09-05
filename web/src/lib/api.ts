@@ -4,7 +4,7 @@ export class ApiError extends Error {
   // The HTTP status is load-bearing, not just diagnostic: callers have to be
   // able to tell "you are not signed in" (401) apart from "the server broke"
   // (500) or "you're being throttled" (429). Conflating them is what turned a
-  // single server error into an unbounded redirect loop -- see useCurrentUser.
+  // single server error into an unbounded redirect loop: see useCurrentUser.
   status: number;
   details?: Record<string, string[] | undefined>;
   constructor(message: string, status: number, details?: Record<string, string[] | undefined>) {
@@ -14,8 +14,31 @@ export class ApiError extends Error {
   }
 }
 
+// Every Zod-validated route responds with a generic top-level message
+// ("Invalid input") plus a `details` map of the actual per-field problems
+// (see e.g. testCompanies/routes.ts): ApiError already carries that map,
+// but callers were only ever showing the generic message, which told a user
+// something was wrong without saying what. This turns the first real field
+// error into a readable "Field: what's wrong with it" string, falling back
+// to the generic message when there's no `details` to draw from (a 409
+// conflict, a 500, a network failure). `labels` maps a schema field name to
+// what the form actually calls it, since "domain" reads fine but "name"
+// should say "Company name".
+export function apiErrorMessage(err: unknown, fallback: string, labels: Record<string, string> = {}): string {
+  if (err instanceof ApiError) {
+    if (err.details) {
+      const [field, messages] = Object.entries(err.details).find(([, v]) => v && v.length > 0) ?? [];
+      if (field && messages) {
+        return `${labels[field] ?? field}: ${messages[0]}`;
+      }
+    }
+    return err.message || fallback;
+  }
+  return fallback;
+}
+
 // apiFetch is a plain function called from many places, not a hook, so it
-// can't use useAuth()'s getToken() directly -- window.Clerk is the
+// can't use useAuth()'s getToken() directly: window.Clerk is the
 // documented escape hatch for reaching the same session token outside a
 // component. Every real caller renders after ClerkProvider has mounted
 // (see useCurrentUser, which every authenticated page goes through first),
@@ -45,7 +68,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     });
   } catch {
     // The API being unreachable (down, DNS, CORS rejection) is emphatically
-    // not an auth failure -- status 0 keeps it from ever being mistaken for
+    // not an auth failure: status 0 keeps it from ever being mistaken for
     // a 401 by callers that branch on status.
     throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
   }
@@ -74,7 +97,7 @@ export interface PublicUser {
 export type WorkMode = "REMOTE" | "HYBRID" | "ON_SITE";
 export type OpportunityType = "FULL_TIME" | "INTERNSHIP" | "CONTRACT" | "PART_TIME" | "OTHER";
 
-// This user's own stance toward a job -- distinct from the job's global
+// This user's own stance toward a job: distinct from the job's global
 // status (see the server's schema.prisma). null means "no stance yet".
 export type UserJobState = "SAVED" | "APPLIED" | "DISMISSED";
 
@@ -89,7 +112,19 @@ export function clearJobState(jobId: string) {
   return apiFetch<{ jobId: string; state: null }>(`/api/jobs/${jobId}/state`, { method: "DELETE" });
 }
 
-// A small, fixed vocabulary -- kept in sync by hand with the backend's own
+// Watch or unwatch a set of companies in one request. The slugs are always
+// sent explicitly rather than the server inferring "all", so a filtered
+// list acts on exactly what the user was looking at. `changed` counts rows
+// the call actually altered, which is why it can be lower than the number
+// of slugs sent (already-watching companies are a no-op).
+export function bulkSetWatching(action: "watch" | "unwatch", companySlugs: string[]) {
+  return apiFetch<{ changed: number }>("/api/subscriptions/bulk", {
+    method: "POST",
+    body: JSON.stringify({ action, companySlugs }),
+  });
+}
+
+// A small, fixed vocabulary: kept in sync by hand with the backend's own
 // LEVEL_VALUES (preferences/schemas.ts), the same pattern already used for
 // WorkMode/OpportunityType across this file and that schema.
 export const LEVEL_OPTIONS = ["Intern", "Associate", "Senior", "Lead", "Staff", "Principal"] as const;
@@ -184,7 +219,7 @@ export interface JobListing {
 
 export interface JobDetail extends JobListing {
   // Always plain text, server-converted from the source's raw HTML (see
-  // jobs/routes.ts) -- an empty string means no description, never null.
+  // jobs/routes.ts): an empty string means no description, never null.
   description: string;
   company: { id: string; name: string; slug: string; domain: string | null };
 }
@@ -282,7 +317,7 @@ export interface Subscription {
 // --- Admin / test companies (custom_company.txt) --------------------------
 // Everything below talks to /api/admin/*, which only exists at all when the
 // server has ALLOW_TEST_COMPANIES on, and only accepts requests from an
-// account on its ADMIN_EMAILS allowlist -- see the server's
+// account on its ADMIN_EMAILS allowlist: see the server's
 // testCompanies/routes.ts. A non-admin never sees the nav link that reaches
 // these pages, but these calls would 403 regardless.
 
@@ -303,7 +338,7 @@ export interface TestCompanyDetail {
   slug: string;
   status: "ACTIVE" | "INACTIVE";
   domain: string | null;
-  // Whether this company currently satisfies SELECTABLE_COMPANY -- i.e.
+  // Whether this company currently satisfies SELECTABLE_COMPANY: i.e.
   // whether a real user could watch it right now. True immediately on
   // creation (see routes.ts's empty baseline), so this should basically
   // never read false, but it's here to make that guarantee visible rather
@@ -325,7 +360,7 @@ export interface TestJob {
   published: boolean;
   publishedAt: string | null;
   locations: PreferenceLocation[];
-  // The real Job row this draft produced, once published -- null until
+  // The real Job row this draft produced, once published: null until
   // then. Links straight to the real job detail page so the admin can
   // confirm, in Tab 1, exactly what Tab 2 just published.
   job: { id: string; externalJobId: string; status: "ACTIVE" | "CLOSED" } | null;

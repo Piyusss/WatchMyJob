@@ -14,6 +14,7 @@ import LocationPicker from "@/components/LocationPicker";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import {
   ApiError,
+  apiErrorMessage,
   createTestJob,
   getTestCompany,
   publishTestJob,
@@ -28,6 +29,22 @@ import {
   type TestJobInput,
   type WorkMode,
 } from "@/lib/api";
+
+// Maps createTestJobSchema's field names (server/src/testCompanies/schemas.ts)
+// to what this form actually calls them, so a validation error reads as
+// "Job title: ..." rather than "title: ...".
+const JOB_FIELD_LABELS: Record<string, string> = {
+  title: "Job title",
+  roleFamily: "Role family",
+  level: "Level",
+  locations: "Locations",
+  workMode: "Work mode",
+  opportunityType: "Opportunity type",
+  requiredExperienceMin: "Min experience",
+  requiredExperienceMax: "Max experience",
+  description: "Description",
+  applicationUrl: "Application URL",
+};
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +105,7 @@ function NotAuthorized() {
         <EmptyState
           icon={ShieldAlert}
           title="Admin access required"
-          body="This account isn't on the admin allowlist for GettingShortlisted.com's test-company tools."
+          body="This account isn't on the admin allowlist for GettingShortlisted.in's test-company tools."
         />
       </main>
     </>
@@ -142,7 +159,7 @@ export default function TestCompanyDetailPage() {
           ? `${company.name} is now active`
           : `${company.name} is now disabled` +
               (res.subscriptionsDeactivated > 0
-                ? ` — ${res.subscriptionsDeactivated} subscriber(s) unsubscribed, no longer watching it`
+                ? `; ${res.subscriptionsDeactivated} subscriber(s) unsubscribed, no longer watching it`
                 : ""),
       );
     } catch (err) {
@@ -175,12 +192,12 @@ export default function TestCompanyDetailPage() {
         toast.success("Job updated");
       } else {
         await createTestJob(params.slug, form);
-        toast.success("Draft job created — publish it to run the real pipeline");
+        toast.success("Draft job created. Publish it to run the real pipeline");
       }
       cancelEdit();
       await reload();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Couldn't save this job. Please try again.";
+      const message = apiErrorMessage(err, "Couldn't save this job. Please try again.", JOB_FIELD_LABELS);
       setFormError(message);
       toast.error(message);
     } finally {
@@ -195,8 +212,8 @@ export default function TestCompanyDetailPage() {
       setLastPublish({ jobId, result: res });
       toast.success(
         res.result.queued > 0
-          ? `Published — ${res.result.queued} notification(s) queued`
-          : "Published — no matching subscribers right now",
+          ? `Published: ${res.result.queued} notification(s) queued`
+          : "Published, but no matching subscribers right now",
       );
       await reload();
     } catch (err) {
@@ -284,7 +301,7 @@ export default function TestCompanyDetailPage() {
               {company.selectable ? (
                 <>
                   <CheckCircle2 className="mr-1 inline size-3.5 text-brand" />
-                  Selectable — a real user can watch <span className="font-medium text-ink-secondary">{company.name}</span> right now
+                  Selectable: a real user can watch <span className="font-medium text-ink-secondary">{company.name}</span> right now
                 </>
               ) : (
                 "Not yet selectable"
@@ -305,7 +322,7 @@ export default function TestCompanyDetailPage() {
           <p className="mt-2 max-w-2xl text-[0.85rem] leading-relaxed text-ink-muted">
             {editingJobId
               ? "Saving updates the draft. Publish (or re-publish) to push the change through the real pipeline."
-              : "Creating a draft doesn't notify anyone by itself — nothing happens until you publish it below."}
+              : "Creating a draft doesn't notify anyone by itself. Nothing happens until you publish it below."}
           </p>
 
           <form onSubmit={onSubmit} className="mt-4 space-y-4">
@@ -388,7 +405,7 @@ export default function TestCompanyDetailPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="reqMin">Required experience — min years</Label>
+                <Label htmlFor="reqMin">Required experience (min years)</Label>
                 <Input
                   id="reqMin"
                   type="number"
@@ -400,7 +417,7 @@ export default function TestCompanyDetailPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="reqMax">Required experience — max years</Label>
+                <Label htmlFor="reqMax">Required experience (max years)</Label>
                 <Input
                   id="reqMax"
                   type="number"

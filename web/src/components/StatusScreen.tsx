@@ -13,7 +13,7 @@ const TONE_STYLES: Record<Tone, { icon: typeof CheckCircle2; wrap: string; icon_
 
 // The centered single-message screen used by the two links that arrive from
 // an email (verify-email, unsubscribe). Kept as one component because both
-// are the same shape -- status icon, title, one sentence, one way onward.
+// are the same shape: status icon, title, one sentence, one way onward.
 export default function StatusScreen({
   tone,
   title,
@@ -33,7 +33,7 @@ export default function StatusScreen({
     <div className="flex min-h-screen items-center justify-center bg-canvas px-5 py-12">
       <div className="w-full max-w-md text-center">
         <Link href="/" className="mb-10 inline-block text-base font-bold tracking-tight text-ink">
-          GettingShortlisted.com
+          GettingShortlisted.in
         </Link>
 
         <div className="rounded-2xl border border-line bg-surface px-8 py-10 shadow-sm">

@@ -3,7 +3,7 @@
 // 11 verification. Uses a recorded real response
 // (__fixtures__/lever-palantir.json, three real Palantir postings covering
 // full-time/hybrid, internship/onsite, and contractor/hybrid) with global
-// fetch mocked -- never a live request.
+// fetch mocked: never a live request.
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -57,7 +57,7 @@ describe("LeverAdapter", () => {
     const onsite = result.jobs.find((j) => j.title === "Deployment Strategist, Internship")!;
     assert.equal(hybrid.workMode, "HYBRID");
     assert.equal(onsite.workMode, "ON_SITE");
-    // Neither location string contains the word "remote" -- confirms this
+    // Neither location string contains the word "remote": confirms this
     // came from workplaceType, not a location-text guess like Greenhouse's.
     assert.doesNotMatch(hybrid.location ?? "", /remote/i);
     assert.doesNotMatch(onsite.location ?? "", /remote/i);

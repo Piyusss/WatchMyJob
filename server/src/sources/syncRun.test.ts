@@ -1,6 +1,6 @@
 // SyncRun is the operational history admin:health (and a future admin UI)
 // need to answer "what actually happened the last N times this source was
-// synced" -- these tests exercise that a row is written for every real
+// synced": these tests exercise that a row is written for every real
 // attempt, with the right status and counts, across the paths syncSource
 // can take.
 import { after, afterEach, before, describe, it } from "node:test";
@@ -89,7 +89,7 @@ describe("SyncRun history", () => {
       data: { companyId, platform: "GREENHOUSE", config: { boardToken: "z" } },
     });
     setAdapterForTesting("GREENHOUSE", fakeAdapter({ jobs: [], status: "COMPLETE" }));
-    await syncSource(source, { initial: true }); // no allowEmpty -- guard rejects
+    await syncSource(source, { initial: true }); // no allowEmpty. Guard rejects
 
     const run = await latestSyncRun(source.id);
     assert.equal(run.status, "FAILED");
@@ -112,7 +112,7 @@ describe("SyncRun history", () => {
     const source = await prisma.jobSource.create({
       data: { companyId, platform: "GREENHOUSE", config: { boardToken: "v" } }, // no baseline yet
     });
-    await syncSource(source); // regular sync against a source with no baseline -- guard rejects
+    await syncSource(source); // regular sync against a source with no baseline: guard rejects
 
     const count = await prisma.syncRun.count({ where: { sourceId: source.id } });
     assert.equal(count, 0, "a guard rejection never reached the adapter, so there is no attempt to record");

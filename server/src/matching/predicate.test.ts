@@ -40,13 +40,13 @@ function prefs(overrides: Partial<MatchablePreferences> = {}): MatchablePreferen
   };
 }
 
-describe("matchesPreferences -- status gate", () => {
+describe("matchesPreferences: status gate", () => {
   it("a CLOSED job never matches, regardless of everything else", () => {
     assert.equal(matchesPreferences(job({ status: "CLOSED" }), prefs()), false);
   });
 });
 
-describe("matchesPreferences -- role family (prefix match, per Phase 8's un-normalized extraction)", () => {
+describe("matchesPreferences: role family (prefix match, per Phase 8's un-normalized extraction)", () => {
   it("no preference set: passes regardless of job value", () => {
     assert.equal(matchesPreferences(job({ roleFamily: null }), prefs({ roleFamily: "" })), true);
   });
@@ -67,12 +67,12 @@ describe("matchesPreferences -- role family (prefix match, per Phase 8's un-norm
     assert.equal(matchesPreferences(job({ roleFamily: "Product Manager" }), prefs({ roleFamily: "Software Engineer" })), false);
   });
 
-  it("a null job roleFamily fails when the user has a preference -- no UNKNOWN state exists for this field", () => {
+  it("a null job roleFamily fails when the user has a preference: no UNKNOWN state exists for this field", () => {
     assert.equal(matchesPreferences(job({ roleFamily: null }), prefs({ roleFamily: "Software Engineer" })), false);
   });
 });
 
-describe("matchesPreferences -- level (unknown passes by default -- most real jobs have none)", () => {
+describe("matchesPreferences: level (unknown passes by default: most real jobs have none)", () => {
   it("job.level is null: passes even though the user asked for a specific level", () => {
     assert.equal(matchesPreferences(job({ level: null }), prefs({ roleLevel: "Senior" })), true);
   });
@@ -86,7 +86,7 @@ describe("matchesPreferences -- level (unknown passes by default -- most real jo
   });
 });
 
-describe("matchesPreferences -- location (within one location, most specific field wins: city > state > country)", () => {
+describe("matchesPreferences: location (within one location, most specific field wins: city > state > country)", () => {
   it("no locations added at all: passes", () => {
     assert.equal(matchesPreferences(job({ location: "Paris, France" }), prefs()), true);
   });
@@ -115,7 +115,7 @@ describe("matchesPreferences -- location (within one location, most specific fie
     );
   });
 
-  it("null job location passes -- no signal to filter on", () => {
+  it("null job location passes: no signal to filter on", () => {
     assert.equal(
       matchesPreferences(job({ location: null }), prefs({ locations: [loc({ cityName: "Bangalore" })] })),
       true,
@@ -123,7 +123,7 @@ describe("matchesPreferences -- location (within one location, most specific fie
   });
 });
 
-describe("matchesPreferences -- location (multiple locations are OR, never AND)", () => {
+describe("matchesPreferences: location (multiple locations are OR, never AND)", () => {
   it("job matches the second of two added locations: passes", () => {
     assert.equal(
       matchesPreferences(
@@ -157,7 +157,7 @@ describe("matchesPreferences -- location (multiple locations are OR, never AND)"
   });
 });
 
-describe("matchesPreferences -- work mode", () => {
+describe("matchesPreferences: work mode", () => {
   it("empty preference array: passes any work mode", () => {
     assert.equal(matchesPreferences(job({ workMode: "ON_SITE" }), prefs({ workMode: [] })), true);
   });
@@ -175,8 +175,8 @@ describe("matchesPreferences -- work mode", () => {
   });
 });
 
-describe("matchesPreferences -- opportunity type (the internship-overreach gate)", () => {
-  it("empty preference defaults to FULL_TIME only -- an internship must NOT leak through to an unconfigured user", () => {
+describe("matchesPreferences: opportunity type (the internship-overreach gate)", () => {
+  it("empty preference defaults to FULL_TIME only: an internship must NOT leak through to an unconfigured user", () => {
     assert.equal(matchesPreferences(job({ opportunityType: "INTERNSHIP" }), prefs({ opportunityTypes: [] })), false);
   });
 
@@ -184,7 +184,7 @@ describe("matchesPreferences -- opportunity type (the internship-overreach gate)
     assert.equal(matchesPreferences(job({ opportunityType: "FULL_TIME" }), prefs({ opportunityTypes: [] })), true);
   });
 
-  it("explicitly selecting INTERNSHIP is required to match one -- mirrors the README's own worked example", () => {
+  it("explicitly selecting INTERNSHIP is required to match one: mirrors the README's own worked example", () => {
     assert.equal(
       matchesPreferences(job({ opportunityType: "INTERNSHIP" }), prefs({ opportunityTypes: ["INTERNSHIP"] })),
       true,
@@ -196,7 +196,7 @@ describe("matchesPreferences -- opportunity type (the internship-overreach gate)
   });
 });
 
-describe("matchesPreferences -- experience", () => {
+describe("matchesPreferences: experience", () => {
   it("UNKNOWN status passes by default regardless of user preference (Section 18)", () => {
     assert.equal(
       matchesPreferences(job({ experienceStatus: "UNKNOWN" }), prefs({ yearsExperience: 2, toleranceYears: 0 })),
@@ -225,15 +225,15 @@ describe("matchesPreferences -- experience", () => {
     assert.equal(matchesPreferences(j, prefs({ yearsExperience: 10, toleranceYears: 1 })), false);
   });
 
-  it("Critical Issue #8 -- open-ended floor, NO role-level preference stated: plain floor check applies", () => {
+  it("Critical Issue #8: open-ended floor, NO role-level preference stated: plain floor check applies", () => {
     // "3+ years" with no max. A 10-year candidate with no stated level
-    // preference has nothing for the co-gate to protect -- the floor
+    // preference has nothing for the co-gate to protect: the floor
     // check alone governs, and the floor is trivially satisfied.
     const j = job({ experienceStatus: "KNOWN", requiredExperienceMin: 3, requiredExperienceMax: null, level: null });
     assert.equal(matchesPreferences(j, prefs({ yearsExperience: 10, toleranceYears: 1, roleLevel: null })), true);
   });
 
-  it("Critical Issue #8 -- open-ended floor, role-level preference stated but job has no level: co-gate fails closed", () => {
+  it("Critical Issue #8: open-ended floor, role-level preference stated but job has no level: co-gate fails closed", () => {
     const j = job({ experienceStatus: "KNOWN", requiredExperienceMin: 3, requiredExperienceMax: null, level: null });
     assert.equal(
       matchesPreferences(j, prefs({ yearsExperience: 10, toleranceYears: 1, roleLevel: "SDE 1" })),
@@ -242,14 +242,14 @@ describe("matchesPreferences -- experience", () => {
     );
   });
 
-  it("Critical Issue #8 -- open-ended floor, role-level preference stated and job's level actually matches: passes", () => {
+  it("Critical Issue #8: open-ended floor, role-level preference stated and job's level actually matches: passes", () => {
     // A user honestly targeting the stated level (however senior) should
     // still match when the job's own level agrees.
     const j = job({ experienceStatus: "KNOWN", requiredExperienceMin: 3, requiredExperienceMax: null, level: "Staff" });
     assert.equal(matchesPreferences(j, prefs({ yearsExperience: 10, toleranceYears: 1, roleLevel: "Staff" })), true);
   });
 
-  it("Critical Issue #8 -- open-ended floor, role-level preference stated and job's level disagrees: fails", () => {
+  it("Critical Issue #8: open-ended floor, role-level preference stated and job's level disagrees: fails", () => {
     const j = job({ experienceStatus: "KNOWN", requiredExperienceMin: 3, requiredExperienceMax: null, level: "Senior" });
     assert.equal(matchesPreferences(j, prefs({ yearsExperience: 10, toleranceYears: 1, roleLevel: "Staff" })), false);
   });
@@ -260,7 +260,7 @@ describe("matchesPreferences -- experience", () => {
   });
 });
 
-describe("matchesPreferences -- internship never satisfied by numeric overlap alone (Section 17)", () => {
+describe("matchesPreferences: internship never satisfied by numeric overlap alone (Section 17)", () => {
   it("an internship with 0 required years and a fresher user with matching experience still needs the categorical gate", () => {
     const internship = job({
       opportunityType: "INTERNSHIP",
@@ -269,7 +269,7 @@ describe("matchesPreferences -- internship never satisfied by numeric overlap al
       requiredExperienceMax: 1,
     });
     // Numeric range overlaps for a fresher, but opportunityTypes wasn't
-    // explicitly opted in -- must still fail on the categorical gate.
+    // explicitly opted in: must still fail on the categorical gate.
     assert.equal(matchesPreferences(internship, prefs({ yearsExperience: 0, toleranceYears: 0, opportunityTypes: [] })), false);
   });
 
@@ -288,7 +288,7 @@ describe("matchesPreferences -- internship never satisfied by numeric overlap al
   });
 });
 
-describe("getMatchExplanation -- the canonical per-criterion breakdown", () => {
+describe("getMatchExplanation: the canonical per-criterion breakdown", () => {
   it("every dimension true and ACTIVE status yields overallMatch true", () => {
     const explanation = getMatchExplanation(job(), prefs());
     assert.deepEqual(explanation, {
@@ -302,7 +302,7 @@ describe("getMatchExplanation -- the canonical per-criterion breakdown", () => {
     });
   });
 
-  it("agrees with matchesPreferences on overallMatch -- same underlying logic, not a second implementation", () => {
+  it("agrees with matchesPreferences on overallMatch: same underlying logic, not a second implementation", () => {
     const cases: [MatchableJob, MatchablePreferences][] = [
       [job({ roleFamily: "Data Scientist" }), prefs({ roleFamily: "Software Engineer" })],
       [job({ opportunityType: "INTERNSHIP" }), prefs()],
@@ -317,7 +317,7 @@ describe("getMatchExplanation -- the canonical per-criterion breakdown", () => {
     }
   });
 
-  it("isolates exactly one failing dimension without affecting the others -- a real 'why this doesn't match' scenario", () => {
+  it("isolates exactly one failing dimension without affecting the others: a real 'why this doesn't match' scenario", () => {
     const explanation = getMatchExplanation(
       job({ roleFamily: "Software Engineer", location: "Berlin, Germany" }),
       prefs({ roleFamily: "Software Engineer", locations: [loc({ cityName: "Bangalore" })] }),
@@ -330,7 +330,7 @@ describe("getMatchExplanation -- the canonical per-criterion breakdown", () => {
     assert.equal(explanation.overallMatch, false, "one failing dimension is enough to fail the overall match");
   });
 
-  it("a CLOSED job can still have every per-criterion dimension true -- overallMatch is what carries the status gate", () => {
+  it("a CLOSED job can still have every per-criterion dimension true: overallMatch is what carries the status gate", () => {
     const explanation = getMatchExplanation(job({ status: "CLOSED" }), prefs());
     assert.equal(explanation.roleMatched, true);
     assert.equal(explanation.locationMatched, true);

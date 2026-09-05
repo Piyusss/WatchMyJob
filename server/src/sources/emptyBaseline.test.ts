@@ -1,7 +1,7 @@
 // Covers the confirmed finding from the Phase 5 adversarial audit: an
 // initial sync that discovers zero jobs must not silently commit a
 // baseline. Once committed, the guard against re-running initial sync means
-// there is no way back -- every job the source turns up afterwards would be
+// there is no way back: every job the source turns up afterwards would be
 // imported as brand-new, for a company that looks fully onboarded.
 import { after, afterEach, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -84,7 +84,7 @@ describe("empty-baseline guard", () => {
     assert.equal(job.discoveredInInitialSync, true);
   });
 
-  it("the guard does not apply to a regular (non-initial) sync -- zero jobs there is unremarkable", async () => {
+  it("the guard does not apply to a regular (non-initial) sync: zero jobs there is unremarkable", async () => {
     setAdapterForTesting("GREENHOUSE", fakeAdapter([SAMPLE_JOB]));
     const source = await prisma.jobSource.create({
       data: { companyId, platform: "GREENHOUSE", config: { boardToken: "x" }, initialSyncCompletedAt: new Date() },
@@ -93,6 +93,6 @@ describe("empty-baseline guard", () => {
     setAdapterForTesting("GREENHOUSE", fakeAdapter([]));
     const result = await syncSource(source);
 
-    assert.equal(result.error, null, "a regular sync finding zero jobs is not an error -- everything just closed");
+    assert.equal(result.error, null, "a regular sync finding zero jobs is not an error: everything just closed");
   });
 });

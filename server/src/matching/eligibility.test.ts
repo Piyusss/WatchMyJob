@@ -18,7 +18,7 @@ describe("evaluateEligibility", () => {
     assert.equal(result, "NEW_JOB");
   });
 
-  it("the core onboarding rule: job existed before the subscription, no later change -- must not notify", () => {
+  it("the core onboarding rule: job existed before the subscription, no later change. Must not notify", () => {
     const result = evaluateEligibility({
       jobFirstSeenAt: T0,
       jobLastMatchRelevantChangeAt: null,
@@ -50,9 +50,9 @@ describe("evaluateEligibility", () => {
     assert.equal(result, null);
   });
 
-  it("cutoff is the LATER of subscribedAt and preferencesEffectiveSince -- a preference widen re-gates an old subscription", () => {
+  it("cutoff is the LATER of subscribedAt and preferencesEffectiveSince: a preference widen re-gates an old subscription", () => {
     // User subscribed long ago (would trivially pass on subscription alone)
-    // but just widened their preferences -- the widen's timestamp must
+    // but just widened their preferences: the widen's timestamp must
     // govern, per the preference-widening flood fix.
     const result = evaluateEligibility({
       jobFirstSeenAt: daysAfter(T0, 2), // job existed before the preference widen

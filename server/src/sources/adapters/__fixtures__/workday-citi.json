@@ -1,0 +1,204 @@
+{
+  "list": {
+    "total": 2000,
+    "jobPostings": [
+      {
+        "title": "Apps Dev Tech Sr Lead Analyst",
+        "externalPath": "/job/Warsaw--Poland/Apps-Dev-Tech-Sr-Lead-Analyst_26984149-1",
+        "locationsText": "Warsaw  Poland",
+        "postedOn": "Posted Today",
+        "bulletFields": [
+          "26984149"
+        ]
+      },
+      {
+        "title": "Banamex Volante JR en Distrito GDL Norte",
+        "externalPath": "/job/Guadalajara-Jalisco-Mexico/Banamex-Volante-JR-en-Distrito-GDL-Norte_26992996",
+        "locationsText": "Guadalajara Jalisco Mexico",
+        "postedOn": "Posted Today",
+        "bulletFields": [
+          "26992996"
+        ]
+      },
+      {
+        "title": "Banamex - Gerente de Producto de Crédito- Banca Empresarial",
+        "externalPath": "/job/Ciudad-De-Mexico-Distrito-Federal-Mexico/Banamex---Gerente-de-Producto-de-Crdito--Banca-Empresarial_26987940",
+        "locationsText": "Ciudad De Mexico Distrito Federal Mexico",
+        "postedOn": "Posted Today",
+        "bulletFields": [
+          "26987940"
+        ]
+      },
+      {
+        "title": "CCB Brazil Trade Sales Head - SVP",
+        "externalPath": "/job/Sao-Paulo-Sao-Paulo-Brazil/CCB-Trade-Sales-Head---SVP_26992731-1",
+        "locationsText": "Sao Paulo Sao Paulo Brazil",
+        "postedOn": "Posted Today",
+        "bulletFields": [
+          "26992731"
+        ]
+      }
+    ]
+  },
+  "details": {
+    "/job/Warsaw--Poland/Apps-Dev-Tech-Sr-Lead-Analyst_26984149-1": {
+      "jobPostingInfo": {
+        "id": "39993b01d187102ad3739ee7ba170000",
+        "title": "Apps Dev Tech Sr Lead Analyst",
+        "jobDescription": "<p>The Applications Development Technology Senior Lead Analyst is a senior level position responsible for establishing and implementing new or revised application systems and programs in coordination with the Technology Team. The overall objective of this role is to lead applications systems analysis and programming activities.<br /><br /><b><u>Responsibilities:</u></b></p><ul><li><p>Lead integrat",
+        "location": "Warsaw  Poland",
+        "postedOn": "Posted Today",
+        "startDate": "2026-09-04",
+        "timeType": "Full time",
+        "jobReqId": "26984149",
+        "jobPostingId": "Apps-Dev-Tech-Sr-Lead-Analyst_26984149-1",
+        "jobPostingSiteId": "2",
+        "country": {
+          "descriptor": "Poland",
+          "id": "131d5ac7e3ee4d7b962bdc96e498e412"
+        },
+        "canApply": true,
+        "posted": true,
+        "includeResumeParsing": true,
+        "jobRequisitionLocation": {
+          "descriptor": "UL MARYNARSKA 12",
+          "country": {
+            "descriptor": "Poland",
+            "id": "131d5ac7e3ee4d7b962bdc96e498e412",
+            "alpha2Code": "PL"
+          }
+        },
+        "remoteType": "Hybrid",
+        "externalUrl": "https://citi.wd5.myworkdayjobs.com/2/job/Warsaw--Poland/Apps-Dev-Tech-Sr-Lead-Analyst_26984149-1",
+        "questionnaireId": "0e3319ce89d301787f3d2165a325bc4e"
+      },
+      "hiringOrganization": {
+        "name": "11101 Citibank Europe plc Poland",
+        "url": ""
+      },
+      "userAuthenticated": false
+    },
+    "/job/Guadalajara-Jalisco-Mexico/Banamex-Volante-JR-en-Distrito-GDL-Norte_26992996": {
+      "jobPostingInfo": {
+        "id": "7bf3d68e14a4102ad3596e22ae650000",
+        "title": "Banamex Volante JR en Distrito GDL Norte",
+        "jobDescription": "<p>The Universal Teller is an entry-level position responsible for executing branch activities, including the day-to-day delivery of client-facing services, processing transactions, and engaging in sales activities in coordination with the Customer Service function. The overall objective is to utilize banking knowledge and experience to provide high quality customer service and to help the branch ",
+        "location": "Guadalajara Jalisco Mexico",
+        "postedOn": "Posted Today",
+        "startDate": "2026-09-04",
+        "timeType": "Full time",
+        "jobReqId": "26992996",
+        "jobPostingId": "Banamex-Volante-JR-en-Distrito-GDL-Norte_26992996",
+        "jobPostingSiteId": "2",
+        "country": {
+          "descriptor": "Mexico",
+          "id": "e2adff9272454660ac4fdb56fc70bb51"
+        },
+        "canApply": true,
+        "posted": true,
+        "includeResumeParsing": true,
+        "jobRequisitionLocation": {
+          "descriptor": "AV. PATRIA NO. 2085, FRACC. PUERTA DE HIERRO  ZAPOPAN",
+          "country": {
+            "descriptor": "Mexico",
+            "id": "e2adff9272454660ac4fdb56fc70bb51",
+            "alpha2Code": "MX"
+          }
+        },
+        "remoteType": "On-Site",
+        "externalUrl": "https://citi.wd5.myworkdayjobs.com/2/job/Guadalajara-Jalisco-Mexico/Banamex-Volante-JR-en-Distrito-GDL-Norte_26992996",
+        "questionnaireId": "ca21de088a1c1034f93a320d07f50000",
+        "secondaryQuestionnaireId": "0601e6f9613b011f1672b47f8d2687f7",
+        "timeLeftToApply": "2 days left to apply",
+        "endDate": "2026-09-07",
+        "jobPostingEndDateAsText": "End Date: September 7, 2026"
+      },
+      "hiringOrganization": {
+        "name": "09516 Banco Nacional de Mexico, S.A., integrante del Grupo Financiero Banamex",
+        "url": ""
+      },
+      "userAuthenticated": false
+    },
+    "/job/Ciudad-De-Mexico-Distrito-Federal-Mexico/Banamex---Gerente-de-Producto-de-Crdito--Banca-Empresarial_26987940": {
+      "jobPostingInfo": {
+        "id": "c4ec5f9826d71027c6ddc6e429620000",
+        "title": "Banamex - Gerente de Producto de Crédito- Banca Empresarial",
+        "jobDescription": "<p>The Product Manager is an intermediate management level position responsible for managing a broad range of Product Management employees, setting strategy and providing direction, leadership and budgetary management, etc. Additionally, this role will be responsible for the development of product plans, strategies, and tactics while coordinating product lines through product life-cycles in coordi",
+        "location": "Ciudad De Mexico Distrito Federal Mexico",
+        "postedOn": "Posted Today",
+        "startDate": "2026-09-04",
+        "timeType": "Full time",
+        "jobReqId": "26987940",
+        "jobPostingId": "Banamex---Gerente-de-Producto-de-Crdito--Banca-Empresarial_26987940",
+        "jobPostingSiteId": "2",
+        "country": {
+          "descriptor": "Mexico",
+          "id": "e2adff9272454660ac4fdb56fc70bb51"
+        },
+        "canApply": true,
+        "posted": true,
+        "includeResumeParsing": true,
+        "jobRequisitionLocation": {
+          "descriptor": "ACTUARIO ROBERTO MEDELLIN NO. 800 SANTA FE CIUDAD DE MEXICO",
+          "country": {
+            "descriptor": "Mexico",
+            "id": "e2adff9272454660ac4fdb56fc70bb51",
+            "alpha2Code": "MX"
+          }
+        },
+        "remoteType": "Hybrid",
+        "externalUrl": "https://citi.wd5.myworkdayjobs.com/2/job/Ciudad-De-Mexico-Distrito-Federal-Mexico/Banamex---Gerente-de-Producto-de-Crdito--Banca-Empresarial_26987940",
+        "questionnaireId": "ca21de088a1c1034f93a320d07f50000",
+        "secondaryQuestionnaireId": "0601e6f9613b011f1672b47f8d2687f7",
+        "timeLeftToApply": "4 days left to apply",
+        "endDate": "2026-09-09",
+        "jobPostingEndDateAsText": "End Date: September 9, 2026"
+      },
+      "hiringOrganization": {
+        "name": "09516 Banco Nacional de Mexico, S.A., integrante del Grupo Financiero Banamex",
+        "url": ""
+      },
+      "userAuthenticated": false
+    },
+    "/job/Sao-Paulo-Sao-Paulo-Brazil/CCB-Trade-Sales-Head---SVP_26992731-1": {
+      "jobPostingInfo": {
+        "id": "7bf3d68e14a4102ad12081bcbd2d0001",
+        "title": "CCB Brazil Trade Sales Head - SVP",
+        "jobDescription": "<p>The Trade Sales Group Manager is accountable for management of complex/critical/large professional disciplinary areas. Leads and directs a team of professionals. Requires a comprehensive understanding of multiple areas within a function and how they interact in order to achieve the objectives of the function. Applies in-depth understanding of the business impact of technical contributions. Comm",
+        "location": "Sao Paulo Sao Paulo Brazil",
+        "postedOn": "Posted Today",
+        "startDate": "2026-09-04",
+        "timeType": "Full time",
+        "jobReqId": "26992731",
+        "jobPostingId": "CCB-Trade-Sales-Head---SVP_26992731-1",
+        "jobPostingSiteId": "2",
+        "country": {
+          "descriptor": "Brazil",
+          "id": "1a29bb1357b240ab99a2fa755cc87c0e"
+        },
+        "canApply": true,
+        "posted": true,
+        "includeResumeParsing": true,
+        "jobRequisitionLocation": {
+          "descriptor": "AVENIDA PAULISTA 1111 - CERQUEIRA CESAR  SAO PAULO",
+          "country": {
+            "descriptor": "Brazil",
+            "id": "1a29bb1357b240ab99a2fa755cc87c0e",
+            "alpha2Code": "BR"
+          }
+        },
+        "remoteType": "Hybrid",
+        "externalUrl": "https://citi.wd5.myworkdayjobs.com/2/job/Sao-Paulo-Sao-Paulo-Brazil/CCB-Trade-Sales-Head---SVP_26992731-1",
+        "questionnaireId": "09a7b98e4e5f100c56607976d8340000",
+        "timeLeftToApply": "10 days left to apply",
+        "endDate": "2026-09-15",
+        "jobPostingEndDateAsText": "End Date: September 15, 2026"
+      },
+      "hiringOrganization": {
+        "name": "00424 Banco Citibank S.A.",
+        "url": ""
+      },
+      "userAuthenticated": false
+    }
+  }
+}

@@ -63,7 +63,7 @@ export function useCurrentUser() {
         if (!active) return;
         // Only a genuine 401 means "not signed in". Redirecting on *any*
         // failure is an infinite loop: Clerk still holds a valid session, so
-        // /login's <SignIn forceRedirectUrl="/dashboard"> immediately sends
+        // /login's <SignIn forceRedirectUrl="/companies"> immediately sends
         // the user back here, which re-fires this request, which fails
         // again... The loop also hammers the API hard enough to trip its
         // rate limiter, at which point every request 429s and the loop can

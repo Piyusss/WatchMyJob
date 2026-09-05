@@ -47,7 +47,7 @@ export default function JobStateActions({
                 label: "Undo",
                 onClick: () => {
                   // Restores whatever the state was before this click, not
-                  // unconditionally null -- undoing a dismiss on a job that
+                  // unconditionally null: undoing a dismiss on a job that
                   // was saved beforehand should give the save back.
                   void apply(state, { label: "Undone" });
                 },

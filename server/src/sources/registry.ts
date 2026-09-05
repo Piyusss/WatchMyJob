@@ -2,14 +2,20 @@ import type { SourcePlatform } from "@prisma/client";
 import type { JobSourceAdapter } from "./types.js";
 import { GreenhouseAdapter } from "./adapters/greenhouse.js";
 import { LeverAdapter } from "./adapters/lever.js";
+import { WorkdayAdapter } from "./adapters/workday.js";
+import { SmartRecruitersAdapter } from "./adapters/smartrecruiters.js";
+import { AshbyAdapter } from "./adapters/ashby.js";
 import { CustomTestAdapter } from "./adapters/customTest.js";
 
-// One entry per ATS platform, not per company -- adding company #51 on an
+// One entry per ATS platform, not per company: adding company #51 on an
 // already-supported platform is a JobSource config row (Phase 2's admin
 // CLI), never a new file here.
 const adapters: Partial<Record<SourcePlatform, JobSourceAdapter>> = {
   GREENHOUSE: new GreenhouseAdapter(),
   LEVER: new LeverAdapter(),
+  WORKDAY: new WorkdayAdapter(),
+  SMARTRECRUITERS: new SmartRecruitersAdapter(),
+  ASHBY: new AshbyAdapter(),
   CUSTOM_TEST: new CustomTestAdapter(),
 };
 

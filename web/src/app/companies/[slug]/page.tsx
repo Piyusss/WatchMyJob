@@ -154,7 +154,7 @@ export default function CompanyDetailPage() {
               <EmptyState
                 icon={Briefcase}
                 title="No open roles right now"
-                body={`GettingShortlisted.com is watching ${company.name}. New openings will appear here as they're posted.`}
+                body={`GettingShortlisted.in is watching ${company.name}. New openings will appear here as they're posted.`}
               />
             ) : (
               <div className="space-y-px">

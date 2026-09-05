@@ -27,7 +27,7 @@ const BLOCK_TAG_PATTERN = /<\/?(p|div|li|ul|ol|h[1-6]|br)[^>]*>/gi;
 
 // Greenhouse's content field is HTML whose tags are themselves entity-escaped
 // (a stored description literally contains the four characters "&lt;div..."
-// rather than "<div..." -- confirmed against real fetched data, not assumed).
+// rather than "<div...": confirmed against real fetched data, not assumed).
 // One decode pass reveals the real markup; block tags become newlines so
 // paragraph/list-item boundaries survive into the plain text (the
 // classifier depends on this to tell a "required" section from a

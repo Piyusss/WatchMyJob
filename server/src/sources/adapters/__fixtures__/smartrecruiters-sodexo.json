@@ -1,0 +1,532 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 8,
+  "content": [
+    {
+      "id": "744000147457590",
+      "name": "Retail Innovation and Capex Manager | Mon-Fri | 38Hrs | Brisbane, QLD",
+      "uuid": "7f6e4d0c-0c4a-4efd-b748-625005ef3d5f",
+      "jobAdId": "557ba630-701a-4424-9cc7-820e1634387d",
+      "defaultJobAd": true,
+      "refNumber": "REF28969Q",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-04T09:14:59.979Z",
+      "location": {
+        "city": "Queensland",
+        "region": "REF",
+        "country": "au",
+        "remote": false,
+        "hybrid": false,
+        "fullLocation": "Queensland, REF, Australia"
+      },
+      "industry": {
+        "id": "marketing_and_advertising",
+        "label": "Marketing And Advertising"
+      },
+      "department": {},
+      "function": {
+        "id": "marketing",
+        "label": "Marketing"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "associate",
+        "label": "Associate"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "edc17cc6-a329-464b-ad6d-e50c3731e3e7",
+          "valueLabel": "Operational Support"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000147457590",
+      "language": {
+        "code": "en-AU",
+        "label": "English (AU)",
+        "labelNative": "English (AU)"
+      }
+    },
+    {
+      "id": "744000147415869",
+      "name": "Senior Electrical Compliance Supervisor | FIFO | 8:6 roster",
+      "uuid": "3a556a22-0a15-4357-8c8c-a0a55f3005e9",
+      "jobAdId": "2c28b830-42af-45af-a3eb-af2a641d6e49",
+      "defaultJobAd": true,
+      "refNumber": "REF28958J",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-04T05:33:54.204Z",
+      "location": {
+        "city": "Western Australia",
+        "region": "WA",
+        "country": "au",
+        "remote": false,
+        "hybrid": false,
+        "fullLocation": "Western Australia, WA, Australia"
+      },
+      "industry": {
+        "id": "mining_and_metals",
+        "label": "Mining And Metals"
+      },
+      "department": {},
+      "function": {
+        "id": "education",
+        "label": "Education"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "entry_level",
+        "label": "Entry Level"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "e2299637-70fa-401e-bc94-660e8a7f07e0",
+          "valueLabel": "Trades"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000147415869",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000147404280",
+      "name": "Workplace Experience Facilities Manager | Mon-Fri | 38 Hours | Melbourne, VIC",
+      "uuid": "3712df21-7027-48a2-bd80-42decf1443bd",
+      "jobAdId": "19ddfe72-b316-47f8-8be9-986ac505739f",
+      "defaultJobAd": true,
+      "refNumber": "REF28965A",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-04T01:53:15.915Z",
+      "location": {
+        "city": "Victoria",
+        "region": "REF28965A",
+        "country": "au",
+        "postalCode": "3067",
+        "remote": false,
+        "hybrid": false,
+        "fullLocation": "Victoria, REF28965A, Australia"
+      },
+      "industry": {
+        "id": "facilities_services",
+        "label": "Facilities Services"
+      },
+      "department": {},
+      "function": {
+        "id": "other",
+        "label": "Other"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "edc17cc6-a329-464b-ad6d-e50c3731e3e7",
+          "valueLabel": "Operational Support"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000147404280",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000147370029",
+      "name": "Carpenter | 5:2 | Mon-Fri | Nhulunbuy, NT Local or Relocate",
+      "uuid": "424752e9-8ba2-4ef9-81d1-469f3877a9ff",
+      "jobAdId": "7e3e959b-95cb-4f65-b39f-64fa2feb54a1",
+      "defaultJobAd": true,
+      "refNumber": "REF28964I",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-03T23:00:46.568Z",
+      "location": {
+        "city": "Northern Territory",
+        "region": "REF",
+        "country": "au",
+        "postalCode": "0880",
+        "remote": true,
+        "hybrid": false,
+        "fullLocation": "Northern Territory, REF, Australia"
+      },
+      "industry": {
+        "id": "health_wellness_fitness",
+        "label": "Health, Wellness And Fitness"
+      },
+      "department": {},
+      "function": {
+        "id": "other",
+        "label": "Other"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "e2299637-70fa-401e-bc94-660e8a7f07e0",
+          "valueLabel": "Trades"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000147370029",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000147143789",
+      "name": " EOI | Project Supervisor EOI | 8:6 Roster FIFO | Various Sites",
+      "uuid": "bbf5f939-0a54-4724-be3f-19457e39c0af",
+      "jobAdId": "69b72e52-1590-42b4-978d-4373f31704a0",
+      "defaultJobAd": true,
+      "refNumber": "REF28475N",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-03T03:06:09.936Z",
+      "location": {
+        "city": "Western Australia",
+        "region": "WA",
+        "country": "au",
+        "postalCode": "6714",
+        "remote": true,
+        "hybrid": false,
+        "fullLocation": "Western Australia, WA, Australia"
+      },
+      "industry": {
+        "id": "food_and_beverages",
+        "label": "Food And Beverages"
+      },
+      "department": {},
+      "function": {
+        "id": "other",
+        "label": "Other"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "not_applicable",
+        "label": "Not Applicable"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "089e4cbe-86ac-4f96-bfd5-2a794d3ffcc4",
+          "valueLabel": "Corporate Services"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000147143789",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000146683339",
+      "name": "Workplace experience Facilities Coordinator | Mon-Fri | 38 Hours | Melbourne, VIC",
+      "uuid": "7be6b800-33ed-4aca-b4a0-81680f103541",
+      "jobAdId": "70ca59e5-3936-4d4f-bbe3-209e73b0b0bf",
+      "defaultJobAd": true,
+      "refNumber": "REF28927Z",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-01T11:00:40.315Z",
+      "location": {
+        "city": "Victoria",
+        "region": "REF",
+        "country": "au",
+        "remote": false,
+        "hybrid": false,
+        "fullLocation": "Victoria, REF, Australia"
+      },
+      "industry": {
+        "id": "facilities_services",
+        "label": "Facilities Services"
+      },
+      "department": {},
+      "function": {
+        "id": "customer_service",
+        "label": "Customer Service"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "executive",
+        "label": "Executive"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "089e4cbe-86ac-4f96-bfd5-2a794d3ffcc4",
+          "valueLabel": "Corporate Services"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000146683339",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000146656529",
+      "name": "Workforce Scheduler | Mon - Fri | Brisbane Support Centre CASUAL",
+      "uuid": "9fc8b154-42af-4ac4-bd54-48cd9d3016d5",
+      "jobAdId": "6ed6f6f1-ed1e-450a-9432-3b4e12f0b661",
+      "defaultJobAd": true,
+      "refNumber": "REF27981K",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-09-01T08:50:37.554Z",
+      "location": {
+        "city": "Brisbane",
+        "region": "QLD",
+        "country": "au",
+        "remote": false,
+        "hybrid": false,
+        "latitude": "-27.4704528",
+        "longitude": "153.0260341",
+        "fullLocation": "Brisbane, QLD, Australia"
+      },
+      "industry": {
+        "id": "food_and_beverages",
+        "label": "Food And Beverages"
+      },
+      "department": {},
+      "function": {
+        "id": "other",
+        "label": "Other"
+      },
+      "typeOfEmployment": {
+        "id": "casual",
+        "label": "Casual"
+      },
+      "experienceLevel": {
+        "id": "not_applicable",
+        "label": "Not Applicable"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "089e4cbe-86ac-4f96-bfd5-2a794d3ffcc4",
+          "valueLabel": "Corporate Services"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000146656529",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000146388489",
+      "name": "Security Officer | 12 Month Fixed-Term | Bathurst, NSW",
+      "uuid": "4d3658f1-1276-4cf2-a34e-74ac80e3a150",
+      "jobAdId": "7ffaa340-f504-43ed-8ebe-5f951bf0eb9d",
+      "defaultJobAd": true,
+      "refNumber": "REF28817T",
+      "company": {
+        "identifier": "Sodexo",
+        "name": "Sodexo"
+      },
+      "releasedDate": "2026-08-31T03:06:05.461Z",
+      "location": {
+        "city": "New South Wales",
+        "region": "REF28817T",
+        "country": "au",
+        "remote": false,
+        "hybrid": false,
+        "fullLocation": "New South Wales, REF28817T, Australia"
+      },
+      "industry": {
+        "id": "facilities_services",
+        "label": "Facilities Services"
+      },
+      "department": {},
+      "function": {
+        "id": "other",
+        "label": "Other"
+      },
+      "typeOfEmployment": {
+        "id": "part-time",
+        "label": "Part-time"
+      },
+      "experienceLevel": {
+        "id": "entry_level",
+        "label": "Entry Level"
+      },
+      "customField": [
+        {
+          "fieldId": "593a0d69e4b0e8ba74f2a9ea",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Sodexo"
+        },
+        {
+          "fieldId": "615bda12599273366ccb8566",
+          "fieldLabel": "Job Family",
+          "valueId": "4be8e5ac-dbdd-4b57-8d0a-fe77bf861129",
+          "valueLabel": "Security"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "au",
+          "valueLabel": "Australia"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/sodexo/postings/744000146388489",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    }
+  ]
+}

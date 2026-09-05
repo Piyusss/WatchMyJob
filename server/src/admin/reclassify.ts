@@ -1,7 +1,7 @@
 // Backfills classification (role family, level, opportunity type,
 // experience) onto jobs stored before this classifier existed, or before a
 // change to it. A normal sync cycle deliberately does NOT reclassify a job
-// whose contentHash hasn't changed (see sync.ts's "unchanged" branch) --
+// whose contentHash hasn't changed (see sync.ts's "unchanged" branch):
 // title and description are unchanged, so classification would be
 // identical, and writing it again is wasted work on the common case. But
 // that means shipping a new/changed classifier does nothing for existing

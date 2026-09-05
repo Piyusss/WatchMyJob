@@ -2,7 +2,7 @@ import pino from "pino";
 
 // Shared structured logger for the two standalone worker processes (the API
 // server gets an equivalent pino logger for free from Fastify's own
-// `logger: true` option -- this exists so the source poller and
+// `logger: true` option. This exists so the source poller and
 // notification worker, which are plain scripts with no framework, produce
 // the same JSON-lines shape instead of the ad-hoc console.log text they had
 // before).

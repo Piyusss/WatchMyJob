@@ -11,14 +11,14 @@ model User {
   id                  String   @id @default(uuid())
   // Clerk owns identity/credentials; this is the join key back to that
   // account. Populated the first time a Clerk-authenticated request for
-  // this user hits the API (see auth/authenticate.ts) -- never written any
+  // this user hits the API (see auth/authenticate.ts): never written any
   // other way.
   clerkUserId         String   @unique
   name                String
   email               String   @unique
   // Synced from Clerk's own verification status at local-row creation time
   // (see auth/authenticate.ts) rather than re-checked live on every
-  // request -- Clerk itself already gates sign-in on a verified email for
+  // request: Clerk itself already gates sign-in on a verified email for
   // both the password and Google strategies, so this only goes stale in
   // edge cases (e.g. verification requirements changed after signup).
   emailVerified       Boolean  @default(false)
@@ -29,11 +29,11 @@ model User {
   // Set when SES reports a PERMANENT bounce for this address (see
   // notifications/webhooks.ts). Checked by the same pre-send recheck that
   // already re-verifies emailVerified/notificationsPaused immediately
-  // before sending -- a hard-bounced address is suppressed the same way a
+  // before sending: a hard-bounced address is suppressed the same way a
   // paused user is, rather than continuing to retry sends that will only
   // ever bounce again and risk the domain's sender reputation.
   emailHardBounced    Boolean  @default(false)
-  // Stable, per-user, non-expiring -- every notification email links to
+  // Stable, per-user, non-expiring: every notification email links to
   // /unsubscribe?token=this. Needs no single-use/expiry security: the
   // action it gates (pausing notifications) is idempotent and reversible
   // from within the app, so a simple stable token is the right amount of
@@ -50,9 +50,11 @@ model User {
   @@map("users")
 }
 
-// How JobDrop is allowed to reach this company's job data — set before the
-// company can occupy one of the 50 supported slots, so ToS compliance is an
-// auditable gate rather than an implementation-time judgment call.
+// How JobDrop is allowed to reach this company's job data, set before the
+// company joins the allowlist, so ToS compliance is an auditable gate
+// rather than an implementation-time judgment call. (The original "50
+// slots" framing came from companies.txt; the allowlist has since grown
+// past it, and nothing ever enforced that number.)
 enum AccessBasis {
   OFFICIAL_API
   RSS
@@ -71,7 +73,7 @@ model Company {
   slug          String        @unique
   accessBasis   AccessBasis
   status        CompanyStatus @default(ACTIVE)
-  // The company's own primary web domain (e.g. "figma.com") -- not a logo
+  // The company's own primary web domain (e.g. "figma.com"): not a logo
   // URL directly, so the frontend can derive one from whichever logo
   // provider it uses without a migration if that provider ever changes.
   // Null means "no verified domain on file yet"; the frontend falls back to
@@ -79,8 +81,8 @@ model Company {
   domain        String?
   // A synthetic company created through the admin/test tab (see
   // testCompanies/routes.ts), not a real employer JobDrop actually
-  // monitors. Never changes matching/notification behavior -- see that
-  // file's header comment -- it exists purely so the admin UI and any
+  // monitors. Never changes matching/notification behavior (see that
+  // file's header comment); it exists purely so the admin UI and any
   // future cleanup pass can tell real companies and test fixtures apart.
   isTestCompany Boolean       @default(false)
   createdAt     DateTime      @default(now())
@@ -94,7 +96,7 @@ model Company {
 }
 
 // The shared implementation a source belongs to. Most companies sit on one
-// of a handful of ATS platforms with an identical API shape per platform —
+// of a handful of ATS platforms with an identical API shape per platform:
 // only `config` (a board token, tenant slug, etc.) differs per company, so
 // onboarding company #51's replacement is a config entry, not a new adapter.
 enum SourcePlatform {
@@ -103,10 +105,11 @@ enum SourcePlatform {
   WORKDAY
   ICIMS
   SMARTRECRUITERS
+  ASHBY
   CUSTOM_HTML
   RSS
   API
-  // Not a real ATS -- the admin/test tab's own source of jobs (see
+  // Not a real ATS: the admin/test tab's own source of jobs (see
   // sources/adapters/customTest.ts and testCompanies/routes.ts). Discovers
   // its jobs from CustomTestJob rows instead of an HTTP fetch, but is
   // otherwise a source like any other: same syncSource pipeline, same
@@ -120,14 +123,14 @@ model JobSource {
   company                Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   platform               SourcePlatform
   // Platform-specific connection details (board token, tenant, feed URL...).
-  // Shape is validated per-platform at write time — see src/sources/configSchemas.ts.
+  // Shape is validated per-platform at write time (see src/sources/configSchemas.ts).
   config                 Json
   // Seconds between polls once continuous monitoring (Phase 6) exists.
   // Starts conservative for every source; nothing here yet earns a faster tier.
   pollIntervalSeconds    Int            @default(240)
   consecutiveFailures    Int            @default(0)
   lastSuccessAt          DateTime?
-  // When the scheduler last tried this source, success or failure -- distinct
+  // When the scheduler last tried this source, success or failure: distinct
   // from lastSuccessAt so a persistently-failing source is still retried on
   // schedule (not more eagerly, not silently skipped forever) and so an
   // in-flight fetch isn't picked up again by the next tick before it finishes.
@@ -149,7 +152,7 @@ model JobSource {
   @@map("job_sources")
 }
 
-// One row per admin-authored test job (see testCompanies/routes.ts) --
+// One row per admin-authored test job (see testCompanies/routes.ts):
 // the "board" a CUSTOM_TEST JobSource discovers from, playing the same role
 // a real ATS's API plays for a Greenhouse/Lever source. Structured input,
 // not a title to parse: role/level/experience are admin-picked directly
@@ -176,7 +179,7 @@ model CustomTestJob {
   locations CustomTestJobLocation[]
 
   // Null = draft, not yet visible to the discoverJobs() adapter. Set on
-  // first publish and left alone on every later edit -- re-publishing an
+  // first publish and left alone on every later edit: re-publishing an
   // already-published draft is how an admin pushes an edit through the
   // real update-detection path (matchRelevantFieldsChanged), not a second
   // "new job" event.
@@ -193,7 +196,7 @@ model CustomTestJob {
 // comment): a code+name pair per location so the admin form can redisplay
 // exactly what was picked, joined into the job's single free-text
 // `location` string at discovery time the same way a real multi-location
-// posting's raw location string would read (see customTest.ts) -- Job
+// posting's raw location string would read (see customTest.ts): Job
 // itself has no relational multi-location model to mirror, so this is not
 // a simplified stand-in for one.
 model CustomTestJobLocation {
@@ -212,11 +215,11 @@ model CustomTestJobLocation {
 }
 
 // RUNNING: written before the adapter is ever called, mirroring
-// Notification's SENDING-before-external-call pattern -- a row stuck here
+// Notification's SENDING-before-external-call pattern: a row stuck here
 // past a sane duration means the process died mid-sync, visible to an
 // operator rather than silently vanishing. SUCCESS: fetchStatus was
 // COMPLETE. PARTIAL: fetchStatus was PARTIAL (the adapter itself said the
-// result isn't the whole picture) -- jobs found were still persisted, just
+// result isn't the whole picture): jobs found were still persisted, just
 // no closure decisions were made from it (see sync.ts). FAILED: the adapter
 // fetch, the empty-baseline guard, or the persistence transaction rejected
 // this attempt.
@@ -227,7 +230,7 @@ enum SyncRunStatus {
   FAILED
 }
 
-// One row per sync ATTEMPT (not per source) -- the operational history
+// One row per sync ATTEMPT (not per source): the operational history
 // admin:health and a future admin UI need to answer "when did this source
 // last actually work, and what happened the times it didn't," which
 // JobSource's own lastAttemptedAt/lastSuccessAt/consecutiveFailures fields
@@ -268,7 +271,7 @@ model Job {
   externalJobId String
 
   // Stable identity for cross-source dedup (company + normalized title +
-  // normalized location, no mutable fields) -- computed now so it's ready
+  // normalized location, no mutable fields): computed now so it's ready
   // for the cross-source merge step Phase 11 adds once a company has more
   // than one source. Not yet consulted for merging with a single adapter.
   identityHash String
@@ -278,13 +281,13 @@ model Job {
 
   title      String
   // Deterministic role/level extraction from the title is Phase 8's job
-  // ("Experience & Opportunity Classification") -- left null until then
+  // ("Experience & Opportunity Classification"): left null until then
   // rather than guessed here.
   roleFamily String?
   level      String?
 
   // Raw, source-supplied location string. Structured country/state/city
-  // splitting is deferred until a phase actually consumes it -- storing an
+  // splitting is deferred until a phase actually consumes it: storing an
   // unreliable guess would violate the same "don't invent data" principle
   // Section 18 applies to experience.
   location String?
@@ -296,20 +299,20 @@ model Job {
   description String?
   sourceUrl   String
 
-  // Categorical, independent of experience -- Section 17's own example:
+  // Categorical, independent of experience: Section 17's own example:
   // a senior candidate must never match an internship purely because a
   // numeric range happens to overlap. Defaults to FULL_TIME because,
   // unlike a missing experience number, the ABSENCE of "intern" / "contract"
-  // / "part-time" language in a title is itself informative -- job boards
+  // / "part-time" language in a title is itself informative: job boards
   // overwhelmingly default to full-time unless stated otherwise.
   opportunityType OpportunityType @default(FULL_TIME)
 
-  // Distinguishes "explicitly stated as 0" from "not specified" -- Section
+  // Distinguishes "explicitly stated as 0" from "not specified": Section
   // 18's hard rule: never invent a requirement, never treat missing
   // information as 0 years. UNKNOWN is the honest default; matching (Phase
   // 9) must define what to do with it, not this phase.
   experienceStatus       ExperienceStatus @default(UNKNOWN)
-  // "3+ years required, 5 years preferred" must not collapse to "3-5" --
+  // "3+ years required, 5 years preferred" must not collapse to "3-5":
   // required and preferred are gated differently (a candidate who meets
   // only the required minimum still qualifies). Populated only when
   // experienceStatus is KNOWN; an open floor ("3+ years") leaves the max
@@ -321,7 +324,7 @@ model Job {
 
   status JobStatus @default(ACTIVE)
 
-  // True for rows created by a source's INITIAL sync -- i.e. inventory that
+  // True for rows created by a source's INITIAL sync: i.e. inventory that
   // already existed when JobDrop started watching this source. These are
   // real, active, dashboard-visible jobs, but they are by definition not
   // "new openings" for anyone, so they must never fire a NEW_JOB
@@ -330,7 +333,7 @@ model Job {
   // where firstSeenAt alone would wrongly read as brand-new.
   discoveredInInitialSync Boolean @default(false)
 
-  // Source-supplied publish signal, where the platform provides one --
+  // Source-supplied publish signal, where the platform provides one:
   // never trusted alone for "is this new" decisions (see firstSeenAt).
   postedAt                  DateTime?
   // JobDrop's own discovery timestamp. Write-once: what the onboarding
@@ -338,10 +341,10 @@ model Job {
   firstSeenAt               DateTime  @default(now())
   // Bumped every cycle this job is rediscovered. A job whose lastSeenAt
   // falls behind is the raw "missing" signal Phase 7's closure algorithm
-  // will consume -- Phase 6 only produces the signal, it never acts on it.
+  // will consume: Phase 6 only produces the signal, it never acts on it.
   lastSeenAt                DateTime  @default(now())
   // Bumped only when a rediscovery's contentHash differs from what's
-  // stored -- i.e. a genuine matching-relevant change, not just "still
+  // stored: i.e. a genuine matching-relevant change, not just "still
   // there." This is the timestamp the future notify predicate uses for a
   // job that flips from non-matching to matching after a correction, since
   // firstSeenAt (write-once) can't serve that purpose.
@@ -350,13 +353,13 @@ model Job {
   // Consecutive COMPLETE sync cycles in a row this job was expected but not
   // rediscovered. Resets to 0 the instant it reappears (Phase 6 already
   // does the reappearance detection; Phase 7 adds the reset). Never
-  // incremented from a PARTIAL or failed fetch -- absence isn't evidence
-  // then -- and never incremented at all while the source's circuit
+  // incremented from a PARTIAL or failed fetch (absence isn't evidence
+  // then), and never incremented at all while the source's circuit
   // breaker is tripped (see src/sources/closure.ts).
   consecutiveMissCount Int       @default(0)
   // When this run of misses started. Cleared on reappearance alongside the
   // counter. Closure requires BOTH enough consecutive misses AND enough
-  // elapsed time since this timestamp -- a count alone can't tell a source
+  // elapsed time since this timestamp: a count alone can't tell a source
   // polling every 60s from one polling every 15min apart.
   firstMissingAt       DateTime?
 
@@ -382,7 +385,7 @@ enum UserJobStateValue {
   DISMISSED
 }
 
-// One row per (user, job) -- the three values are mutually exclusive stances,
+// One row per (user, job): the three values are mutually exclusive stances,
 // not independent flags, so marking a saved job APPLIED replaces the SAVED
 // row rather than accumulating a second one.
 model UserJobState {
@@ -411,7 +414,7 @@ enum WorkMode {
 
 // The README's "opportunity type" (Section 17) and "employment type"
 // (Section 4) name the same underlying concept twice without ever defining
-// how they'd differ -- collapsed into one field rather than carrying an
+// how they'd differ: collapsed into one field rather than carrying an
 // undefined duplicate forward.
 enum OpportunityType {
   FULL_TIME
@@ -441,10 +444,10 @@ model UserPreferences {
   locations UserPreferenceLocation[]
 
   // Bumped whenever a matching-relevant field above changes (locations
-  // included -- see preferences/routes.ts's set-comparison). The matching
+  // included: see preferences/routes.ts's set-comparison). The matching
   // engine (Phase 9) suppresses notifications for jobs whose eligibility
   // timestamp predates this, so widening a filter can't flood the user with
-  // every pre-existing job that newly matches -- the same guarantee the
+  // every pre-existing job that newly matches: the same guarantee the
   // onboarding rule gives new company subscriptions.
   effectiveSince DateTime @default(now())
 
@@ -454,7 +457,7 @@ model UserPreferences {
   @@map("user_preferences")
 }
 
-// One row per location a user added to their preferences -- multiple rows
+// One row per location a user added to their preferences: multiple rows
 // mean OR at match time (see matching/predicate.ts), never AND. Deliberately
 // a child table, not a JSON column: this is genuinely relational data (a
 // bounded list of structured tuples a user adds/removes one at a time), and
@@ -462,7 +465,7 @@ model UserPreferences {
 //
 // country/state/city are both a code (stable, validated against the curated
 // list in geo/data.ts at write time) and a name (denormalized at write time
-// from that same list, since matching -- see predicate.ts -- needs to
+// from that same list, since matching (see predicate.ts) needs to
 // substring-match against a job's raw, unstructured location text, not an
 // opaque code). state/city are optional: a location can be as coarse as
 // "anywhere in this country."
@@ -490,7 +493,7 @@ model UserCompanySubscription {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  // Resets to now() on every reactivation (see Phase 3 notes) -- the only
+  // Resets to now() on every reactivation (see Phase 3 notes): the only
   // policy that preserves the no-flood guarantee across an
   // unsubscribe/resubscribe cycle.
   subscribedAt  DateTime  @default(now())
@@ -509,7 +512,7 @@ model UserCompanySubscription {
 // NEW_JOB: eligibility_event was the job's firstSeenAt (genuinely new since
 // this user's subscription/preference cutoff). MATCH_VIA_UPDATE: the job
 // predates that cutoff, but a matching-relevant edit after it made the job
-// newly relevant -- firstSeenAt (write-once) can't represent that, so this
+// newly relevant: firstSeenAt (write-once) can't represent that, so this
 // is its own type with its own idempotency slot rather than colliding with
 // NEW_JOB's.
 enum NotificationType {
@@ -519,26 +522,26 @@ enum NotificationType {
 
 // QUEUED: created by the matching engine (Phase 9), not yet claimed.
 // SENDING: a worker has claimed it and persisted this BEFORE calling the
-//   provider -- the actual fix for "worker crashes after the provider
+//   provider: the actual fix for "worker crashes after the provider
 //   accepts but before the DB records it" (Section 29's own example). A row
 //   stuck here past a timeout is treated as ambiguous, never blind-retried
-//   (see notifications/worker.ts) -- risking a duplicate email is worse
+//   (see notifications/worker.ts): risking a duplicate email is worse
 //   than risking a missed one, per this product's own onboarding-flood
 //   priorities.
 // PROVIDER_ACCEPTED: the provider call succeeded; this is the practical
 //   success terminal state for V1. True delivery/bounce tracking would
-//   need SES event notifications wired to SNS -- real added infrastructure
+//   need SES event notifications wired to SNS: real added infrastructure
 //   deliberately out of scope here, not an oversight.
 // FAILED: a send attempt failed and is scheduled to retry (see
 //   nextAttemptAt) while under the attempt ceiling.
 // SKIPPED: the final pre-send recheck found the job closed, the
-//   subscription inactive, the user unverified, or notifications paused --
+//   subscription inactive, the user unverified, or notifications paused:
 //   correctly not sent, not a delivery failure.
 // DEAD_LETTER: exhausted retries, or recovered from an ambiguous SENDING
 //   state on worker restart. Terminal; requires operator attention.
 // DELIVERED/BOUNCED/COMPLAINED: provider feedback received asynchronously,
 //   after PROVIDER_ACCEPTED, via SES event notifications (see
-//   notifications/webhooks.ts). Not every provider surfaces these -- the
+//   notifications/webhooks.ts). Not every provider surfaces these: the
 //   console provider (dev) never will, so a row can sit at
 //   PROVIDER_ACCEPTED forever in dev, which is correct, not a bug.
 enum NotificationStatus {
@@ -570,7 +573,7 @@ model Notification {
   sentAt            DateTime?
   providerMessageId String?
   // Populated only if/when the provider's async event feedback arrives
-  // (see notifications/webhooks.ts) -- all three stay null for the console
+  // (see notifications/webhooks.ts): all three stay null for the console
   // provider and for any PROVIDER_ACCEPTED row the feedback simply hasn't
   // reached yet.
   deliveredAt       DateTime?
@@ -580,14 +583,14 @@ model Notification {
   attemptCount  Int       @default(0)
   lastError     String?
   // When a FAILED row becomes eligible to be claimed again. Null means
-  // "not currently backing off" -- true for QUEUED rows and for FAILED
+  // "not currently backing off": true for QUEUED rows and for FAILED
   // rows the claim query hasn't reached yet.
   nextAttemptAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // The actual idempotency mechanism -- enforced by the database, not an
+  // The actual idempotency mechanism: enforced by the database, not an
   // application-level check-then-insert (which races under concurrent
   // matching passes). At most one logical notification per (user, job,
   // type), forever.
