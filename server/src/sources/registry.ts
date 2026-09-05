@@ -27,10 +27,6 @@ export function getAdapter(platform: SourcePlatform): JobSourceAdapter {
   return adapter;
 }
 
-export function supportedPlatforms(): SourcePlatform[] {
-  return Object.keys(adapters) as SourcePlatform[];
-}
-
 // Test-only seam: lets a test exercise syncSource's own logic (the
 // empty-baseline guard, the ordering guards) against a controlled result
 // set, without depending on a real adapter's network behavior or on a

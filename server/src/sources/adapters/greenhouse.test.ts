@@ -6,7 +6,7 @@
 // (__fixtures__/greenhouse-figma.json, three real Figma postings) with
 // global fetch mocked: never a live request, respecting the same ToS
 // principle Section 9 states for the product itself, applied to testing it.
-import { after, before, describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,7 +19,7 @@ const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "__fixtures__", 
 const originalFetch = globalThis.fetch;
 
 function mockFetch(status: number, body: unknown) {
-  globalThis.fetch = (async (url: string) => {
+  globalThis.fetch = (async () => {
     return {
       ok: status >= 200 && status < 300,
       status,

@@ -89,4 +89,3 @@ export const createTestJobSchema = z
 export const updateTestJobSchema = createTestJobSchema;
 
 export type CreateTestCompanyInput = z.infer<typeof createTestCompanySchema>;
-export type CreateTestJobInput = z.infer<typeof createTestJobSchema>;

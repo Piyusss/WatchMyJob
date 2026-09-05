@@ -17,6 +17,3 @@ export function avatarColors(name: string): { bg: string; fg: string } {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-export function avatarInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase();
-}

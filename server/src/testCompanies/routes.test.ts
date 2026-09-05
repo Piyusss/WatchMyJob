@@ -109,7 +109,6 @@ async function publish(jobId: string) {
   return res.json() as { result: { created: number; updated: number; queued: number }; job: { id: string } | null };
 }
 
-const PUNE: Record<string, unknown> = { countryCode: "IN", stateCode: "MH", cityName: "Pune" };
 const BANGALORE: Record<string, unknown> = { countryCode: "IN", stateCode: "KA", cityName: "Bangalore" };
 
 describe("admin/test-companies end-to-end (custom_company.txt Section 20)", () => {

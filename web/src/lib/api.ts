@@ -224,14 +224,6 @@ export interface JobDetail extends JobListing {
   company: { id: string; name: string; slug: string; domain: string | null };
 }
 
-export interface JobsPage {
-  jobs: JobListing[];
-  nextCursor: string | null;
-  total: number;
-  unfilteredTotal: number;
-  filtered: boolean;
-}
-
 export type JobsSort = "newest" | "updated";
 
 export type NotificationStatus =
