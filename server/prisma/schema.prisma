@@ -3,8 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // The app's runtime connection: Neon's pooled (PgBouncer) endpoint, so a
+  // burst of concurrent requests doesn't exhaust Neon's own connection
+  // limit the way a direct connection per Prisma client instance would.
+  url       = env("DATABASE_URL")
+  // Prisma Migrate needs a real, unpooled connection: PgBouncer's
+  // transaction-pooling mode breaks the session-level advisory lock
+  // migrations take to run safely, and Neon's docs call this out
+  // explicitly for Prisma. Only migrate/db-push commands read this;
+  // the running app never does.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model User {
