@@ -1,11 +1,11 @@
 import type { EmailMessage, EmailProvider, EmailSendResult } from "./types.js";
 
-// Brevo's transactional email API (v3), called directly via fetch: same
-// reasoning as resendProvider.ts: one less SDK to keep current, and it keeps
-// failure handling explicit. Chosen alongside Resend specifically because
-// Brevo verifies a single SENDER ADDRESS rather than requiring a domain
-// (Resend has no equivalent: domain verification only), so a real user can
-// receive real email without anyone here owning a domain.
+// Brevo's transactional email API (v3), called directly via fetch rather
+// than pulling in an SDK: one less dependency to keep current, and it keeps
+// failure handling explicit. The one real provider this app sends through:
+// it verifies a single SENDER ADDRESS rather than requiring an owned
+// domain, so a real user can receive real email without anyone here owning
+// a domain.
 const ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 const TIMEOUT_MS = 15_000;
 

@@ -11,9 +11,13 @@ export interface PreSendCheckInput {
   subscriptionActive: boolean;
   userEmailVerified: boolean;
   userNotificationsPaused: boolean;
-  // Set by a PERMANENT SES bounce event (see notifications/webhooks.ts).
   // Checked the same way notificationsPaused is: suppress the send rather
-  // than retrying an address that will only ever bounce again.
+  // than retrying an address that will only ever bounce again. Nothing in
+  // this codebase currently sets this true (that required a provider
+  // delivery-feedback webhook, which only existed for SES and has been
+  // removed along with it): kept as a live check because Brevo also
+  // exposes bounce/complaint events, and wiring a webhook for it later
+  // should not also require touching the send-gating logic.
   userEmailHardBounced: boolean;
 }
 

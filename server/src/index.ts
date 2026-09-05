@@ -10,7 +10,6 @@ import { subscriptionRoutes } from "./subscriptions/routes.js";
 import { accountRoutes } from "./account/routes.js";
 import { jobRoutes } from "./jobs/routes.js";
 import { notificationRoutes } from "./notifications/routes.js";
-import { webhookRoutes } from "./notifications/webhooks.js";
 import { geoRoutes } from "./geo/routes.js";
 import { testCompanyRoutes } from "./testCompanies/routes.js";
 import { prisma } from "./db/prisma.js";
@@ -85,7 +84,6 @@ async function main() {
   await fastify.register(accountRoutes, { prefix: "/api/account" });
   await fastify.register(jobRoutes, { prefix: "/api/jobs" });
   await fastify.register(notificationRoutes, { prefix: "/api/notifications" });
-  await fastify.register(webhookRoutes, { prefix: "/api/webhooks" });
   await fastify.register(geoRoutes, { prefix: "/api/locations" });
 
   // Section 17 of custom_company.txt: gated at registration, not just by

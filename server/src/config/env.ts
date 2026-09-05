@@ -22,30 +22,13 @@ const envSchema = z.object({
   CLERK_PUBLISHABLE_KEY: z.string().min(1, "CLERK_PUBLISHABLE_KEY is required"),
   CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
 
-  // Provider selection happens in email/index.ts: Brevo (both set) > Resend
-  // (both set) > SES (SES_FROM_EMAIL set) > console fallback. Credentials
-  // for SES come from the standard AWS SDK chain, not from here.
-  //
-  // Brevo is checked first: unlike Resend and SES, it verifies a single
-  // SENDER ADDRESS rather than requiring a domain, so it's the path that
-  // works before anyone here owns a domain.
+  // Provider selection happens in email/index.ts: Brevo, if both are set,
+  // else the console fallback. Brevo verifies a single SENDER ADDRESS
+  // rather than requiring a domain, which is why it's viable at all
+  // without anyone here owning a domain.
   BREVO_API_KEY: optional(z.string()),
   BREVO_FROM_EMAIL: optional(z.string().email()),
   BREVO_FROM_NAME: z.string().default("WatchmyJob.co"),
-
-  RESEND_API_KEY: optional(z.string()),
-  // Deliberately not .email(): Resend accepts a display-name form too,
-  // e.g. "WatchmyJob.co <onboarding@resend.dev>".
-  RESEND_FROM_EMAIL: optional(z.string()),
-
-  SES_FROM_EMAIL: optional(z.string().email()),
-  SES_REGION: z.string().default("us-east-1"),
-  // Shared secret expected as ?token=... on the SES/SNS delivery-feedback
-  // webhook (see notifications/webhooks.ts). Optional: unset in local dev
-  // (where no real SNS topic exists to call it anyway), required in
-  // practice once a real subscription is configured: the subscription's
-  // endpoint URL is the one place this secret needs to be embedded.
-  SES_WEBHOOK_SECRET: optional(z.string()),
 
   // Comma-separated list of Clerk account emails allowed to reach the
   // admin/test-companies surface (see auth/authenticate.ts's requireAdmin).

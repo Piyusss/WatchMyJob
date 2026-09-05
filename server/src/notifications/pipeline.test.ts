@@ -192,14 +192,14 @@ describe("notification pipeline integration", () => {
     await makeSubscription(user.id);
     const notification = await makeQueuedNotification(user.id, job.id);
 
-    setEmailProviderForTesting(alwaysFails("SES throttled"));
+    setEmailProviderForTesting(alwaysFails("Brevo throttled"));
     const result = await processNotificationBatch();
     assert.equal(result.failed, 1);
 
     const after = await prisma.notification.findUniqueOrThrow({ where: { id: notification.id } });
     assert.equal(after.status, "FAILED");
     assert.equal(after.attemptCount, 1);
-    assert.match(after.lastError ?? "", /SES throttled/);
+    assert.match(after.lastError ?? "", /Brevo throttled/);
     assert.ok(after.nextAttemptAt !== null && after.nextAttemptAt.getTime() > Date.now(), "must not be immediately retriable");
 
     // A second pass right away must NOT reclaim it: it's backing off.

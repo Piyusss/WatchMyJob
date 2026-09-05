@@ -48,9 +48,10 @@ async function claimBatch(limit: number): Promise<string[]> {
 }
 
 // A row stuck in SENDING past the threshold means the provider call's
-// outcome is genuinely unknown: SES offers no cheap "did I already send
-// this" lookup without wiring SNS/CloudWatch event notifications, real
-// added infrastructure out of scope here. Never auto-retried: this
+// outcome is genuinely unknown: a request can fail after the provider
+// accepted it but before the response reached this process, and there's no
+// cheap "did I already send this" lookup to disambiguate that from a
+// request that never went through at all. Never auto-retried: this
 // product's own priorities (the entire onboarding-flood design) value
 // under-notifying over risking a duplicate, so an ambiguous row goes
 // straight to DEAD_LETTER for a human to look at, not back into the queue.
