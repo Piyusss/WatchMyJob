@@ -62,7 +62,7 @@ export function jobMatchEmail(input: JobMatchEmailInput): EmailContent {
   const knownLines = lines.filter((l): l is [string, string] => l[1] !== null);
 
   const text = [
-    "GettingShortlisted.in",
+    "WatchmyJob.co",
     "",
     "New Job Match",
     "",
@@ -104,7 +104,7 @@ export function jobMatchEmail(input: JobMatchEmailInput): EmailContent {
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e2e2e2;border-radius:12px;overflow:hidden;">
             <tr>
               <td align="center" style="padding:28px 24px 20px;">
-                <span style="font-size:18px;font-weight:700;color:#00497a;letter-spacing:-0.01em;">GettingShortlisted.in</span>
+                <span style="font-size:18px;font-weight:700;color:#00497a;letter-spacing:-0.01em;">WatchmyJob.co</span>
               </td>
             </tr>
 
@@ -151,7 +151,7 @@ export function jobMatchEmail(input: JobMatchEmailInput): EmailContent {
             <tr>
               <td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0;">
                 <p style="margin:0;font-size:12px;line-height:1.6;color:#9a9a9a;">
-                  You're getting this because you're watching ${escapeHtml(input.companyName)} on GettingShortlisted.in.
+                  You're getting this because you're watching ${escapeHtml(input.companyName)} on WatchmyJob.co.
                   <a href="${unsubscribeUrl}" style="color:#5c5c5c;text-decoration:underline;">Unsubscribe</a>
                   from these alerts anytime.
                 </p>

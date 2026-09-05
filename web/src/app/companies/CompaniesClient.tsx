@@ -159,7 +159,7 @@ export default function CompaniesClient() {
                 preferences wizard: see TOTAL_ONBOARDING_STEPS there. */}
             <p className="eyebrow">Step 6 of 6</p>
             <h1 className="mt-2.5 text-[1.6rem] font-semibold tracking-tight text-ink">
-              Which companies should GettingShortlisted.in watch?
+              Which companies should WatchmyJob.co watch?
             </h1>
             <p className="mt-2 max-w-xl text-[0.9rem] leading-relaxed text-ink-muted">
               Watching starts monitoring from right now. Roles already open won&apos;t email you, only ones that
@@ -234,7 +234,7 @@ export default function CompaniesClient() {
             <EmptyState
               icon={Building2}
               title="No companies available yet"
-              body="GettingShortlisted.in isn't monitoring any company boards right now. Check back shortly."
+              body="WatchmyJob.co isn't monitoring any company boards right now. Check back shortly."
             />
           </div>
         ) : visible.length === 0 ? (

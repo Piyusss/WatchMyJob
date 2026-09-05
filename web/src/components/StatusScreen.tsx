@@ -33,7 +33,7 @@ export default function StatusScreen({
     <div className="flex min-h-screen items-center justify-center bg-canvas px-5 py-12">
       <div className="w-full max-w-md text-center">
         <Link href="/" className="mb-10 inline-block text-base font-bold tracking-tight text-ink">
-          GettingShortlisted.in
+          WatchmyJob.co
         </Link>
 
         <div className="rounded-2xl border border-line bg-surface px-8 py-10 shadow-sm">

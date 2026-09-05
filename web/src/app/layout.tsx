@@ -21,7 +21,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "GettingShortlisted.in",
+  title: "WatchmyJob.co",
   description:
     "Get instant email alerts when a new job matching your preferences goes live so you can apply early before the crowd.",
 };

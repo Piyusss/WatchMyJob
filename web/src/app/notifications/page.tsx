@@ -125,8 +125,8 @@ export default function NotificationsPage() {
           <h1 className="text-[1.6rem] font-semibold tracking-tight text-ink">Notifications</h1>
           <p className="mt-1.5 text-[0.88rem] text-ink-muted">
             {total > 0
-              ? `A record of the ${total.toLocaleString()} alert${total === 1 ? "" : "s"} GettingShortlisted.in has sent you.`
-              : "A record of the job alerts GettingShortlisted.in has sent you."}
+              ? `A record of the ${total.toLocaleString()} alert${total === 1 ? "" : "s"} WatchmyJob.co has sent you.`
+              : "A record of the job alerts WatchmyJob.co has sent you."}
           </p>
         </header>
 

@@ -37,7 +37,7 @@ function NotAuthorized() {
         <EmptyState
           icon={ShieldAlert}
           title="Admin access required"
-          body="This account isn't on the admin allowlist for GettingShortlisted.in's test-company tools."
+          body="This account isn't on the admin allowlist for WatchmyJob.co's test-company tools."
         />
       </main>
     </>

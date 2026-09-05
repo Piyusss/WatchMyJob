@@ -89,7 +89,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "gettingshortlisted-data.json";
+      a.download = "watchmyjob-data.json";
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Account data exported");
@@ -198,7 +198,7 @@ export default function SettingsPage() {
           <SettingsGroup title="Data">
             <SettingRow
               title="Export your data"
-              description="Everything GettingShortlisted.in holds about you (profile, preferences and watchlist) as a JSON file."
+              description="Everything WatchmyJob.co holds about you (profile, preferences and watchlist) as a JSON file."
               control={
                 <Button variant="outline" size="sm" onClick={downloadExport} disabled={exporting}>
                   {exporting ? "Preparing…" : "Download"}

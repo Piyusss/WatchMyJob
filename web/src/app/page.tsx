@@ -31,7 +31,7 @@ const STEPS = [
   { number: "03", title: "You Apply Early", body: "An email lands within seconds of it going live, while the role is still new." },
 ];
 
-// Every company here is one GettingShortlisted.in genuinely monitors, and
+// Every company here is one WatchmyJob.co genuinely monitors, and
 // every recency string is a real output of `formatRecency`: the hero
 // shouldn't be the one place in the product showing data it can't produce.
 //
@@ -73,7 +73,7 @@ function PrimaryCta({ href = "/register", children }: { href?: string; children:
 function SampleJobStack() {
   return (
     <div className="relative">
-      <span className="sr-only">Examples of how fresh openings appear inside GettingShortlisted.in:</span>
+      <span className="sr-only">Examples of how fresh openings appear inside WatchmyJob.co:</span>
 
       {SAMPLE_JOBS.map((job, i) => {
         const expanded = i === 0;
@@ -179,9 +179,9 @@ export default function HomePage() {
         <div className="container-wide flex h-16 items-center justify-between gap-4">
           <span className="flex shrink-0 items-center gap-2 text-[1rem] font-bold tracking-tight text-ink">
             <span className="grid size-6 place-items-center rounded-md bg-brand text-[0.68rem] font-bold text-white">
-              G
+              W
             </span>
-            GettingShortlisted.in
+            WatchmyJob.co
           </span>
 
           {/* No "How it works" link here: the hero's secondary CTA already
@@ -307,8 +307,8 @@ export default function HomePage() {
       <footer className="border-t border-line">
         <div className="container-wide flex flex-col items-center justify-between gap-3 py-7 sm:flex-row">
           <span className="flex items-center gap-2 text-[0.85rem] font-semibold text-ink">
-            <span className="grid size-5 place-items-center rounded bg-brand text-[0.6rem] font-bold text-white">G</span>
-            GettingShortlisted.in
+            <span className="grid size-5 place-items-center rounded bg-brand text-[0.6rem] font-bold text-white">W</span>
+            WatchmyJob.co
           </span>
           <div className="flex items-center gap-5 text-[0.83rem] text-ink-muted sm:gap-6">
             <Link href="/login" className="transition-colors hover:text-ink">
