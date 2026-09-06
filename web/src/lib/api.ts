@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+// A trailing slash on NEXT_PUBLIC_API_URL (easy to paste in by accident from
+// a platform's env var UI) would otherwise produce a double slash on every
+// request below -- Fastify's router doesn't collapse "//api/..." to
+// "/api/...", so that 404s instead of just working. Stripped once here so
+// the value's exact formatting in whatever dashboard set it never matters.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   // The HTTP status is load-bearing, not just diagnostic: callers have to be
