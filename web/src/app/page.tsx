@@ -228,13 +228,17 @@ export default function HomePage() {
                 {...rise(0)}
                 className="text-[2.75rem] font-bold leading-[1.02] tracking-[-0.045em] text-ink sm:text-[3.7rem] lg:text-[4.15rem]"
               >
-                Apply Early.
+                Apply Early📜
                 <br />
                 Get Shortlisted.
               </motion.h1>
 
               <motion.p {...rise(0.06)} className="mt-6 text-[1.02rem] leading-[1.65] text-ink-muted sm:text-[1.06rem]">
                 Get instant email alerts when a new job matching your preferences goes live so you can apply early before the crowd.
+              </motion.p>
+
+              <motion.p {...rise(0.09)} className="mt-3 text-[0.8rem] italic text-ink-faint">
+                Note: This project is made for educational purposes by Piyush Raj.
               </motion.p>
 
               <motion.div {...rise(0.12)} className="mt-9 flex flex-wrap items-center gap-3">
