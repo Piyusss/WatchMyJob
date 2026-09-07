@@ -14,7 +14,19 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  // A trailing slash here (easy to paste in by accident from a platform's env
+  // var UI, per web/src/lib/api.ts's identical NEXT_PUBLIC_API_URL fix) would
+  // otherwise break two things at once: the CORS origin check in index.ts
+  // compares this verbatim against the browser's Origin header, which never
+  // carries a trailing slash, so every request would be rejected; and the
+  // unsubscribe link built in notifications/pipeline.ts would get a doubled
+  // slash before "unsubscribe". Stripped once here so the exact string typed
+  // into any dashboard's UI never matters.
+  FRONTEND_URL: z
+    .string()
+    .url()
+    .default("http://localhost:3000")
+    .transform((v) => v.replace(/\/+$/, "")),
 
   // Clerk is the sole auth mechanism (see auth/authenticate.ts): both
   // required, boot fails without them rather than running with auth silently

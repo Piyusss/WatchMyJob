@@ -19,8 +19,11 @@ export function formatRecency(firstSeenAt: string): RecencyInfo {
   if (diffMinutes < 1) return { label: "New · just now", isNew: true };
   if (diffMinutes < 60) return { label: `New · ${diffMinutes} min ago`, isNew: true };
 
-  const sameCalendarDay = seenAt.toDateString() === new Date().toDateString();
-  if (sameCalendarDay) return { label: `New today · ${diffHours}h ago`, isNew: true };
+  // A rolling 24h window, not "same calendar date": a job first seen at
+  // 11:58pm would otherwise flip from "New today" to a plain "0d ago" two
+  // minutes later purely because the wall-clock date rolled over, even
+  // though nothing about its actual age changed.
+  if (diffHours < 24) return { label: `New today · ${diffHours}h ago`, isNew: true };
 
   if (diffDays < 7) return { label: `${diffDays}d ago`, isNew: false };
 
