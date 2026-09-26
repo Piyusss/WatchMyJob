@@ -299,7 +299,7 @@ export default function HomePage() {
             Don&apos;t Miss the Freshest Jobs.
           </h2>
           <p className="mx-auto mt-5 max-w-lg text-[1rem] leading-[1.65] text-ink-muted">
-            Find it early. Apply early. Give yourself a better shot at getting shortlisted.
+            Find it early. Apply early. Give yourself a better shot at getting shortlisted
           </p>
           <div className="mt-9 flex justify-center">
             <PrimaryCta>Find Fresh Jobs</PrimaryCta>
