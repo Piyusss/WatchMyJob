@@ -30,8 +30,12 @@ export const workdayListResponseSchema = z.object({
   total: z.number().optional(),
   jobPostings: z.array(
     z.object({
-      title: z.string(),
-      externalPath: z.string(),
+      // Optional only because some tenants list a posting as a bare
+      // `{ bulletFields: ["R169772"] }` stub with no title or path (Adobe,
+      // Nasdaq and Elsevier each had one or two, the same requisitions on
+      // every walk). The adapter skips those rather than failing the page.
+      title: z.string().optional(),
+      externalPath: z.string().optional(),
       locationsText: z.string().nullable().optional(),
       postedOn: z.string().nullable().optional(),
       // The company's own requisition id: the stable external identity.

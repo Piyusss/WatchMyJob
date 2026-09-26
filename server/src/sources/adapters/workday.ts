@@ -97,8 +97,8 @@ function parseStartDate(value: string | null | undefined): Date | null {
 // requisition number (26992731) and was present on every posting across all
 // six tenants probed; externalPath is the fallback only if a tenant ever
 // omits it, and is itself stable and unique per posting.
-function externalIdOf(posting: { bulletFields?: string[]; externalPath: string }): string {
-  return posting.bulletFields?.[0]?.trim() || posting.externalPath;
+function externalIdOf(posting: { bulletFields?: string[]; externalPath?: string }): string {
+  return posting.bulletFields?.[0]?.trim() || posting.externalPath || "";
 }
 
 // What the pipeline already knows about this source's jobs, so an unchanged
@@ -268,6 +268,11 @@ export class WorkdayAdapter implements JobSourceAdapter {
       for (const posting of fresh) {
         const externalJobId = externalIdOf(posting);
         seen.add(externalJobId);
+        // A stub listing (requisition id only: no title, no page to link
+        // to) is not a job anyone can view or apply to, so it isn't one
+        // here. It still counts toward `fresh` above, so skipping it never
+        // makes a page look like a repeat and flip the walk to PARTIAL.
+        if (!posting.title || !posting.externalPath) continue;
         postings.push({
           externalJobId,
           title: posting.title.trim(),

@@ -183,6 +183,22 @@ describe("WorkdayAdapter", () => {
     assert.equal(result.jobs.length, 40, "the 15 already-seen postings are not collected twice");
   });
 
+  // Adobe, Nasdaq and Elsevier each list a posting or two as nothing but a
+  // requisition id, the same ones on every walk. One such stub used to fail
+  // schema validation for its whole page, so the source could never sync.
+  it("skips stub listings with no title or path instead of failing the page", async () => {
+    const stub = (id: string) => ({ bulletFields: [id] }) as unknown as RawPosting;
+    const mixed = [...syntheticPage(0).slice(0, 19), stub("R169772")];
+    const allStubs = Array.from({ length: PAGE_SIZE }, (_, i) => stub(`S${i}`));
+    const mock = mockWorkday({ pages: [mixed, allStubs, syntheticPage(40).slice(0, 7)] });
+    const result = await new WorkdayAdapter(noKnownJobs).discoverJobs(SOURCE);
+
+    assert.equal(result.status, "COMPLETE", "a page of never-seen stubs is not the repeating-page clamp");
+    assert.equal(result.jobs.length, 26);
+    assert.equal(mock.listRequests, 3);
+    assert.ok(!result.jobs.some((j) => j.externalJobId === "R169772"), "a stub never becomes a job");
+  });
+
   it("fetches a detail record only for postings it has never seen before", async () => {
     const stored: KnownJobSnapshot = {
       description: "<p>stored description</p>",

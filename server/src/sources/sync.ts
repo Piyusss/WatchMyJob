@@ -387,7 +387,16 @@ export async function syncSource(source: JobSource, options: SyncOptions = {}): 
     // inventory becomes visible and the rest of the import reads as new
     // openings, which is exactly what the baseline gate below exists to
     // prevent.
-    { timeout: 120_000, maxWait: 10_000 },
+    //
+    // A baseline gets far longer still: it is the one pass that INSERTs every
+    // job at once, one round trip each, and it runs from the admin CLI on
+    // whatever machine the operator is at. Over a ~300ms link to the
+    // database 120s runs out around 400 jobs (Adobe's 589 and Airwallex's
+    // 579 both timed out on it), while a steady-state cycle only writes what
+    // changed. Nothing else touches an un-baselined source's rows (the
+    // scheduler skips it until initialSyncCompletedAt is set), so holding
+    // this transaction open longer blocks no one.
+    { timeout: initial ? 1_200_000 : 120_000, maxWait: 10_000 },
     );
   } catch (err) {
     const message = `Failed to persist discovered jobs, possibly a concurrent sync of the same source: ${err instanceof Error ? err.message : String(err)}`;
