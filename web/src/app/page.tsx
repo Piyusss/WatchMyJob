@@ -230,7 +230,7 @@ export default function HomePage() {
               >
                 Apply Early📜
                 <br />
-                Get Shortlisted.
+                Get Shortlisted
               </motion.h1>
 
               <motion.p {...rise(0.06)} className="mt-6 text-[1.02rem] leading-[1.65] text-ink-muted sm:text-[1.06rem]">
