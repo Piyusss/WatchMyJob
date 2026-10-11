@@ -11,7 +11,7 @@ const MAX_VISIBLE_OPTIONS = 60;
 
 // A searchable, options-only select for Role: classification produces
 // thousands of near-title-granular role families (see the server's
-// jobs/routes.ts /role-families comment), too many for a plain <Select>'s
+// roleFamilies handler, in internal/api/jobs.go), too many for a plain <Select>'s
 // fixed list to be usable, and far too many to invent a coarser fixed
 // taxonomy for without changing what "matches" means across the whole app.
 // The option list is exactly what's on a real active job right now; there

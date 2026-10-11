@@ -1,8 +1,9 @@
 // A trailing slash on NEXT_PUBLIC_API_URL (easy to paste in by accident from
 // a platform's env var UI) would otherwise produce a double slash on every
-// request below -- Fastify's router doesn't collapse "//api/..." to
-// "/api/...", so that 404s instead of just working. Stripped once here so
-// the value's exact formatting in whatever dashboard set it never matters.
+// request below -- the server doesn't collapse "//api/..." to "/api/...",
+// it rejects the request, so that fails instead of just working. Stripped
+// once here so the value's exact formatting in whatever dashboard set it
+// never matters.
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 
 export class ApiError extends Error {
@@ -19,9 +20,9 @@ export class ApiError extends Error {
   }
 }
 
-// Every Zod-validated route responds with a generic top-level message
+// Every validated route responds with a generic top-level message
 // ("Invalid input") plus a `details` map of the actual per-field problems
-// (see e.g. testCompanies/routes.ts): ApiError already carries that map,
+// (see the server's internal/api/respond.go): ApiError already carries that map,
 // but callers were only ever showing the generic message, which told a user
 // something was wrong without saying what. This turns the first real field
 // error into a readable "Field: what's wrong with it" string, falling back
@@ -103,7 +104,7 @@ export type WorkMode = "REMOTE" | "HYBRID" | "ON_SITE";
 export type OpportunityType = "FULL_TIME" | "INTERNSHIP" | "CONTRACT" | "PART_TIME" | "OTHER";
 
 // This user's own stance toward a job: distinct from the job's global
-// status (see the server's schema.prisma). null means "no stance yet".
+// status (see the server's model.Mark). null means "no stance yet".
 export type UserJobState = "SAVED" | "APPLIED" | "DISMISSED";
 
 export function setJobState(jobId: string, state: UserJobState) {
@@ -130,8 +131,8 @@ export function bulkSetWatching(action: "watch" | "unwatch", companySlugs: strin
 }
 
 // A small, fixed vocabulary: kept in sync by hand with the backend's own
-// LEVEL_VALUES (preferences/schemas.ts), the same pattern already used for
-// WorkMode/OpportunityType across this file and that schema.
+// list (levels, in internal/api/preferences.go), the same pattern already used for
+// WorkMode/OpportunityType across this file and the server's enums.
 export const LEVEL_OPTIONS = ["Intern", "Associate", "Senior", "Lead", "Staff", "Principal"] as const;
 export type Level = (typeof LEVEL_OPTIONS)[number];
 
@@ -223,27 +224,22 @@ export interface JobListing {
 }
 
 export interface JobDetail extends JobListing {
-  // Always plain text, server-converted from the source's raw HTML (see
-  // jobs/routes.ts): an empty string means no description, never null.
+  // Always an empty string: the server doesn't store descriptions (the job
+  // page links to the original posting instead). Never null.
   description: string;
   company: { id: string; name: string; slug: string; domain: string | null };
 }
 
 export type JobsSort = "newest" | "updated";
 
-export type NotificationStatus =
-  | "SENDING"
-  | "PROVIDER_ACCEPTED"
-  | "DELIVERED"
-  | "BOUNCED"
-  | "COMPLAINED"
-  | "FAILED"
-  | "SKIPPED"
-  | "DEAD_LETTER";
+// QUEUED: waiting to be sent (the history leaves these out). PROVIDER_ACCEPTED:
+// Brevo took it. FAILED: three attempts failed, given up. SKIPPED: not sent,
+// because by sending time the job had closed or the user had paused alerts.
+export type NotificationStatus = "QUEUED" | "PROVIDER_ACCEPTED" | "FAILED" | "SKIPPED";
 
 export interface NotificationHistoryItem {
   id: string;
-  notificationType: "NEW_JOB" | "MATCH_VIA_UPDATE";
+  notificationType: "NEW_JOB";
   status: NotificationStatus;
   createdAt: string;
   sentAt: string | null;
@@ -312,11 +308,10 @@ export interface Subscription {
 }
 
 // --- Admin / test companies (custom_company.txt) --------------------------
-// Everything below talks to /api/admin/*, which only exists at all when the
-// server has ALLOW_TEST_COMPANIES on, and only accepts requests from an
-// account on its ADMIN_EMAILS allowlist: see the server's
-// testCompanies/routes.ts. A non-admin never sees the nav link that reaches
-// these pages, but these calls would 403 regardless.
+// Everything below talks to /api/admin/*, which only accepts requests from
+// an account on the server's ADMIN_EMAILS allowlist: see the server's
+// internal/api/admin.go. A non-admin never sees the nav link that
+// reaches these pages, but these calls would 403 regardless.
 
 export interface TestCompanyListItem {
   id: string;
@@ -335,9 +330,9 @@ export interface TestCompanyDetail {
   slug: string;
   status: "ACTIVE" | "INACTIVE";
   domain: string | null;
-  // Whether this company currently satisfies SELECTABLE_COMPANY: i.e.
-  // whether a real user could watch it right now. True immediately on
-  // creation (see routes.ts's empty baseline), so this should basically
+  // Whether a real user could watch this company right now (the server's
+  // Company.Selectable). True immediately on creation (see
+  // createTestCompany's empty baseline), so this should basically
   // never read false, but it's here to make that guarantee visible rather
   // than assumed.
   selectable: boolean;

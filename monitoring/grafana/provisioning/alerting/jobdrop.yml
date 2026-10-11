@@ -1,0 +1,85 @@
+# Alert rules, checked every minute. With no contact point set up they show
+# under Alerting > Alert rules in Grafana; add one (email, Slack...) there
+# to be notified.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: jobdrop
+    folder: JobDrop
+    interval: 1m
+    rules:
+      - uid: jobdrop-sync-stalled
+        title: Job sync stalled
+        condition: C
+        for: 0m
+        noDataState: NoData
+        execErrState: Error
+        annotations:
+          summary: No sync round has finished in 20 minutes; the sync loop has stopped or is stuck.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: time() - max(jobdrop_sync_last_success_timestamp_seconds > 0)
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [1200] }
+
+      - uid: jobdrop-server-errors
+        title: API server errors
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: More than 5% of API requests have failed with a 5xx status for 5 minutes.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.05] }
+
+      - uid: jobdrop-emails-failing
+        title: Emails failing
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: An email was given up on after 3 failed attempts in the past 15 minutes; check the Brevo settings.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(jobdrop_emails_total{outcome="failed"}[15m])) or vector(0)
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }

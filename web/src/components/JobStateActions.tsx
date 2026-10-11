@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // Save / Applied / Dismiss for one job.
 //
 // The three states are mutually exclusive by design (see the server's
-// schema.prisma), so these read as a small radio group rather than three
+// model.Mark), so these read as a small radio group rather than three
 // independent toggles: marking a saved job Applied moves it, it doesn't
 // stack. Clicking the state a job is already in clears it, which is how a
 // user un-saves or un-dismisses.

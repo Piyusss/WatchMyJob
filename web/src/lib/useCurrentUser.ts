@@ -65,11 +65,9 @@ export function useCurrentUser() {
         // failure is an infinite loop: Clerk still holds a valid session, so
         // /login's <SignIn forceRedirectUrl="/companies"> immediately sends
         // the user back here, which re-fires this request, which fails
-        // again... The loop also hammers the API hard enough to trip its
-        // rate limiter, at which point every request 429s and the loop can
-        // never recover on its own. Anything that isn't a 401 gets surfaced
-        // to the user instead, so a broken server looks broken rather than
-        // looking like a login problem.
+        // again, hammering the API forever. Anything that isn't a 401 gets
+        // surfaced to the user instead, so a broken server looks broken
+        // rather than looking like a login problem.
         if (err instanceof ApiError && err.status === 401) {
           router.replace("/login");
           return;

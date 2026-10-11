@@ -2,20 +2,17 @@
   "name": "jobdrop",
   "private": true,
   "workspaces": [
-    "server",
     "web"
   ],
   "scripts": {
-    "test": "npm test -w server",
+    "test": "node scripts/server.mjs test",
     "build:web": "npm run build -w web",
-    "build:server": "npm run build -w server",
-    "dev:server": "npm run dev -w server",
-    "dev:worker": "npm run dev:worker -w server",
-    "dev:notification-worker": "npm run dev:notification-worker -w server",
+    "build:server": "node scripts/server.mjs build",
+    "dev:server": "node scripts/server.mjs dev",
     "dev:web": "npm run dev -w web",
-    "db:migrate": "npm run db:migrate -w server",
-    "db:studio": "npm run db:studio -w server",
     "db:up": "docker compose up -d db",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "monitoring:up": "docker compose --profile monitoring up -d prometheus grafana",
+    "monitoring:down": "docker compose --profile monitoring stop prometheus grafana"
   }
 }

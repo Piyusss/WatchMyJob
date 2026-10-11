@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New job match</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e2e2e2;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td align="center" style="padding:28px 24px 20px;">
+                <span style="font-size:18px;font-weight:700;color:#00497a;letter-spacing:-0.01em;">WatchmyJob.co</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:0 32px;">
+                <hr style="border:none;border-top:1px solid #f0f0f0;margin:0;" />
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:28px 32px 4px;">
+                <p style="margin:0 0 4px;font-size:13px;color:#5c5c5c;">Hi {{.Name}},</p>
+                <h1 style="margin:6px 0 0;font-size:21px;line-height:1.3;color:#1e1e1e;">
+                  A new role just opened at {{.Company}}
+                </h1>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:18px 32px 4px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  {{range $i, $detail := .Details}}
+                  <tr>
+                    <td style="padding:10px 0;border-top:{{if $i}}1px solid #f0f0f0{{else}}none{{end}};font-size:13px;color:#5c5c5c;white-space:nowrap;">{{$detail.Label}}</td>
+                    <td style="padding:10px 0 10px 16px;border-top:{{if $i}}1px solid #f0f0f0{{else}}none{{end}};font-size:14px;color:#1e1e1e;font-weight:600;text-align:right;">{{$detail.Value}}</td>
+                  </tr>
+                  {{end}}
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:28px 32px 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" style="border-radius:8px;background-color:#007acc;">
+                      <a
+                        href="{{.JobURL}}"
+                        style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;"
+                      >
+                        View job
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0;">
+                <p style="margin:0;font-size:12px;line-height:1.6;color:#9a9a9a;">
+                  You're getting this because you're watching {{.Company}} on WatchmyJob.co.
+                  <a href="{{.UnsubscribeURL}}" style="color:#5c5c5c;text-decoration:underline;">Unsubscribe</a>
+                  from these alerts anytime.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

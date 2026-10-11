@@ -107,7 +107,7 @@ export default function SettingsPage() {
     setDeleting(true);
     try {
       // Empty body: authentication (the Clerk session itself) is the only
-      // confirmation needed now: see account/routes.ts, which also
+      // confirmation needed now: see the server's deleteAccount (internal/api/account.go), which also
       // deletes the underlying Clerk account.
       await apiFetch("/api/account", { method: "DELETE" });
       invalidateCurrentUser();

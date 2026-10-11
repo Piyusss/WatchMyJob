@@ -7,8 +7,8 @@ const ANY = "ANY";
 
 // A fixed, controlled dropdown rather than free text: unlike Role, Level
 // really is a small closed vocabulary in practice (the classifier only ever
-// produces a handful of distinct values; see preferences/schemas.ts's
-// LEVEL_VALUES comment for the full reasoning).
+// produces a handful of distinct values, and the server accepts only the
+// same list: levels, in internal/api/preferences.go).
 export default function LevelSelect({
   value,
   onChange,

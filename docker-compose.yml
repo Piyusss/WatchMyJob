@@ -16,68 +16,74 @@ services:
       timeout: 5s
       retries: 5
 
-  # The three services below run the same built image (server/Dockerfile)
-  # with different entrypoints -- API, source poller, notification sender,
-  # exactly the three-process architecture the codebase's own comments
-  # describe (one Postgres, never one monolith). Not used for local
-  # day-to-day development (that's `npm run dev` / `npm run dev:worker` /
-  # `npm run dev:notification-worker` on the host, for fast iteration and
-  # hot reload) -- this is the containerized path for a staging/production
-  # run, and what gives every process real restart supervision (Docker
-  # restarts a crashed container per its `restart` policy; nothing
-  # supervises a bare `npm run dev` process today). DATABASE_URL here
-  # deliberately points at the "db" service name, not localhost -- that's
-  # the container-network address, different from server/.env's
-  # host-machine value.
+  # The backend, built from server/Dockerfile: the REST API plus its two
+  # background jobs (job-board sync and email sending) in one container.
+  # For day-to-day development, run `npm run dev:server` on the host
+  # instead; this is the containerized path, and Docker restarts it if it
+  # crashes. DATABASE_URL uses the "db" service name: that's the database's
+  # address inside Docker's network, not localhost. The server refuses to
+  # start without CLERK_SECRET_KEY. Its metrics port (9091) isn't published:
+  # only Prometheus, inside Docker's network, reads it.
   api:
     build: ./server
-    command: ["node", "dist/index.js"]
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
-      NODE_ENV: production
+      DATABASE_URL: "postgresql://db:5432/jobdrop"
+      DATABASE_USERNAME: jobdrop
+      DATABASE_PASSWORD: jobdrop
       PORT: 4000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
       BREVO_FROM_NAME: ${BREVO_FROM_NAME:-WatchmyJob.co}
     ports:
       - "4000:4000"
 
-  source-worker:
-    build: ./server
-    command: ["node", "dist/worker.js"]
+  # Monitoring (`npm run monitoring:up`): Prometheus collects the backend's
+  # metrics, Grafana draws them. Both are set up from monitoring/.
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    profiles: [monitoring]
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
-      NODE_ENV: production
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # Lets Prometheus reach a backend running on this machine (Docker
+    # Desktop has this name built in; Linux needs the line).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
 
-  notification-worker:
-    build: ./server
-    command: ["node", "dist/notificationWorker.js"]
+  grafana:
+    image: grafana/grafana:13.2.3
+    profiles: [monitoring]
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - prometheus
     environment:
-      DATABASE_URL: "postgresql://jobdrop:jobdrop@db:5432/jobdrop"
-      NODE_ENV: production
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?CLERK_PUBLISHABLE_KEY must be set}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY must be set}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      BREVO_API_KEY: ${BREVO_API_KEY:-}
-      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
-      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-WatchmyJob.co}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # Local use: anyone who can reach this port may view the dashboards
+      # without signing in. Sign in as admin to edit.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/jobdrop.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    # 3000 is the website's dev server.
+    ports:
+      - "3001:3000"
 
 volumes:
   jobdrop_db_data:
+  prometheus_data:
+  grafana_data:

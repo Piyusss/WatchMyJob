@@ -35,7 +35,7 @@ function sameLocation(a: PreferenceLocation, b: PreferenceLocation): boolean {
 // with a state already selected would otherwise leave a state that belongs
 // to the PREVIOUS country silently attached. Selections are added to a chip
 // list rather than replacing a single value: multiple locations are allowed
-// and matched as OR (see the server's matching/predicate.ts), never AND.
+// and matched as OR (see the server's internal/matching), never AND.
 export default function LocationPicker({
   value,
   onChange,

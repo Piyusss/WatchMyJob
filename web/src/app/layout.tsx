@@ -23,7 +23,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "WatchmyJob.co",
   description:
-    "Get instant email alerts when a new job matching your preferences goes live so you can apply early before the crowd.",
+    "Get email alerts when a new job matching your preferences goes live so you can apply early before the crowd.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

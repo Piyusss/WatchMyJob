@@ -30,9 +30,9 @@ import {
   type WorkMode,
 } from "@/lib/api";
 
-// Maps createTestJobSchema's field names (server/src/testCompanies/schemas.ts)
-// to what this form actually calls them, so a validation error reads as
-// "Job title: ..." rather than "title: ...".
+// Maps the server's test-job field names (testJobInput, in
+// internal/api/admin.go) to what this form actually calls them,
+// so a validation error reads as "Job title: ..." rather than "title: ...".
 const JOB_FIELD_LABELS: Record<string, string> = {
   title: "Job title",
   roleFamily: "Role family",
@@ -210,10 +210,14 @@ export default function TestCompanyDetailPage() {
     try {
       const res = await publishTestJob(jobId);
       setLastPublish({ jobId, result: res });
+      // Alerts go out only for a job that is new to the board, so publishing
+      // an already published job again (to apply edits) emails nobody.
       toast.success(
         res.result.queued > 0
           ? `Published: ${res.result.queued} notification(s) queued`
-          : "Published, but no matching subscribers right now",
+          : res.result.created > 0
+            ? "Published, but no matching subscribers right now"
+            : "Already published, so nobody is emailed again. Alerts go out only for new jobs",
       );
       await reload();
     } catch (err) {

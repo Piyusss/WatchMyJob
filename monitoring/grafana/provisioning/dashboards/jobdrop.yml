@@ -1,0 +1,12 @@
+# Loads the dashboards in monitoring/grafana/dashboards (mounted at
+# /etc/grafana/dashboards). Edit them in the repository, not in Grafana:
+# Grafana reloads the files, and the repository is the source of truth.
+apiVersion: 1
+
+providers:
+  - name: JobDrop
+    folder: JobDrop
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

@@ -13,20 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
-// Only states a user can act on or be reassured by are given words here.
-// PROVIDER_ACCEPTED/DELIVERED both read as "Sent": the distinction between
-// "the provider took it" and "the provider confirmed delivery" is an
-// operational detail, and most providers never report the latter at all, so
-// surfacing it would leave most rows looking permanently unfinished.
+// Every status the backend uses (see NotificationStatus). PROVIDER_ACCEPTED
+// reads as "Sent": the email provider has it, which is as far as we can see.
+// FAILED is final: the backend gave up after three attempts.
 const STATUS_LABEL: Record<NotificationStatus, { label: string; tone: "ok" | "warn" | "bad" | "muted" }> = {
-  SENDING: { label: "Sending", tone: "muted" },
+  QUEUED: { label: "Sending", tone: "muted" },
   PROVIDER_ACCEPTED: { label: "Sent", tone: "ok" },
-  DELIVERED: { label: "Delivered", tone: "ok" },
-  BOUNCED: { label: "Bounced", tone: "bad" },
-  COMPLAINED: { label: "Marked as spam", tone: "bad" },
-  FAILED: { label: "Retrying", tone: "warn" },
+  FAILED: { label: "Failed", tone: "bad" },
   SKIPPED: { label: "Not sent", tone: "muted" },
-  DEAD_LETTER: { label: "Failed", tone: "bad" },
 };
 
 const TONE_CLASS: Record<"ok" | "warn" | "bad" | "muted", string> = {

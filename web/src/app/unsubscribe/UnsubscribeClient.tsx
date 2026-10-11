@@ -20,7 +20,7 @@ export default function UnsubscribeClient() {
       return;
     }
 
-    // Idempotent by design (see schema.prisma's unsubscribeToken comment):
+    // Idempotent by design (see the server's model.User UnsubscribeToken comment):
     // no need to guard against firing twice the way verify-email's
     // single-use token does.
     apiFetch<{ notificationsPaused: boolean }>("/api/notifications/unsubscribe", {

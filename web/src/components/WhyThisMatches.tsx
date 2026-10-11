@@ -12,7 +12,7 @@ const CRITERIA: { key: keyof Omit<MatchExplanation, "overallMatch">; label: stri
 ];
 
 // A matched job has every dimension true by construction:
-// getMatchExplanation ANDs them all (see matching/predicate.ts). Shown as
+// matching.Explain ANDs them all (see the server's internal/matching). Shown as
 // one line per dimension rather than a single "it matched" statement, so
 // the reasoning is legible instead of asserted.
 export default function WhyThisMatches({ explanation }: { explanation: MatchExplanation }) {

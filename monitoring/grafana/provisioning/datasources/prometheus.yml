@@ -1,0 +1,12 @@
+# Grafana reads its numbers from Prometheus (the prometheus service in
+# docker-compose.yml).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

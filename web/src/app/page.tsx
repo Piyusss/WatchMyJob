@@ -20,15 +20,15 @@ const ACTIVE_SOCIALS = SOCIAL_LINKS.filter((s) => s.href.length > 0);
 // Three steps, one line each: the whole explanation. Anything longer
 // belongs in the product, not on the page in front of it.
 //
-// Each line states a mechanism rather than a benefit, and every number in
-// them is real: sources are re-polled on their own pollIntervalSeconds
-// (240s by default) by a worker ticking every 30s, matching gates on the
-// six criteria in matching/predicate.ts, and the notification worker
-// drains the send queue every 15s.
+// Each line states a mechanism rather than a benefit, and every claim in
+// them is real: every company's job board is re-read on a timer (the
+// server's syncer package; SYNC_INTERVAL sets the pause between rounds),
+// matching gates on the six criteria in its matching package, and a queued
+// email goes out within 15 seconds (package notify).
 const STEPS = [
-  { number: "01", title: "We Watch", body: "Company job boards, re-checked at the source every few minutes." },
+  { number: "01", title: "We Watch", body: "Company job boards, re-checked at the source around the clock." },
   { number: "02", title: "We Match", body: "Each new opening is checked against all six of your preferences." },
-  { number: "03", title: "You Apply Early", body: "An email lands within seconds of it going live, while the role is still new." },
+  { number: "03", title: "You Apply Early", body: "An email lands within minutes of it going live, while the role is still new." },
 ];
 
 // Every company here is one WatchmyJob.co genuinely monitors, and
@@ -234,7 +234,7 @@ export default function HomePage() {
               </motion.h1>
 
               <motion.p {...rise(0.06)} className="mt-6 text-[1.02rem] leading-[1.65] text-ink-muted sm:text-[1.06rem]">
-                Get instant email alerts when a new job matching your preferences goes live so you can apply early before the crowd.
+                Get email alerts when a new job matching your preferences goes live so you can apply early before the crowd.
               </motion.p>
 
               <motion.p {...rise(0.09)} className="mt-3 text-[0.8rem] italic text-ink-faint">
