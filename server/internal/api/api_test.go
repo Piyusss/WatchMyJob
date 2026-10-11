@@ -335,6 +335,37 @@ func TestAJobPageHasNoDescriptionAndNamesItsCompany(t *testing.T) {
 	expect(t, "experience status", field(body, "job", "experienceStatus"), "UNKNOWN")
 }
 
+// /metrics is on the public port only when METRICS_TOKEN is set, and only
+// for a caller with that token (Grafana Cloud).
+func TestMetricsAreOnlyPublicWithTheToken(t *testing.T) {
+	withToken := New(testdb.Pool, clerkUsers, syncer.New(testdb.Pool, boards.All(nil, testdb.Pool), nil), config.Config{
+		FrontendURL: "http://localhost:3000", MetricsToken: "s3cret",
+	})
+	for _, c := range []struct {
+		api           http.Handler
+		authorization string
+		want          int
+	}{
+		{newAPI(), "Bearer s3cret", http.StatusNotFound}, // no METRICS_TOKEN: no public route
+		{withToken, "", http.StatusUnauthorized},
+		{withToken, "Bearer wrong", http.StatusUnauthorized},
+		{withToken, "Bearer s3cret", http.StatusOK},
+	} {
+		request := httptest.NewRequest("GET", "/metrics", nil)
+		if c.authorization != "" {
+			request.Header.Set("Authorization", c.authorization)
+		}
+		response := httptest.NewRecorder()
+		c.api.ServeHTTP(response, request)
+		if response.Code != c.want {
+			t.Errorf("%q: got %d, want %d", c.authorization, response.Code, c.want)
+		}
+		if c.want == http.StatusOK && !strings.Contains(response.Body.String(), "go_goroutines") {
+			t.Error("the metrics should be in Prometheus' text format")
+		}
+	}
+}
+
 // The health check answers without the database (see health in server.go).
 func TestTheHealthCheckSaysTheServerIsUp(t *testing.T) {
 	status, body := call(t, "GET", "/health", "", "")

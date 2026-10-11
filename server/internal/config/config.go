@@ -39,6 +39,10 @@ type Config struct {
 	// minutes without requests, which would stop the sync and the emails
 	// too; requesting this address every 10 minutes keeps it running.
 	KeepAwakeURL string
+	// When set, the public API port also serves /metrics to callers that
+	// present it as a Bearer token: for a hosted Grafana (Grafana Cloud),
+	// which can only read a public URL. Unset, metrics stay on METRICS_PORT.
+	MetricsToken string
 }
 
 func Load() (Config, error) {
@@ -56,6 +60,7 @@ func Load() (Config, error) {
 		BrevoFromName:     env("BREVO_FROM_NAME", "WatchmyJob.co"),
 		SchedulingEnabled: env("SCHEDULING_ENABLED", "true") != "false",
 		KeepAwakeURL:      strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/"),
+		MetricsToken:      strings.TrimSpace(os.Getenv("METRICS_TOKEN")),
 	}
 	for _, email := range strings.Split(os.Getenv("ADMIN_EMAILS"), ",") {
 		if email = strings.TrimSpace(email); email != "" {

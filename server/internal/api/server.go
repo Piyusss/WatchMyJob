@@ -5,10 +5,13 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"jobdrop/internal/clerk"
 	"jobdrop/internal/config"
@@ -72,6 +75,11 @@ func New(db store.DB, clerk Clerk, syncer *syncer.Syncer, config config.Config) 
 	mux.Handle("POST /api/admin/test-companies/{slug}/jobs", s.admin(s.createTestJob))
 	mux.Handle("PATCH /api/admin/test-jobs/{id}", s.admin(s.updateTestJob))
 	mux.Handle("POST /api/admin/test-jobs/{id}/publish", s.admin(s.publishTestJob))
+
+	// For a hosted Grafana: only with METRICS_TOKEN set, and only for that token.
+	if config.MetricsToken != "" {
+		mux.Handle("GET /metrics", metricsFor(config.MetricsToken))
+	}
 
 	// Any other route, or another method on one of the above.
 	mux.Handle("/", handler(func(http.ResponseWriter, *http.Request) error { return notFound("Not found") }))
@@ -165,6 +173,23 @@ func cors(frontendURL string, next http.Handler) http.Handler {
 			}
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// metricsFor serves the Prometheus metrics on the public API port, which is
+// the only port Render exposes, so Grafana Cloud can read them every minute.
+// The numbers aren't secret, but they aren't public either: the caller must
+// send the token. (Reading them touches no database.)
+func metricsFor(token string) http.Handler {
+	prometheus := promhttp.Handler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		given, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		// Constant-time, so the comparison's timing doesn't reveal the token.
+		if subtle.ConstantTimeCompare([]byte(given), []byte(token)) != 1 {
+			writeError(w, errNotSignedIn)
+			return
+		}
+		prometheus.ServeHTTP(w, r)
 	})
 }
 
