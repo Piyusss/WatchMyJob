@@ -58,7 +58,7 @@
     {
       "type": "stat",
       "title": "Since the last sync round",
-      "description": "Time since a sync round last finished. A round starts 5 minutes after the previous one ends; over 20 minutes means the sync loop has stopped.",
+      "description": "Time since a sync round last finished. Rounds run SYNC_INTERVAL apart (5 minutes by default, 15 on Neon's free plan), so up to about 16 minutes is normal; over 35 minutes means the sync loop has stopped.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -99,11 +99,11 @@
               },
               {
                 "color": "#fab219",
-                "value": 900
+                "value": 1500
               },
               {
                 "color": "#d03b3b",
-                "value": 1200
+                "value": 2100
               }
             ]
           }
@@ -197,7 +197,7 @@
     {
       "type": "stat",
       "title": "Requests per minute",
-      "description": "API requests per minute, averaged over 5 minutes.",
+      "description": "API requests per minute, averaged over 5 minutes. Leaves out the health check and the metrics scrapes, which aren't visitors.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -215,7 +215,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(http_requests_total[5m])) * 60",
+          "expr": "sum(rate(http_requests_total{route!~\"GET /(health|metrics)\"}[5m])) * 60",
           "legendFormat": "",
           "instant": false,
           "range": true
@@ -480,7 +480,7 @@
     {
       "type": "timeseries",
       "title": "Requests per second",
-      "description": "Every API request, all routes together.",
+      "description": "Every API request, all routes together. Leaves out the health check and the metrics scrapes, which aren't visitors.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -498,7 +498,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(http_requests_total[$__rate_interval]))",
+          "expr": "sum(rate(http_requests_total{route!~\"GET /(health|metrics)\"}[$__rate_interval]))",
           "legendFormat": "requests",
           "instant": false,
           "range": true
@@ -547,7 +547,7 @@
     {
       "type": "timeseries",
       "title": "Error responses per second",
-      "description": "5xx (red) means the server failed. 4xx (gray) is mostly normal: signed-out visitors get 401, unknown jobs 404.",
+      "description": "5xx (red) means the server failed. 4xx (gray) is mostly normal: signed-out visitors get 401, unknown jobs 404. Leaves out the health check and the metrics scrapes, which aren't visitors.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -576,7 +576,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(http_requests_total{status=~\"4..\"}[$__rate_interval])) or vector(0)",
+          "expr": "sum(rate(http_requests_total{status=~\"4..\", route!~\"GET /(health|metrics)\"}[$__rate_interval])) or vector(0)",
           "legendFormat": "4xx client errors",
           "instant": false,
           "range": true
@@ -656,7 +656,7 @@
     {
       "type": "bargauge",
       "title": "Busiest routes",
-      "description": "Requests per route over the dashboard time range. A route is the pattern that matched, so all job ids count as one route.",
+      "description": "Requests per route over the dashboard time range. A route is the pattern that matched, so all job ids count as one route. Leaves out the health check and the metrics scrapes, which aren't visitors.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -674,7 +674,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sort_desc(sum by (route) (increase(http_requests_total[$__range]))) > 0",
+          "expr": "sort_desc(sum by (route) (increase(http_requests_total{route!~\"GET /(health|metrics)\"}[$__range]))) > 0",
           "legendFormat": "{{route}}",
           "instant": true,
           "range": false
@@ -723,7 +723,7 @@
     {
       "type": "bargauge",
       "title": "Slowest routes (95th percentile)",
-      "description": "How long the slowest 5% of each route's requests took, over the dashboard time range.",
+      "description": "How long the slowest 5% of each route's requests took, over the dashboard time range. Leaves out the health check and the metrics scrapes, which aren't visitors.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -741,7 +741,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sort_desc(histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__range])))) > 0",
+          "expr": "sort_desc(histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{route!~\"GET /(health|metrics)\"}[$__range])))) > 0",
           "legendFormat": "{{route}}",
           "instant": true,
           "range": false
@@ -1591,7 +1591,7 @@
     {
       "type": "timeseries",
       "title": "Goroutines",
-      "description": "Goroutines running: the HTTP servers', the two background loops' and the database pool's.",
+      "description": "Goroutines running: the HTTP servers', the background loops' and the database pool's.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"

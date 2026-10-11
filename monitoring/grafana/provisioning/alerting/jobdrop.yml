@@ -16,7 +16,7 @@ groups:
         noDataState: NoData
         execErrState: Error
         annotations:
-          summary: No sync round has finished in 20 minutes; the sync loop has stopped or is stuck.
+          summary: No sync round has finished in 35 minutes; the sync loop has stopped or is stuck.
         data:
           - refId: A
             relativeTimeRange: { from: 600, to: 0 }
@@ -32,7 +32,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [1200] }
+                - evaluator: { type: gt, params: [2100] }
 
       - uid: jobdrop-server-errors
         title: API server errors
