@@ -5,23 +5,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"jobdrop/internal/boards"
 	"jobdrop/internal/model"
 	"jobdrop/internal/store"
 	"jobdrop/internal/testdb"
 )
 
-// These use TEST companies, whose "board" is the test_jobs table, so the
-// real sync runs end to end without the network.
+// These use TEST companies, whose "board" is their published test jobs, so
+// the real sync runs end to end without the network.
 
 func TestMain(m *testing.M) {
 	testdb.Run(m)
 }
 
 func newSyncer() *Syncer {
-	return New(testdb.Pool, boards.All(nil, testdb.Pool), nil)
+	return New(testdb.DB, boards.All(nil, testdb.DB), nil)
 }
 
 func syncNow(t *testing.T, s *Syncer, company model.Company) Result {
@@ -35,7 +33,7 @@ func syncNow(t *testing.T, s *Syncer, company model.Company) Result {
 
 func jobsOf(t *testing.T, company model.Company) []model.Job {
 	t.Helper()
-	jobs, err := store.JobsOfCompany(context.Background(), testdb.Pool, company.ID)
+	jobs, err := store.JobsOfCompany(context.Background(), testdb.DB, company)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,14 +79,15 @@ func TestOnlyWatchersWhosePreferencesMatchAreEmailed(t *testing.T) {
 	if result := syncNow(t, s, company); result.Queued != 1 {
 		t.Fatalf("got %+v, want 1 queued", result)
 	}
-	var queuedFor []string
-	err := testdb.Pool.QueryRow(context.Background(), `select array_agg(user_id::text) from notifications n
-		join jobs j on j.id = n.job_id where j.company_id = $1 and n.status = 'QUEUED'`, company.ID).Scan(&queuedFor)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(queuedFor) != 1 || queuedFor[0] != backendFan.ID {
-		t.Errorf("queued for %v, want only %s", queuedFor, backendFan.ID)
+	job := jobsOf(t, company)[0]
+	for _, user := range []model.User{backendFan, designFan, noPreferences} {
+		n, err := store.NotificationOf(context.Background(), testdb.DB, user.ID, job.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if queued := n != nil && n.Status == model.Queued; queued != (user.ID == backendFan.ID) {
+			t.Errorf("%s: queued %v", user.Email, queued)
+		}
 	}
 }
 
@@ -99,16 +98,16 @@ func TestJobsTakenOffTheBoardCloseButAnEmptyAnswerClosesNothing(t *testing.T) {
 	goes := testdb.PublishedTestJob(t, company, "Data Engineer")
 	syncNow(t, s, company)
 
-	unpublish(t, goes)
+	testdb.Unpublish(t, goes)
 	if result := syncNow(t, s, company); result.Closed != 1 {
 		t.Errorf("got %+v, want 1 closed", result)
 	}
 
-	unpublish(t, stays) // the board is now empty
+	testdb.Unpublish(t, stays) // the board is now empty
 	if result := syncNow(t, s, company); result.Closed != 0 {
 		t.Errorf("an empty board closed %d jobs", result.Closed)
 	}
-	job, err := store.JobByExternalID(context.Background(), testdb.Pool, company.ID, stays.ID)
+	job, err := store.JobByExternalID(context.Background(), testdb.DB, company.Slug, stays.ID)
 	if err != nil || job == nil || job.Status != model.Active {
 		t.Errorf("the job should still be open: %+v, %v", job, err)
 	}
@@ -128,7 +127,7 @@ func TestSyncingAgainWithNothingNewChangesNothing(t *testing.T) {
 
 func TestTheSenderIsWokenWhenASyncQueuesEmails(t *testing.T) {
 	woken := 0
-	s := New(testdb.Pool, boards.All(nil, testdb.Pool), func() { woken++ })
+	s := New(testdb.DB, boards.All(nil, testdb.DB), func() { woken++ })
 	company := testdb.WatchableCompany(t)
 	fan := testdb.User(t, testdb.Unique("fan")+"@example.com")
 	testdb.Watch(t, fan, company)
@@ -162,21 +161,18 @@ func (f *fakeBoard) Fetch(_ context.Context, _ model.Company, etag string) ([]mo
 func TestABoardThatHasNotChangedIsOnlyMarkedAsChecked(t *testing.T) {
 	board := &fakeBoard{etag: `W/"v1"`, postings: []model.Posting{{ExternalID: "1", Title: "Backend Engineer",
 		URL: "https://example.com/1", Classification: model.Classification{OpportunityType: model.FullTime}}}}
-	s := New(testdb.Pool, map[model.Platform]boards.Board{model.PlatformGreenhouse: board}, nil)
-	company := model.Company{ID: uuid.NewString(), Slug: testdb.Unique("board-co"), Name: "Board Co",
-		Platform: model.PlatformGreenhouse, BoardID: "board-co", Active: true, CreatedAt: model.Now()}
-	if _, err := store.CreateCompany(context.Background(), testdb.Pool, company); err != nil {
+	s := New(testdb.DB, map[model.Platform]boards.Board{model.PlatformGreenhouse: board}, nil)
+	company := model.Company{Slug: testdb.Unique("board-co"), Name: "Board Co", Platform: model.PlatformGreenhouse,
+		BoardID: "board-co", Active: true, CreatedAt: model.Now()}
+	if _, err := store.CreateCompany(context.Background(), testdb.DB, company); err != nil {
 		t.Fatal(err)
 	}
 
 	if first := syncNow(t, s, company); first.Created != 1 {
 		t.Fatalf("first sync: got %+v", first)
 	}
-	_, err := testdb.Pool.Exec(context.Background(),
-		`update companies set last_synced_at = now() - interval '1 hour' where id = $1`, company.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	firstChecked := lastSynced(t, company)
+	time.Sleep(10 * time.Millisecond)
 	second := syncNow(t, s, company)
 	if !second.Unchanged || second.Created+second.Updated+second.Closed != 0 {
 		t.Errorf("second sync: got %+v, want unchanged", second)
@@ -184,18 +180,67 @@ func TestABoardThatHasNotChangedIsOnlyMarkedAsChecked(t *testing.T) {
 	if board.askedWith[1] != `W/"v1"` {
 		t.Errorf("the second read should send the saved tag, sent %q", board.askedWith[1])
 	}
-	saved, err := store.CompanyByID(context.Background(), testdb.Pool, company.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if time.Since(*saved.LastSyncedAt) > time.Minute {
-		t.Errorf("an unchanged board should still be marked as checked just now, got %v", saved.LastSyncedAt)
+	if !lastSynced(t, company).After(firstChecked) {
+		t.Error("an unchanged board should still be marked as checked again")
 	}
 }
 
-func unpublish(t *testing.T, testJob model.TestJob) {
-	t.Helper()
-	if _, err := testdb.Pool.Exec(context.Background(), `delete from test_jobs where id = $1`, testJob.ID); err != nil {
+// A board without an ETag that reads the same as last time is recognised
+// by its fingerprint, and the jobs aren't even read.
+func TestABoardThatReadsTheSameIsNotComparedAgain(t *testing.T) {
+	s := newSyncer()
+	company := testdb.WatchableCompany(t)
+	testdb.PublishedTestJob(t, company, "Backend Engineer")
+	syncNow(t, s, company)
+
+	again := syncNow(t, s, company)
+	if !again.Unchanged || again.Discovered != 1 {
+		t.Errorf("got %+v, want 1 discovered, unchanged", again)
+	}
+	testdb.PublishedTestJob(t, company, "Data Engineer")
+	if changed := syncNow(t, s, company); changed.Created != 1 {
+		t.Errorf("a changed board: got %+v, want 1 created", changed)
+	}
+}
+
+// A sync that stopped after saving a new job but before queueing its
+// emails leaves the job's NotifyPending set; the next sync queues them,
+// and only once.
+func TestASyncThatStoppedHalfwayIsFinishedByTheNext(t *testing.T) {
+	s := newSyncer()
+	ctx := context.Background()
+	company := testdb.WatchableCompany(t)
+	fan := testdb.User(t, testdb.Unique("fan")+"@example.com")
+	testdb.Watch(t, fan, company)
+	testdb.WantsRole(t, fan, "Backend Engineer")
+	testJob := testdb.PublishedTestJob(t, company, "Backend Engineer")
+	// What the stopped sync saved: the new job, with no email queued yet.
+	now := model.Now()
+	roleFamily := "Backend Engineer"
+	stopped := model.Job{ID: model.JobID(company.Slug, testJob.ID), ExternalID: testJob.ID, Title: "Backend Engineer",
+		URL: testJob.ApplicationURL, Status: model.Active, OpportunityType: model.FullTime, RoleFamily: &roleFamily,
+		FirstSeenAt: now, UpdatedAt: now, NotifyPending: true, Company: company}
+	if err := store.InsertJob(ctx, testdb.DB, stopped); err != nil {
 		t.Fatal(err)
 	}
+
+	if result := syncNow(t, s, company); result.Created != 0 || result.Queued != 1 {
+		t.Errorf("the next sync: got %+v, want nothing created and 1 queued", result)
+	}
+	if job := jobsOf(t, company)[0]; job.NotifyPending {
+		t.Error("the job should no longer be pending")
+	}
+	testdb.PublishedTestJob(t, company, "Product Designer") // a change, so the board is compared again
+	if result := syncNow(t, s, company); result.Queued != 0 {
+		t.Errorf("the one after: got %+v, want nothing queued", result)
+	}
+}
+
+func lastSynced(t *testing.T, company model.Company) time.Time {
+	t.Helper()
+	saved, err := store.CompanyBySlug(context.Background(), testdb.DB, company.Slug)
+	if err != nil || saved == nil || saved.LastSyncedAt == nil {
+		t.Fatalf("no last sync time: %+v, %v", saved, err)
+	}
+	return *saved.LastSyncedAt
 }

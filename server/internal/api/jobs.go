@@ -154,7 +154,7 @@ func enumParam[T ~string](values url.Values, name string, allowed []T) (*T, erro
 // watches, narrowed by their preferences (the same rules that decide who
 // gets emailed), then by the search box and filters, sorted and paged.
 // Everything is filtered in memory, which is fine at this scale; a much
-// bigger dataset would push the filters into the SQL query.
+// bigger dataset would need the jobs stored the way the feed reads them.
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request, user model.User) error {
 	query, err := parseJobsQuery(r.URL.Query())
 	if err != nil {
@@ -196,9 +196,9 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request, user model.Use
 			writeJSON(w, http.StatusOK, jobsPage{Jobs: []jobListing{}})
 			return nil
 		}
-		watched := make([]string, len(subs))
+		watched := make([]model.Company, len(subs))
 		for i, sub := range subs {
-			watched[i] = sub.Company.ID
+			watched[i] = sub.Company
 		}
 		open, err := store.OpenJobsAt(ctx, s.db, watched)
 		if err != nil {
@@ -326,9 +326,18 @@ type companyWithID struct {
 	Domain *string `json:"domain"`
 }
 
+// pathJobID reads a job id ("<company slug>.<external id>") from the path.
+func pathJobID(r *http.Request) (string, error) {
+	id := r.PathValue("id")
+	if _, _, ok := model.ParseJobID(id); !ok {
+		return "", errBadInput
+	}
+	return id, nil
+}
+
 // jobDetail: any signed-in user may open any job.
 func (s *Server) jobDetail(w http.ResponseWriter, r *http.Request, user model.User) error {
-	id, err := pathID(r)
+	id, err := pathJobID(r)
 	if err != nil {
 		return err
 	}
@@ -350,7 +359,7 @@ func (s *Server) jobDetail(w http.ResponseWriter, r *http.Request, user model.Us
 	c := job.Company
 	writeJSON(w, http.StatusOK, map[string]any{"job": jobPage{
 		jobFields:        fieldsOf(*job),
-		Company:          companyWithID{c.ID, c.Name, c.Slug, c.Domain},
+		Company:          companyWithID{c.Slug, c.Name, c.Slug, c.Domain},
 		UserState:        mark,
 		MatchExplanation: explain(*job, prefs),
 	}})
@@ -360,7 +369,7 @@ func (s *Server) jobDetail(w http.ResponseWriter, r *http.Request, user model.Us
 // setMark: save, mark applied or dismiss. A job has one mark at a time, so
 // this replaces whatever mark it had.
 func (s *Server) setMark(w http.ResponseWriter, r *http.Request, user model.User) error {
-	id, err := pathID(r)
+	id, err := pathJobID(r)
 	if err != nil {
 		return err
 	}
@@ -392,7 +401,7 @@ func (s *Server) setMark(w http.ResponseWriter, r *http.Request, user model.User
 // clearMark removes the mark (un-save, or undo a dismiss). Removing no
 // mark is fine too.
 func (s *Server) clearMark(w http.ResponseWriter, r *http.Request, user model.User) error {
-	id, err := pathID(r)
+	id, err := pathJobID(r)
 	if err != nil {
 		return err
 	}

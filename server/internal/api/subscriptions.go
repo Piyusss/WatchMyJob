@@ -31,7 +31,7 @@ type subscriptionView struct {
 }
 
 // viewOfSubscription is the shape the website reads. Unwatching deletes
-// the row, so a stored subscription is always active; active=false
+// the item, so a stored subscription is always active; active=false
 // describes one that was just deleted.
 func viewOfSubscription(sub model.Subscription, active bool) subscriptionView {
 	var deactivatedAt *time.Time
@@ -43,13 +43,13 @@ func viewOfSubscription(sub model.Subscription, active bool) subscriptionView {
 	return subscriptionView{
 		ID:            sub.ID,
 		UserID:        sub.UserID,
-		CompanyID:     c.ID,
+		CompanyID:     c.Slug,
 		SubscribedAt:  sub.CreatedAt,
 		DeactivatedAt: deactivatedAt,
 		Active:        active,
 		CreatedAt:     sub.CreatedAt,
 		UpdatedAt:     sub.CreatedAt,
-		Company:       subscriptionCompany{c.ID, c.Name, c.Slug, c.Status()},
+		Company:       subscriptionCompany{c.Slug, c.Name, c.Slug, c.Status()},
 	}
 }
 
@@ -87,11 +87,11 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request, user model.User) 
 	if company == nil || !company.Selectable() {
 		return notFound("No such company")
 	}
-	created, err := store.Watch(r.Context(), s.db, user.ID, company.ID)
+	created, err := store.Watch(r.Context(), s.db, user.ID, company.Slug)
 	if err != nil {
 		return err
 	}
-	sub, err := store.SubscriptionOf(r.Context(), s.db, user.ID, company.ID)
+	sub, err := store.SubscriptionOf(r.Context(), s.db, user.ID, company.Slug)
 	if err != nil {
 		return err
 	}
@@ -112,13 +112,13 @@ func (s *Server) unwatch(w http.ResponseWriter, r *http.Request, user model.User
 	if company == nil {
 		return notFound("No such company")
 	}
-	sub, err := store.SubscriptionOf(r.Context(), s.db, user.ID, company.ID)
+	sub, err := store.SubscriptionOf(r.Context(), s.db, user.ID, company.Slug)
 	if err != nil {
 		return err
 	}
 	var ended *subscriptionView
 	if sub != nil {
-		if _, err := store.Unwatch(r.Context(), s.db, user.ID, company.ID); err != nil {
+		if _, err := store.Unwatch(r.Context(), s.db, user.ID, company.Slug); err != nil {
 			return err
 		}
 		view := viewOfSubscription(*sub, false)
@@ -161,9 +161,9 @@ func (s *Server) bulkWatch(w http.ResponseWriter, r *http.Request, user model.Us
 	for _, company := range companies {
 		var did bool
 		if *body.Action == "watch" {
-			did, err = store.Watch(r.Context(), s.db, user.ID, company.ID)
+			did, err = store.Watch(r.Context(), s.db, user.ID, company.Slug)
 		} else {
-			did, err = store.Unwatch(r.Context(), s.db, user.ID, company.ID)
+			did, err = store.Unwatch(r.Context(), s.db, user.ID, company.Slug)
 		}
 		if err != nil {
 			return err

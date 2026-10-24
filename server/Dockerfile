@@ -1,5 +1,5 @@
-# Build: compile the server into one static binary (companies.json, the
-# migrations and the email template are embedded in it).
+# Build: compile the server into one static binary (companies.json and the
+# email template are embedded in it).
 FROM golang:1.27-alpine AS build
 WORKDIR /src
 # Dependencies get their own layer, so a code-only change doesn't download

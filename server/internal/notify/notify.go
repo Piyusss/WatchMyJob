@@ -1,6 +1,6 @@
 // Package notify turns new jobs into emails, in two steps. QueueForNewJob
 // (called by the sync) records who should hear about a job; a Sender (on a
-// timer) sends those emails. The queue table means a slow or failing email
+// timer) sends those emails. The queue means a slow or failing email
 // provider never holds up the sync, and failed sends can be retried.
 package notify
 
@@ -18,25 +18,22 @@ import (
 // batchSize is how many emails one round sends at most.
 const batchSize = 20
 
-// QueueForNewJob queues an email for everyone watching the job's company
-// whose preferences it matches, and returns how many. It runs inside the
-// sync's transaction.
-func QueueForNewJob(ctx context.Context, db store.DB, job model.Job) (int, error) {
-	watchers, err := store.WatchersOf(ctx, db, job.Company.ID)
-	if err != nil {
-		return 0, err
-	}
+// QueueForNewJob queues an email for each of the company's watchers (the
+// sync loads them once for all its new jobs) whose preferences the job
+// matches, and returns how many it queued. Someone who already has an
+// email about the job, from a sync that stopped halfway, isn't queued again.
+func QueueForNewJob(ctx context.Context, db *store.DB, job model.Job, watchers []store.Watcher) (int, error) {
 	queued := 0
-	for _, user := range watchers {
-		prefs, err := store.PreferencesOf(ctx, db, user.ID)
+	for _, watcher := range watchers {
+		// Someone who hasn't set preferences yet isn't sent anything.
+		if watcher.Preferences == nil || !matching.Matches(job, *watcher.Preferences) {
+			continue
+		}
+		added, err := store.QueueNotification(ctx, db, watcher.User.ID, job.ID)
 		if err != nil {
 			return queued, err
 		}
-		// Someone who hasn't set preferences yet isn't sent anything.
-		if prefs != nil && matching.Matches(job, *prefs) {
-			if err := store.QueueNotification(ctx, db, user.ID, job.ID); err != nil {
-				return queued, err
-			}
+		if added {
 			queued++
 		}
 	}
@@ -45,18 +42,17 @@ func QueueForNewJob(ctx context.Context, db store.DB, job model.Job) (int, error
 
 // Sender sends the queued emails.
 type Sender struct {
-	db          store.DB
+	db          *store.DB
 	mailer      Mailer
 	frontendURL string
 	// Whether anything may be waiting to be sent: set at startup (for
 	// whatever was queued before a restart), by Wake, and while a failed
 	// send waits for its retry. While it's unset, a round doesn't ask the
-	// database at all, so an idle server leaves the database alone and a
-	// serverless one (Neon) can sleep.
+	// database at all, which spares the table's read capacity.
 	pending atomic.Bool
 }
 
-func NewSender(db store.DB, mailer Mailer, frontendURL string) *Sender {
+func NewSender(db *store.DB, mailer Mailer, frontendURL string) *Sender {
 	s := &Sender{db: db, mailer: mailer, frontendURL: frontendURL}
 	s.pending.Store(true)
 	return s
@@ -150,7 +146,7 @@ func (s *Sender) reasonNotToSend(ctx context.Context, n model.Notification) (str
 	case !n.User.EmailVerified:
 		return "user's email is not verified", nil
 	}
-	watching, err := store.IsWatching(ctx, s.db, n.User.ID, n.Job.Company.ID)
+	watching, err := store.IsWatching(ctx, s.db, n.User.ID, n.Job.Company.Slug)
 	if err != nil || watching {
 		return "", err
 	}

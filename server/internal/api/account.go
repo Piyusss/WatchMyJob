@@ -39,7 +39,7 @@ func (s *Server) profileOf(ctx context.Context, user model.User) (profile, error
 }
 
 // me: the website calls this first on every page, which also makes it
-// where a brand new user's row gets created (see currentUser).
+// where a brand new user's item gets created (see currentUser).
 func (s *Server) me(w http.ResponseWriter, r *http.Request, user model.User) error {
 	p, err := s.profileOf(r.Context(), user)
 	if err != nil {
@@ -108,10 +108,10 @@ func (s *Server) exportAccount(w http.ResponseWriter, r *http.Request, user mode
 }
 
 // deleteAccount deletes the Clerk account first: if that fails nothing has
-// changed here and the user can simply retry. Deleting the user's row then
-// removes everything that belongs to them (the foreign keys cascade).
+// changed here and the user can simply retry. Then everything stored about
+// the user goes (see store.DeleteUser).
 func (s *Server) deleteAccount(w http.ResponseWriter, r *http.Request, user model.User) error {
-	if err := s.clerk.DeleteUser(r.Context(), user.ClerkUserID); err != nil {
+	if err := s.clerk.DeleteUser(r.Context(), user.ID); err != nil {
 		return err
 	}
 	if err := store.DeleteUser(r.Context(), s.db, user.ID); err != nil {

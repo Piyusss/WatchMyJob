@@ -2,130 +2,147 @@ package store
 
 import (
 	"context"
+	"slices"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"jobdrop/internal/model"
 )
 
-// Test jobs: the fake openings an admin writes for a TEST company, each
-// with its locations in test_job_locations.
+// Test jobs: the fake openings an admin writes for a TEST company. They're
+// kept in the company's partition, where its board (PublishedTestJobs) is
+// one strongly consistent Query: publishing runs the sync straight away,
+// and it must see the job just published. The admin pages know a test job
+// only by its id, so a small pointer item leads from the id to the company.
 
-const testJobColumns = `t.id, t.company_id, t.title, t.role_family, t.level, t.work_mode, t.opportunity_type,
-	t.experience_min, t.experience_max, t.description, t.application_url, t.published_at, t.created_at`
-
-func scanTestJob(row pgx.CollectableRow) (model.TestJob, error) {
-	var t model.TestJob
-	err := row.Scan(&t.ID, &t.CompanyID, &t.Title, &t.RoleFamily, &t.Level, &t.WorkMode, &t.OpportunityType,
-		&t.ExperienceMin, &t.ExperienceMax, &t.Description, &t.ApplicationURL, &t.PublishedAt, &t.CreatedAt)
-	return t, err
+type testJobItem struct {
+	PK, SK          string
+	ID              string                `dynamodbav:"id"`
+	CompanySlug     string                `dynamodbav:"companySlug"`
+	Title           string                `dynamodbav:"title"`
+	RoleFamily      string                `dynamodbav:"roleFamily"`
+	Level           *string               `dynamodbav:"level,omitempty"`
+	WorkMode        *model.WorkMode       `dynamodbav:"workMode,omitempty"`
+	OpportunityType model.OpportunityType `dynamodbav:"opportunityType"`
+	ExperienceMin   *int                  `dynamodbav:"experienceMin,omitempty"`
+	ExperienceMax   *int                  `dynamodbav:"experienceMax,omitempty"`
+	Description     *string               `dynamodbav:"description,omitempty"`
+	ApplicationURL  string                `dynamodbav:"applicationUrl"`
+	PublishedAt     *time.Time            `dynamodbav:"publishedAt,omitempty"`
+	CreatedAt       time.Time             `dynamodbav:"createdAt"`
+	Locations       []locationItem        `dynamodbav:"locations"`
 }
 
-func TestJobByID(ctx context.Context, db DB, id string) (*model.TestJob, error) {
-	rows, _ := db.Query(ctx, `select `+testJobColumns+` from test_jobs t where t.id = $1`, id)
-	job, err := one(rows, scanTestJob)
-	if job == nil || err != nil {
-		return job, err
+type testJobPointer struct {
+	PK, SK      string
+	CompanySlug string `dynamodbav:"companySlug"`
+}
+
+func testJobItemOf(t model.TestJob) testJobItem {
+	k := testJobKey(t.CompanySlug, t.ID)
+	return testJobItem{k.PK, k.SK, t.ID, t.CompanySlug, t.Title, t.RoleFamily, t.Level, t.WorkMode, t.OpportunityType,
+		t.ExperienceMin, t.ExperienceMax, t.Description, t.ApplicationURL, t.PublishedAt, t.CreatedAt,
+		locationItemsOf(t.Locations)}
+}
+
+func (i testJobItem) testJob() model.TestJob {
+	return model.TestJob{ID: i.ID, CompanySlug: i.CompanySlug, Title: i.Title, RoleFamily: i.RoleFamily,
+		Level: i.Level, WorkMode: i.WorkMode, OpportunityType: i.OpportunityType, ExperienceMin: i.ExperienceMin,
+		ExperienceMax: i.ExperienceMax, Description: i.Description, ApplicationURL: i.ApplicationURL,
+		PublishedAt: i.PublishedAt, CreatedAt: i.CreatedAt, Locations: locationsOf(i.Locations)}
+}
+
+// A location as stored, in a test job or in preferences.
+type locationItem struct {
+	CountryCode string  `dynamodbav:"countryCode"`
+	CountryName string  `dynamodbav:"countryName"`
+	StateCode   *string `dynamodbav:"stateCode,omitempty"`
+	StateName   *string `dynamodbav:"stateName,omitempty"`
+	CityName    *string `dynamodbav:"cityName,omitempty"`
+}
+
+func locationItemsOf(locations []model.Location) []locationItem {
+	items := make([]locationItem, len(locations))
+	for i, l := range locations {
+		items[i] = locationItem(l)
 	}
-	jobs, err := withLocations(ctx, db, []model.TestJob{*job})
-	if err != nil {
+	return items
+}
+
+func locationsOf(items []locationItem) []model.Location {
+	locations := make([]model.Location, len(items))
+	for i, item := range items {
+		locations[i] = model.Location(item)
+	}
+	return locations
+}
+
+func TestJobByID(ctx context.Context, d *DB, id string) (*model.TestJob, error) {
+	var pointer testJobPointer
+	found, err := d.get(ctx, testJobPointerKey(id), &pointer)
+	if !found || err != nil {
 		return nil, err
 	}
-	return &jobs[0], nil
+	var item testJobItem
+	found, err = d.get(ctx, testJobKey(pointer.CompanySlug, id), &item)
+	if !found || err != nil {
+		return nil, err
+	}
+	job := item.testJob()
+	return &job, nil
 }
 
 // TestJobsOfCompany returns a test company's jobs, newest first.
-func TestJobsOfCompany(ctx context.Context, db DB, companyID string) ([]model.TestJob, error) {
-	rows, _ := db.Query(ctx, `select `+testJobColumns+` from test_jobs t where t.company_id = $1
-		order by t.created_at desc`, companyID)
-	jobs, err := pgx.CollectRows(rows, scanTestJob)
+func TestJobsOfCompany(ctx context.Context, d *DB, companySlug string) ([]model.TestJob, error) {
+	items, err := query[testJobItem](ctx, d, inPartition(companyPartition(companySlug), "TESTJOB#"))
 	if err != nil {
 		return nil, err
 	}
-	return withLocations(ctx, db, jobs)
-}
-
-// PublishedTestJobs are a test company's "board": the jobs an admin published.
-func PublishedTestJobs(ctx context.Context, db DB, companyID string) ([]model.TestJob, error) {
-	rows, _ := db.Query(ctx, `select `+testJobColumns+` from test_jobs t where t.company_id = $1
-		and t.published_at is not null`, companyID)
-	jobs, err := pgx.CollectRows(rows, scanTestJob)
-	if err != nil {
-		return nil, err
+	jobs := make([]model.TestJob, len(items))
+	for i, item := range items {
+		jobs[i] = item.testJob()
 	}
-	return withLocations(ctx, db, jobs)
-}
-
-func CountTestJobs(ctx context.Context, db DB, companyID string) (int, error) {
-	return count(ctx, db, `select count(*) from test_jobs where company_id = $1`, companyID)
-}
-
-// withLocations fills in each job's locations, with one query for all of them.
-func withLocations(ctx context.Context, db DB, jobs []model.TestJob) ([]model.TestJob, error) {
-	ids := make([]string, len(jobs))
-	for i, job := range jobs {
-		ids[i] = job.ID
-		jobs[i].Locations = []model.Location{}
-	}
-	type jobLocation struct {
-		jobID    string
-		location model.Location
-	}
-	rows, _ := db.Query(ctx, `select test_job_id, `+locationColumns+` from test_job_locations
-		where test_job_id = any($1)`, ids)
-	found, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (jobLocation, error) {
-		var jl jobLocation
-		l := &jl.location
-		err := row.Scan(&jl.jobID, &l.CountryCode, &l.CountryName, &l.StateCode, &l.StateName, &l.CityName)
-		return jl, err
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, jl := range found {
-		for i := range jobs {
-			if jobs[i].ID == jl.jobID {
-				jobs[i].Locations = append(jobs[i].Locations, jl.location)
-			}
-		}
-	}
+	slices.SortStableFunc(jobs, func(a, b model.TestJob) int { return b.CreatedAt.Compare(a.CreatedAt) })
 	return jobs, nil
 }
 
-// SaveTestJob writes the job and replaces its locations, in one transaction.
-func SaveTestJob(ctx context.Context, db DB, t model.TestJob) error {
-	return pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			insert into test_jobs (id, company_id, title, role_family, level, work_mode, opportunity_type,
-				experience_min, experience_max, description, application_url, published_at, created_at)
-			values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-			on conflict (id) do update set title = excluded.title, role_family = excluded.role_family,
-				level = excluded.level, work_mode = excluded.work_mode, opportunity_type = excluded.opportunity_type,
-				experience_min = excluded.experience_min, experience_max = excluded.experience_max,
-				description = excluded.description, application_url = excluded.application_url`,
-			t.ID, t.CompanyID, t.Title, t.RoleFamily, t.Level, t.WorkMode, t.OpportunityType, t.ExperienceMin,
-			t.ExperienceMax, t.Description, t.ApplicationURL, t.PublishedAt, t.CreatedAt)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `delete from test_job_locations where test_job_id = $1`, t.ID); err != nil {
-			return err
-		}
-		for _, l := range t.Locations {
-			if _, err := tx.Exec(ctx, `insert into test_job_locations (test_job_id, `+locationColumns+`)
-				values ($1, $2, $3, $4, $5, $6)`, t.ID, l.CountryCode, l.CountryName, l.StateCode, l.StateName,
-				l.CityName); err != nil {
-				return err
-			}
-		}
-		return nil
+// PublishedTestJobs are a test company's "board": the jobs an admin published.
+func PublishedTestJobs(ctx context.Context, d *DB, companySlug string) ([]model.TestJob, error) {
+	jobs, err := TestJobsOfCompany(ctx, d, companySlug)
+	return slices.DeleteFunc(jobs, func(t model.TestJob) bool { return t.PublishedAt == nil }), err
+}
+
+func CountTestJobs(ctx context.Context, d *DB, companySlug string) (int, error) {
+	return count(ctx, d, inPartition(companyPartition(companySlug), "TESTJOB#"))
+}
+
+// SaveTestJob writes the job and its pointer together, in a transaction:
+// both are written or neither is.
+func SaveTestJob(ctx context.Context, d *DB, t model.TestJob) error {
+	k := testJobPointerKey(t.ID)
+	pointer, err := attributevalue.MarshalMap(testJobPointer{k.PK, k.SK, t.CompanySlug})
+	if err != nil {
+		return err
+	}
+	item, err := attributevalue.MarshalMap(testJobItemOf(t))
+	if err != nil {
+		return err
+	}
+	_, err = d.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+		TransactItems: []types.TransactWriteItem{
+			{Put: &types.Put{TableName: &d.table, Item: pointer}},
+			{Put: &types.Put{TableName: &d.table, Item: item}},
+		},
 	})
+	return err
 }
 
 // PublishTestJob puts the job on its company's board. Publishing again
 // keeps the first date.
-func PublishTestJob(ctx context.Context, db DB, id string, now time.Time) error {
-	_, err := db.Exec(ctx, `update test_jobs set published_at = coalesce(published_at, $2) where id = $1`, id, now)
-	return err
+func PublishTestJob(ctx context.Context, d *DB, t model.TestJob, now time.Time) error {
+	return d.update(ctx, testJobKey(t.CompanySlug, t.ID), "SET #publishedAt = if_not_exists(#publishedAt, :now)",
+		map[string]any{":now": now})
 }

@@ -14,12 +14,14 @@ import (
 type Config struct {
 	Port        string
 	MetricsPort string
-	// A PostgreSQL URL. The Java version's JDBC form
-	// ("jdbc:postgresql://host:port/db") works too. The user name and
-	// password, when set, replace any in the URL.
-	DatabaseURL      string
-	DatabaseUser     string
-	DatabasePassword string
+	// The DynamoDB table (the server creates it if it's missing) and its
+	// AWS region. DynamoEndpoint is set only for DynamoDB Local, in
+	// development: the client then talks to it instead of AWS. The AWS keys
+	// aren't here: the AWS SDK reads them itself (AWS_ACCESS_KEY_ID,
+	// AWS_SECRET_ACCESS_KEY).
+	DynamoTable    string
+	AWSRegion      string
+	DynamoEndpoint string
 	// The website's address: the only origin allowed to call the API
 	// (CORS), and the base of the unsubscribe link in emails.
 	FrontendURL    string
@@ -31,8 +33,8 @@ type Config struct {
 	// False runs the API alone, without the sync and email timers.
 	SchedulingEnabled bool
 	// The pause between the end of one sync round and the start of the
-	// next ("5m", "20m"). Longer means slower alerts but a database that
-	// can sleep in between (Neon's free plan has a monthly compute limit).
+	// next ("5m", "20m"). Longer means slower alerts, but also fewer reads
+	// and writes of the table, whose capacity is small (see store/table.go).
 	SyncInterval time.Duration
 	// The server's own public address, set by Render on its services
 	// (RENDER_EXTERNAL_URL). Render's free plan stops a service after 15
@@ -47,11 +49,11 @@ type Config struct {
 
 func Load() (Config, error) {
 	c := Config{
-		Port:             env("PORT", "4000"),
-		MetricsPort:      env("METRICS_PORT", "9091"),
-		DatabaseURL:      env("DATABASE_URL", "postgresql://jobdrop:jobdrop@localhost:5433/jobdrop"),
-		DatabaseUser:     os.Getenv("DATABASE_USERNAME"),
-		DatabasePassword: os.Getenv("DATABASE_PASSWORD"),
+		Port:           env("PORT", "4000"),
+		MetricsPort:    env("METRICS_PORT", "9091"),
+		DynamoTable:    env("DYNAMODB_TABLE", "jobdrop"),
+		AWSRegion:      strings.TrimSpace(os.Getenv("AWS_REGION")),
+		DynamoEndpoint: strings.TrimSpace(os.Getenv("DYNAMODB_ENDPOINT")),
 		// A trailing slash would break the CORS origin check and the email links.
 		FrontendURL:       strings.TrimRight(env("FRONTEND_URL", "http://localhost:3000"), "/"),
 		ClerkSecretKey:    strings.TrimSpace(os.Getenv("CLERK_SECRET_KEY")),
@@ -72,6 +74,13 @@ func Load() (Config, error) {
 		return c, errors.New("SYNC_INTERVAL must be a duration of at least a minute, like 5m or 20m")
 	}
 	c.SyncInterval = interval
+	if c.AWSRegion == "" {
+		// Without it, the table could be made in a region far from the server.
+		if c.DynamoEndpoint == "" {
+			return c, errors.New("AWS_REGION must be set: the region of the DynamoDB table, e.g. us-west-2")
+		}
+		c.AWSRegion = "us-east-1" // DynamoDB Local doesn't mind which
+	}
 	// The backend can't check anyone's sign-in without it.
 	if c.ClerkSecretKey == "" {
 		return c, errors.New("CLERK_SECRET_KEY must be set")

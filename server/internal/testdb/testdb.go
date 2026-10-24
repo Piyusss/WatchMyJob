@@ -1,6 +1,6 @@
-// Package testdb is for the integration tests: a real, throwaway PostgreSQL
-// in Docker with the app's schema, so the tests can never touch a real
-// database, and helpers that add the rows a test needs. Every helper makes
+// Package testdb is for the integration tests: DynamoDB Local in Docker, a
+// throwaway database with the app's table, so the tests can never touch a
+// real one; and helpers that add the items a test needs. Every helper makes
 // uniquely named data, so tests never depend on each other.
 package testdb
 
@@ -11,41 +11,50 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/modules/dynamodb"
 
 	"jobdrop/internal/db"
 	"jobdrop/internal/model"
 	"jobdrop/internal/store"
 )
 
-// Run starts the database, runs a package's tests against it, then removes
-// it. Call it from the package's TestMain; Pool is ready when tests start.
+// Run starts DynamoDB Local, runs a package's tests against it, then
+// removes it. Call it from the package's TestMain; DB is ready when tests start.
 func Run(m *testing.M) {
 	ctx := context.Background()
-	container, err := postgres.Run(ctx, "postgres:16-alpine", postgres.BasicWaitStrategies())
+	container, err := dynamodb.Run(ctx, "amazon/dynamodb-local:3.3.1",
+		testcontainers.WithCmdArgs("-inMemory"), dynamodb.WithDisableTelemetry())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "starting PostgreSQL in Docker (is Docker running?):", err)
+		fmt.Fprintln(os.Stderr, "starting DynamoDB Local in Docker (is Docker running?):", err)
 		os.Exit(1)
 	}
-	url, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err == nil {
-		Pool, err = db.Connect(ctx, url, "", "")
-	}
+	err = connect(ctx, container)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		_ = testcontainers.TerminateContainer(container)
 		os.Exit(1)
 	}
 	code := m.Run()
-	Pool.Close()
 	_ = testcontainers.TerminateContainer(container)
 	os.Exit(code)
 }
 
-// Pool is the connection pool to the test database.
-var Pool *pgxpool.Pool
+func connect(ctx context.Context, container *dynamodb.DynamoDBContainer) error {
+	address, err := container.ConnectionString(ctx)
+	if err != nil {
+		return err
+	}
+	client, err := db.Connect(ctx, "us-east-1", "http://"+address)
+	if err != nil {
+		return err
+	}
+	DB = store.New(client, "jobdrop")
+	return DB.EnsureTable(ctx, false)
+}
+
+// DB is the test database.
+var DB *store.DB
 
 // Unique is prefix plus a random suffix.
 func Unique(prefix string) string {
@@ -55,7 +64,7 @@ func Unique(prefix string) string {
 // User adds a user with a verified email.
 func User(t *testing.T, email string) model.User {
 	t.Helper()
-	user, err := store.CreateUser(context.Background(), Pool, Unique("clerk"), "Test User", email, true)
+	user, err := store.CreateUser(context.Background(), DB, Unique("user"), "Test User", email, true)
 	must(t, err)
 	return user
 }
@@ -63,9 +72,9 @@ func User(t *testing.T, email string) model.User {
 // Company adds a test company. Until its first sync, it has no baseline.
 func Company(t *testing.T, name string) model.Company {
 	t.Helper()
-	company := model.Company{ID: uuid.NewString(), Slug: Unique("test-co"), Name: name,
-		Platform: model.PlatformTest, Active: true, CreatedAt: model.Now()}
-	_, err := store.CreateCompany(context.Background(), Pool, company)
+	company := model.Company{Slug: Unique("test-co"), Name: name, Platform: model.PlatformTest, Active: true,
+		CreatedAt: model.Now()}
+	_, err := store.CreateCompany(context.Background(), DB, company)
 	must(t, err)
 	return company
 }
@@ -74,20 +83,27 @@ func Company(t *testing.T, name string) model.Company {
 func WatchableCompany(t *testing.T) model.Company {
 	t.Helper()
 	company := Company(t, "Test Co")
-	must(t, store.MarkCompanySynced(context.Background(), Pool, company.ID, model.Now()))
+	must(t, store.MarkCompanySynced(context.Background(), DB, company.Slug, model.Now(), "", nil))
 	company.InitialSyncDone = true
 	return company
 }
 
-// OpenJob adds an open, full-time job in Bangalore whose role family is its title.
+// OpenJob adds an open, full-time job in Bangalore whose role family is its
+// title, and updates its company's counts as a sync would.
 func OpenJob(t *testing.T, company model.Company, title string) model.Job {
 	t.Helper()
+	ctx := context.Background()
 	now := model.Now()
-	job := model.Job{ID: uuid.NewString(), ExternalID: Unique("job"), FirstSeenAt: now, UpdatedAt: now, Company: company}
+	externalID := Unique("job")
+	job := model.Job{ID: model.JobID(company.Slug, externalID), ExternalID: externalID, FirstSeenAt: now,
+		UpdatedAt: now, Company: company}
 	location := "Bangalore, India"
 	job.Update(model.Posting{Title: title, Location: &location, URL: "https://example.com/job",
 		Classification: model.Classification{RoleFamily: &title, OpportunityType: model.FullTime}}, now)
-	must(t, store.InsertJob(context.Background(), Pool, job))
+	must(t, store.InsertJob(ctx, DB, job))
+	jobs, err := store.JobsOfCompany(ctx, DB, company)
+	must(t, err)
+	must(t, store.MarkCompanySynced(ctx, DB, company.Slug, now, "", jobs))
 	return job
 }
 
@@ -95,16 +111,23 @@ func OpenJob(t *testing.T, company model.Company, title string) model.Job {
 func PublishedTestJob(t *testing.T, company model.Company, title string) model.TestJob {
 	t.Helper()
 	now := model.Now()
-	testJob := model.TestJob{ID: uuid.NewString(), CompanyID: company.ID, Title: title, RoleFamily: title,
+	testJob := model.TestJob{ID: uuid.NewString(), CompanySlug: company.Slug, Title: title, RoleFamily: title,
 		OpportunityType: model.FullTime, ApplicationURL: "https://example.com/apply", PublishedAt: &now, CreatedAt: now,
 		Locations: []model.Location{}}
-	must(t, store.SaveTestJob(context.Background(), Pool, testJob))
+	must(t, store.SaveTestJob(context.Background(), DB, testJob))
 	return testJob
+}
+
+// Unpublish takes a test job off its company's board.
+func Unpublish(t *testing.T, testJob model.TestJob) {
+	t.Helper()
+	testJob.PublishedAt = nil
+	must(t, store.SaveTestJob(context.Background(), DB, testJob))
 }
 
 func Watch(t *testing.T, user model.User, company model.Company) {
 	t.Helper()
-	_, err := store.Watch(context.Background(), Pool, user.ID, company.ID)
+	_, err := store.Watch(context.Background(), DB, user.ID, company.Slug)
 	must(t, err)
 }
 
@@ -113,7 +136,25 @@ func WantsRole(t *testing.T, user model.User, roleFamily string) {
 	t.Helper()
 	prefs := &model.Preferences{ID: uuid.NewString(), UserID: user.ID}
 	prefs.Update(model.Settings{RoleFamily: &roleFamily}, model.Now())
-	must(t, store.SavePreferences(context.Background(), Pool, prefs))
+	must(t, store.SavePreferences(context.Background(), DB, prefs))
+}
+
+// EmptyQueue marks every queued email as skipped, so a test's sender
+// round sends only what the test queues after.
+func EmptyQueue(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	for {
+		queued, err := store.QueuedNotifications(ctx, DB, 100)
+		must(t, err)
+		if len(queued) == 0 {
+			return
+		}
+		for _, n := range queued {
+			n.MarkSkipped("cleared by a test")
+			must(t, store.SaveNotification(ctx, DB, n))
+		}
+	}
 }
 
 func must(t *testing.T, err error) {

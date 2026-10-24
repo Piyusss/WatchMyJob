@@ -7,6 +7,7 @@ import (
 
 func TestTheSyncIntervalIsFiveMinutesUnlessSet(t *testing.T) {
 	t.Setenv("CLERK_SECRET_KEY", "sk_test_example")
+	t.Setenv("AWS_REGION", "us-west-2")
 	for value, want := range map[string]time.Duration{"": 5 * time.Minute, "20m": 20 * time.Minute} {
 		t.Setenv("SYNC_INTERVAL", value)
 		if c, err := Load(); err != nil || c.SyncInterval != want {
@@ -19,5 +20,19 @@ func TestTheSyncIntervalIsFiveMinutesUnlessSet(t *testing.T) {
 		if _, err := Load(); err == nil {
 			t.Errorf("SYNC_INTERVAL=%q should be refused", value)
 		}
+	}
+}
+
+// AWS needs to be told the table's region; DynamoDB Local doesn't care.
+func TestTheRegionIsOnlyRequiredForAWS(t *testing.T) {
+	t.Setenv("CLERK_SECRET_KEY", "sk_test_example")
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("DYNAMODB_ENDPOINT", "")
+	if _, err := Load(); err == nil {
+		t.Error("AWS without AWS_REGION should be refused")
+	}
+	t.Setenv("DYNAMODB_ENDPOINT", "http://localhost:8000")
+	if c, err := Load(); err != nil || c.AWSRegion == "" {
+		t.Errorf("DynamoDB Local without AWS_REGION: got %q, %v", c.AWSRegion, err)
 	}
 }

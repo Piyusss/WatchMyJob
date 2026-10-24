@@ -4,11 +4,17 @@
 package metrics
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -66,6 +72,22 @@ var (
 		Name: "jobdrop_email_queue_depth",
 		Help: "Emails waiting to be sent, as of the last send round.",
 	})
+
+	dynamoRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "dynamodb_requests_total",
+		Help: "DynamoDB requests by operation and outcome (ok, condition_failed or error), after any retries.",
+	}, []string{"operation", "outcome"})
+
+	dynamoDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "dynamodb_request_duration_seconds",
+		Help:    "How long DynamoDB requests take, retries included, by operation.",
+		Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30},
+	}, []string{"operation"})
+
+	dynamoThrottles = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "dynamodb_throttled_attempts_total",
+		Help: "DynamoDB attempts refused for lack of capacity (then retried), by operation.",
+	}, []string{"operation"})
 )
 
 // Middleware records each request's route, status code and duration. The
@@ -97,14 +119,45 @@ func (r *statusRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-// WatchPool reports the database connection pool's state at every scrape.
-func WatchPool(pool *pgxpool.Pool) {
-	gauge := func(name, help string, read func(*pgxpool.Stat) int32) {
-		promauto.NewGaugeFunc(prometheus.GaugeOpts{Name: name, Help: help}, func() float64 {
-			return float64(read(pool.Stat()))
-		})
+// DynamoDB records every request the DynamoDB client makes; db.Connect
+// adds it to the client's middleware stack. Initialize is the stack's
+// first step, so it sees each request once, retries included.
+func DynamoDB(stack *middleware.Stack) error {
+	err := stack.Initialize.Add(middleware.InitializeMiddlewareFunc("JobDropMetrics",
+		func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+			middleware.InitializeOutput, middleware.Metadata, error) {
+			start := time.Now()
+			out, metadata, err := next.HandleInitialize(ctx, in)
+			operation := awsmiddleware.GetOperationName(ctx)
+			dynamoRequests.WithLabelValues(operation, outcome(err)).Inc()
+			dynamoDuration.WithLabelValues(operation).Observe(time.Since(start).Seconds())
+			return out, metadata, err
+		}), middleware.After)
+	if err != nil {
+		return err
 	}
-	gauge("db_pool_acquired_connections", "Database connections in use.", (*pgxpool.Stat).AcquiredConns)
-	gauge("db_pool_idle_connections", "Open database connections not in use.", (*pgxpool.Stat).IdleConns)
-	gauge("db_pool_max_connections", "The most connections the pool opens.", (*pgxpool.Stat).MaxConns)
+	// The Finalize step holds the retry loop, so this runs once per attempt.
+	return stack.Finalize.Add(middleware.FinalizeMiddlewareFunc("JobDropThrottleMetrics",
+		func(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+			middleware.FinalizeOutput, middleware.Metadata, error) {
+			out, metadata, err := next.HandleFinalize(ctx, in)
+			if err != nil && retry.IsErrorThrottles(retry.DefaultThrottles).IsErrorThrottle(err) == aws.TrueTernary {
+				dynamoThrottles.WithLabelValues(awsmiddleware.GetOperationName(ctx)).Inc()
+			}
+			return out, metadata, err
+		}), middleware.After)
+}
+
+// outcome: a failed condition ("only if it doesn't exist yet") is how the
+// app asks some questions, so it isn't counted as an error.
+func outcome(err error) string {
+	var failed *types.ConditionalCheckFailedException
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.As(err, &failed):
+		return "condition_failed"
+	default:
+		return "error"
+	}
 }

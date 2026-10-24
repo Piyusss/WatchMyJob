@@ -11,11 +11,11 @@ import (
 // jobs. The admin typed the role, level and experience, so nothing is guessed.
 // It's read from our own database, so it has no ETag and is always read in full.
 type Test struct {
-	db store.DB
+	db *store.DB
 }
 
 func (t Test) Fetch(ctx context.Context, company model.Company, _ string) ([]model.Posting, string, error) {
-	jobs, err := store.PublishedTestJobs(ctx, t.db, company.ID)
+	jobs, err := store.PublishedTestJobs(ctx, t.db, company.Slug)
 	if err != nil {
 		return nil, "", err
 	}

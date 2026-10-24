@@ -24,7 +24,6 @@ import (
 	"jobdrop/internal/clerk"
 	"jobdrop/internal/config"
 	"jobdrop/internal/db"
-	"jobdrop/internal/metrics"
 	"jobdrop/internal/notify"
 	"jobdrop/internal/store"
 	"jobdrop/internal/syncer"
@@ -51,16 +50,20 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabaseUser, cfg.DatabasePassword)
+	dynamo, err := db.Connect(ctx, cfg.AWSRegion, cfg.DynamoEndpoint)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	database := store.New(dynamo, cfg.DynamoTable)
+	// On AWS, deletion protection guards the table; DynamoDB Local's is a scratch copy.
+	if err := database.EnsureTable(ctx, cfg.DynamoEndpoint == ""); err != nil {
+		return fmt.Errorf("the DynamoDB table %q: %w", cfg.DynamoTable, err)
+	}
 	var companies []store.CompanyEntry
 	if err := json.Unmarshal(companiesJSON, &companies); err != nil {
 		return fmt.Errorf("companies.json: %w", err)
 	}
-	if err := store.SeedCompanies(ctx, pool, companies); err != nil {
+	if err := store.SeedCompanies(ctx, database, companies); err != nil {
 		return err
 	}
 
@@ -79,16 +82,15 @@ func run() error {
 	if cfg.BrevoConfigured() {
 		mailer = notify.Brevo{Client: client, APIKey: cfg.BrevoAPIKey, FromEmail: cfg.BrevoFromEmail, FromName: cfg.BrevoFromName}
 	}
-	sender := notify.NewSender(pool, mailer, cfg.FrontendURL)
-	jobSync := syncer.New(pool, boards.All(boardClient, pool), sender.Wake)
-	metrics.WatchPool(pool)
+	sender := notify.NewSender(database, mailer, cfg.FrontendURL)
+	jobSync := syncer.New(database, boards.All(boardClient, database), sender.Wake)
 
 	// The API, and the metrics Prometheus reads, each on its own port, so
 	// the metrics are never served to the public along with the API. The
 	// header timeout stops a client that sends a request very slowly from
 	// holding a connection open forever.
 	servers := []*http.Server{
-		{Addr: ":" + cfg.Port, Handler: api.New(pool, clerk.New(cfg.ClerkSecretKey, client), jobSync, cfg),
+		{Addr: ":" + cfg.Port, Handler: api.New(database, clerk.New(cfg.ClerkSecretKey, client), jobSync, cfg),
 			ReadHeaderTimeout: 10 * time.Second},
 		{Addr: ":" + cfg.MetricsPort, Handler: promhttp.Handler(), ReadHeaderTimeout: 10 * time.Second},
 	}

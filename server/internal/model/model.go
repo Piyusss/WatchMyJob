@@ -1,7 +1,7 @@
-// Package model holds the app's data: one struct per database table, the
-// enums stored in them, and the few rules that belong to the data itself.
-// Everything here is plain data; the SQL that loads and saves it is in
-// package store.
+// Package model holds the app's data: one struct per kind of item in the
+// database, the enums stored in them, and the few rules that belong to the
+// data itself. Everything here is plain data; the code that loads and
+// saves it is in package store.
 package model
 
 import (
@@ -12,9 +12,10 @@ import (
 	"time"
 )
 
-// Now is the time to record in the database. Postgres keeps microseconds,
-// so the value is cut to that: what an API response returns then matches
-// what a later read of the same row returns.
+// Now is the time to record in the database, cut to microseconds: the keys
+// that hold a time write it with exactly six decimals (see store's keys.go),
+// so every stored time has that precision, and what an API response returns
+// matches what a later read of the same item returns.
 func Now() time.Time {
 	return time.Now().UTC().Truncate(time.Microsecond)
 }
@@ -22,7 +23,7 @@ func Now() time.Time {
 // ---- Enums. Each is stored, and sent to the website, as its name.
 
 // Platform is where a company's openings come from. A TEST company is made
-// in the admin pages, and its "board" is the test_jobs table.
+// in the admin pages, and its "board" is its published test jobs.
 type Platform string
 
 const (
@@ -123,13 +124,13 @@ func decodeEnum[T ~string](data []byte, into *T, allowed []T) error {
 	return nil
 }
 
-// ---- Tables.
+// ---- Items.
 
 // User is a person using the site. Clerk owns the actual account (sign-in,
-// password, Google); this row holds what the app itself needs.
+// password, Google); this item holds what the app itself needs.
 type User struct {
+	// The user's Clerk user id, which every signed-in request's token carries.
 	ID                  string
-	ClerkUserID         string
 	Name                string
 	Email               string
 	EmailVerified       bool
@@ -141,7 +142,8 @@ type User struct {
 
 // Company is an employer whose job board we follow.
 type Company struct {
-	ID       string
+	// Identifies the company everywhere: companies.json, the website's URLs,
+	// the database's keys. It never changes.
 	Slug     string
 	Name     string
 	Domain   *string
@@ -155,6 +157,12 @@ type Company struct {
 	InitialSyncDone bool
 	LastSyncedAt    *time.Time
 	CreatedAt       time.Time
+	// Saved by each sync that reads the board (see store.MarkCompanySynced):
+	// a hash of what the board said, which lets the next sync skip a board
+	// that hasn't changed, and its open jobs counted, which DynamoDB can't
+	// count on request.
+	BoardFingerprint string
+	OpenJobs         int
 }
 
 // Selectable reports whether users can watch it: it's active and has its baseline.
@@ -171,6 +179,7 @@ func (c Company) Status() string {
 
 // Job is one opening at a company, as last read from its job board.
 type Job struct {
+	// Made from the company and the external id (see JobID).
 	ID string
 	// The job's own id on the board: how the next sync recognises it.
 	ExternalID      string
@@ -192,8 +201,25 @@ type Job struct {
 	FirstSeenAt             time.Time
 	// The last time anything above changed.
 	UpdatedAt time.Time
-	// Every query that loads jobs joins in their company.
+	// A new job whose emails haven't all been queued yet: a sync that
+	// stopped halfway leaves it set, and the next one queues them (see
+	// package syncer).
+	NotifyPending bool
+	// Every function that loads jobs fills in their company.
 	Company Company
+}
+
+// JobID is a job's id: its company's slug and its id on the board, e.g.
+// "stripe.4012345". That's the job's key in the database, so a job is found
+// by its id directly. A slug never has a dot, so the first one splits them.
+func JobID(companySlug, externalID string) string {
+	return companySlug + "." + externalID
+}
+
+// ParseJobID splits a job id back up, or reports false if it isn't one.
+func ParseJobID(id string) (companySlug, externalID string, ok bool) {
+	companySlug, externalID, ok = strings.Cut(id, ".")
+	return companySlug, externalID, ok && companySlug != "" && externalID != ""
 }
 
 // Classification is what the classifier reads from a posting's title and
@@ -307,8 +333,7 @@ type Settings struct {
 	OpportunityTypes []OpportunityType
 }
 
-// Preferences is what kind of job a user wants. The three lists are stored
-// in their own small tables (one row per item).
+// Preferences is what kind of job a user wants.
 type Preferences struct {
 	ID     string
 	UserID string
@@ -339,7 +364,7 @@ func (p *Preferences) Update(s Settings, now time.Time) {
 }
 
 // Subscription is a user watching a company: its new jobs that match the
-// user's preferences get emailed to them. Unwatching deletes the row.
+// user's preferences get emailed to them. Unwatching deletes the item.
 type Subscription struct {
 	ID        string
 	UserID    string
@@ -390,7 +415,7 @@ func (n *Notification) MarkFailedAttempt(err string) {
 // goes through the real sync, matching and email: a live demo of the whole flow.
 type TestJob struct {
 	ID              string
-	CompanyID       string
+	CompanySlug     string
 	Title           string
 	RoleFamily      string
 	Level           *string

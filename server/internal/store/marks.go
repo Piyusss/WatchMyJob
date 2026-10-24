@@ -2,45 +2,48 @@ package store
 
 import (
 	"context"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"time"
 
 	"jobdrop/internal/model"
 )
 
-// A user's marks on jobs (saved, applied, dismissed) live in job_states:
-// one row per user and job.
+// A user's marks on jobs (saved, applied, dismissed): one item per user
+// and job, in the user's partition.
+
+type markItem struct {
+	PK, SK    string
+	JobID     string     `dynamodbav:"jobId"`
+	State     model.Mark `dynamodbav:"state"`
+	UpdatedAt time.Time  `dynamodbav:"updatedAt"`
+}
 
 // MarksOf maps a job id to the user's mark on it.
-func MarksOf(ctx context.Context, db DB, userID string) (map[string]model.Mark, error) {
-	rows, _ := db.Query(ctx, `select job_id, state from job_states where user_id = $1`, userID)
+func MarksOf(ctx context.Context, d *DB, userID string) (map[string]model.Mark, error) {
+	items, err := query[markItem](ctx, d, inPartition(userPartition(userID), "MARK#"))
 	marks := map[string]model.Mark{}
-	var jobID string
-	var mark model.Mark
-	_, err := pgx.ForEachRow(rows, []any{&jobID, &mark}, func() error {
-		marks[jobID] = mark
-		return nil
-	})
+	for _, item := range items {
+		marks[item.JobID] = item.State
+	}
 	return marks, err
 }
 
 // MarkOf returns the user's mark on the job, or nil.
-func MarkOf(ctx context.Context, db DB, userID, jobID string) (*model.Mark, error) {
-	rows, _ := db.Query(ctx, `select state from job_states where user_id = $1 and job_id = $2`, userID, jobID)
-	return one(rows, pgx.RowTo[model.Mark])
+func MarkOf(ctx context.Context, d *DB, userID, jobID string) (*model.Mark, error) {
+	var item markItem
+	found, err := d.get(ctx, markKey(userID, jobID), &item)
+	if !found || err != nil {
+		return nil, err
+	}
+	return &item.State, nil
 }
 
 // SetMark replaces whatever mark the job had.
-func SetMark(ctx context.Context, db DB, userID, jobID string, mark model.Mark) error {
-	_, err := db.Exec(ctx, `
-		insert into job_states (id, user_id, job_id, state, updated_at) values ($1, $2, $3, $4, $5)
-		on conflict (user_id, job_id) do update set state = excluded.state, updated_at = excluded.updated_at`,
-		uuid.NewString(), userID, jobID, mark, model.Now())
-	return err
+func SetMark(ctx context.Context, d *DB, userID, jobID string, mark model.Mark) error {
+	k := markKey(userID, jobID)
+	return d.put(ctx, markItem{k.PK, k.SK, jobID, mark, model.Now()}, "")
 }
 
-func ClearMark(ctx context.Context, db DB, userID, jobID string) error {
-	_, err := db.Exec(ctx, `delete from job_states where user_id = $1 and job_id = $2`, userID, jobID)
+func ClearMark(ctx context.Context, d *DB, userID, jobID string) error {
+	_, err := d.delete(ctx, markKey(userID, jobID))
 	return err
 }

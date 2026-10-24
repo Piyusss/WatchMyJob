@@ -30,7 +30,7 @@ type Clerk interface {
 }
 
 type Server struct {
-	db     store.DB
+	db     *store.DB
 	clerk  Clerk
 	syncer *syncer.Syncer
 	config config.Config
@@ -38,7 +38,7 @@ type Server struct {
 
 // New returns the API's handler: every route, behind the CORS check and
 // the metrics recorder.
-func New(db store.DB, clerk Clerk, syncer *syncer.Syncer, config config.Config) http.Handler {
+func New(db *store.DB, clerk Clerk, syncer *syncer.Syncer, config config.Config) http.Handler {
 	s := &Server{db: db, clerk: clerk, syncer: syncer, config: config}
 	mux := http.NewServeMux()
 
@@ -109,8 +109,8 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type userHandler func(w http.ResponseWriter, r *http.Request, user model.User) error
 
 // signedIn requires a valid Clerk session token in the Authorization
-// header. Its subject is the Clerk user id; a user's row is created on
-// their first request.
+// header. Its subject is the Clerk user id, which is the user's id here
+// too; a user's item is created on their first request.
 func (s *Server) signedIn(h userHandler) handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, err := s.currentUser(r)
@@ -139,7 +139,7 @@ func (s *Server) currentUser(r *http.Request) (model.User, error) {
 	if err != nil {
 		return model.User{}, errNotSignedIn
 	}
-	user, err := store.UserByClerkID(r.Context(), s.db, clerkUserID)
+	user, err := store.UserByID(r.Context(), s.db, clerkUserID)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -195,10 +195,10 @@ func metricsFor(token string) http.Handler {
 
 // health is for the hosting platform's health check (Render calls it every
 // 5 seconds) and uptime monitors: is the server up and answering? It
-// deliberately leaves the database alone. Checked that often, it would keep
-// a serverless database (Neon) from ever sleeping, and a short database
-// blip would get a healthy server restarted. The server can't start
-// without its database anyway: startup connects and migrates first.
+// deliberately leaves the database alone. Checked that often, it would use
+// up read capacity the website needs, and a short database blip would get
+// a healthy server restarted. The server can't start without its database
+// anyway: startup checks for the table first.
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) error {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	return nil

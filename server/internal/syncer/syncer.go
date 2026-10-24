@@ -1,4 +1,4 @@
-// Package syncer keeps the jobs table in step with every company's job
+// Package syncer keeps the stored jobs in step with every company's job
 // board. Every five minutes it reads each board and compares it with what
 // we stored: new postings are added, changed ones updated, and ones gone
 // from the board closed. A company's first sync is its baseline and emails
@@ -7,15 +7,17 @@
 package syncer
 
 import (
+	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"jobdrop/internal/boards"
 	"jobdrop/internal/metrics"
@@ -25,20 +27,20 @@ import (
 )
 
 type Syncer struct {
-	db     store.DB
+	db     *store.DB
 	boards map[model.Platform]boards.Board
 	// Called after a sync queues emails (see notify.Sender.Wake).
 	queued func()
 	// Syncs of the same company take turns: the timer and the admin
 	// "Publish" button can both sync a test company, and two syncs reading
 	// the board at different moments could undo each other's work.
-	// Different companies don't wait for each other. company id → *sync.Mutex.
+	// Different companies don't wait for each other. company slug → *sync.Mutex.
 	locks sync.Map
-	// Each board's ETag from its last saved sync: company id → string.
+	// Each board's ETag from its last saved sync: company slug → string.
 	etags sync.Map
 }
 
-func New(db store.DB, boards map[model.Platform]boards.Board, queued func()) *Syncer {
+func New(db *store.DB, boards map[model.Platform]boards.Board, queued func()) *Syncer {
 	return &Syncer{db: db, boards: boards, queued: queued}
 }
 
@@ -110,10 +112,9 @@ func (s *Syncer) SyncAll(ctx context.Context) error {
 	return nil
 }
 
-// Sync syncs one company: it reads the board (a network call, kept outside
-// the database transaction), then saves the differences in one transaction.
+// Sync syncs one company: it reads the board, then saves the differences.
 func (s *Syncer) Sync(ctx context.Context, company model.Company) (Result, error) {
-	lock, _ := s.locks.LoadOrStore(company.ID, &sync.Mutex{})
+	lock, _ := s.locks.LoadOrStore(company.Slug, &sync.Mutex{})
 	lock.(*sync.Mutex).Lock()
 	defer lock.(*sync.Mutex).Unlock()
 
@@ -121,25 +122,20 @@ func (s *Syncer) Sync(ctx context.Context, company model.Company) (Result, error
 	if !ok {
 		return Result{}, fmt.Errorf("no board for platform %s", company.Platform)
 	}
-	lastETag, _ := s.etags.Load(company.ID)
+	lastETag, _ := s.etags.Load(company.Slug)
 	start := time.Now()
 	posted, etag, err := board.Fetch(ctx, company, stringOrEmpty(lastETag))
 	metrics.BoardFetchDuration.WithLabelValues(string(company.Platform)).Observe(time.Since(start).Seconds())
 	if errors.Is(err, boards.ErrNotModified) {
 		// The board is as we saved it last time: only note that we looked
 		// (the website shows when a company was last checked).
-		return Result{Unchanged: true}, store.MarkCompanySynced(ctx, s.db, company.ID, model.Now())
+		return Result{Unchanged: true}, store.MarkCompanyChecked(ctx, s.db, company.Slug, model.Now())
 	}
 	if err != nil {
 		return Result{}, err
 	}
 
-	var result Result
-	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		var saveErr error
-		result, saveErr = save(ctx, tx, company.ID, posted)
-		return saveErr
-	})
+	result, err := save(ctx, s.db, company.Slug, posted)
 	if err != nil {
 		return Result{}, err
 	}
@@ -147,7 +143,7 @@ func (s *Syncer) Sync(ctx context.Context, company model.Company) (Result, error
 	// sending next time. (An empty answer isn't saved as a baseline, so its
 	// tag isn't kept either.)
 	if etag != "" && len(posted) > 0 {
-		s.etags.Store(company.ID, etag)
+		s.etags.Store(company.Slug, etag)
 	}
 	if result.Queued > 0 && s.queued != nil {
 		s.queued()
@@ -165,10 +161,26 @@ func stringOrEmpty(value any) string {
 	return text
 }
 
-func save(ctx context.Context, tx pgx.Tx, companyID string, posted []model.Posting) (Result, error) {
-	company, err := store.CompanyByID(ctx, tx, companyID)
+// save writes what changed on the board. It can't be one transaction, as
+// with SQL: a DynamoDB transaction takes 100 items, and a company's first
+// sync writes up to thousands. Instead every step is safe to repeat, so a
+// sync that stops halfway (an error, a restart) is finished by the next:
+//   - New jobs are written only if their id is still free, changed ones only
+//     if they exist, so two syncs at once can't both add the same job.
+//   - A new job is saved with NotifyPending set. Its emails are queued, each
+//     only if that user has no email about the job yet, and then the flag
+//     is cleared. A sync that finds the flag still set queues them again,
+//     which sends nobody a second email.
+//   - The company is marked synced last, so a baseline that stopped halfway
+//     is still a baseline next time, and its fingerprint only claims a
+//     board whose every change was saved.
+func save(ctx context.Context, db *store.DB, slug string, posted []model.Posting) (Result, error) {
+	company, err := store.CompanyBySlug(ctx, db, slug)
 	if err != nil {
 		return Result{}, err
+	}
+	if company == nil {
+		return Result{}, fmt.Errorf("company %q not found", slug)
 	}
 	baseline := !company.InitialSyncDone
 	now := model.Now()
@@ -181,7 +193,15 @@ func save(ctx context.Context, tx pgx.Tx, companyID string, posted []model.Posti
 		return Result{}, nil
 	}
 
-	known, err := store.JobsOfCompany(ctx, tx, companyID)
+	posted = onlyFirst(posted)
+	fingerprint := fingerprintOf(posted)
+	if !baseline && fingerprint == company.BoardFingerprint {
+		// The board says exactly what it said when last saved: there's
+		// nothing to compare, so the jobs aren't even read.
+		return Result{Discovered: len(posted), Unchanged: true}, store.MarkCompanyChecked(ctx, db, slug, now)
+	}
+
+	known, err := store.JobsOfCompany(ctx, db, *company)
 	if err != nil {
 		return Result{}, err
 	}
@@ -191,26 +211,26 @@ func save(ctx context.Context, tx pgx.Tx, companyID string, posted []model.Posti
 	}
 
 	var result Result
-	var inserted, changed, newJobs []model.Job
-	seen := map[string]bool{}
+	var inserted, changed, notifyFor, saved []model.Job
 	for _, post := range posted {
-		if seen[post.ExternalID] {
-			continue // listed twice on the board
-		}
-		seen[post.ExternalID] = true
 		job, found := stored[post.ExternalID]
 		delete(stored, post.ExternalID)
 
 		if !found {
-			job = model.Job{ID: uuid.NewString(), ExternalID: post.ExternalID, DiscoveredInInitialSync: baseline,
-				FirstSeenAt: now, UpdatedAt: now, Company: *company}
+			job = model.Job{ID: model.JobID(slug, post.ExternalID), ExternalID: post.ExternalID,
+				DiscoveredInInitialSync: baseline, FirstSeenAt: now, UpdatedAt: now, NotifyPending: !baseline,
+				Company: *company}
 			job.Update(post, now)
 			inserted = append(inserted, job)
+			saved = append(saved, job)
 			result.Created++
 			if !baseline {
-				newJobs = append(newJobs, job)
+				notifyFor = append(notifyFor, job)
 			}
 			continue
+		}
+		if job.NotifyPending { // left by a sync that stopped halfway
+			notifyFor = append(notifyFor, job)
 		}
 		wasClosed := job.Status == model.Closed
 		if job.Update(post, now) {
@@ -221,35 +241,65 @@ func save(ctx context.Context, tx pgx.Tx, companyID string, posted []model.Posti
 				result.Updated++
 			}
 		}
+		saved = append(saved, job)
 	}
 
 	// Whatever is left in "stored" is no longer on the board. An empty reply
 	// is never trusted to close everything: a board doesn't empty out in
 	// five minutes, but a broken reply can look empty.
-	if len(posted) > 0 {
-		for _, gone := range stored {
-			if gone.Status == model.Active {
-				gone.Close(now)
-				changed = append(changed, gone)
-				result.Closed++
-			}
+	for _, gone := range stored {
+		if gone.Status == model.Active && len(posted) > 0 {
+			gone.Close(now)
+			changed = append(changed, gone)
+			result.Closed++
 		}
+		saved = append(saved, gone)
 	}
-	// Every insert and update in one round trip to the database.
-	if err := store.SaveJobs(ctx, tx, inserted, changed); err != nil {
-		return Result{}, err
-	}
-	if err := store.MarkCompanySynced(ctx, tx, companyID, now); err != nil {
+	if err := store.SaveJobs(ctx, db, inserted, changed); err != nil {
 		return Result{}, err
 	}
 
-	for _, job := range newJobs {
-		queued, err := notify.QueueForNewJob(ctx, tx, job)
+	if len(notifyFor) > 0 {
+		watchers, err := store.WatchersOf(ctx, db, slug)
 		if err != nil {
 			return Result{}, err
 		}
-		result.Queued += queued
+		for _, job := range notifyFor {
+			queued, err := notify.QueueForNewJob(ctx, db, job, watchers)
+			if err != nil {
+				return Result{}, err
+			}
+			result.Queued += queued
+			if err := store.ClearNotifyPending(ctx, db, job); err != nil {
+				return Result{}, err
+			}
+		}
 	}
-	result.Discovered = len(seen)
+	if err := store.MarkCompanySynced(ctx, db, slug, now, fingerprint, saved); err != nil {
+		return Result{}, err
+	}
+	result.Discovered = len(posted)
 	return result, nil
+}
+
+// onlyFirst drops postings listed twice on the board, keeping the first.
+func onlyFirst(posted []model.Posting) []model.Posting {
+	seen := map[string]bool{}
+	return slices.DeleteFunc(slices.Clone(posted), func(p model.Posting) bool {
+		duplicate := seen[p.ExternalID]
+		seen[p.ExternalID] = true
+		return duplicate
+	})
+}
+
+// fingerprintOf is a hash of everything the sync saves from the postings,
+// in a fixed order. Two reads of a board with the same fingerprint would
+// save the same jobs, so the second needn't read or write any.
+func fingerprintOf(posted []model.Posting) string {
+	sorted := slices.SortedFunc(slices.Values(posted), func(a, b model.Posting) int {
+		return cmp.Compare(a.ExternalID, b.ExternalID)
+	})
+	encoded, _ := json.Marshal(sorted) // plain data: it always encodes
+	sum := sha256.Sum256(encoded)
+	return hex.EncodeToString(sum[:])
 }

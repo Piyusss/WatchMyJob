@@ -1,39 +1,35 @@
 services:
-  db:
-    image: postgres:16-alpine
+  # DynamoDB Local: Amazon's DynamoDB, as a program on this machine, for
+  # development. The server creates its table here on first start. The data
+  # is kept in the volume (-sharedDb: one database, whatever AWS keys and
+  # region a client sends). It runs as root only so it can write to the
+  # volume, which Docker creates owned by root.
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.1
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: jobdrop
-      POSTGRES_PASSWORD: jobdrop
-      POSTGRES_DB: jobdrop
+    user: root
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data", "-disableTelemetry"]
     ports:
-      - "5433:5432"
+      - "8000:8000"
     volumes:
-      - jobdrop_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jobdrop -d jobdrop"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - jobdrop_dynamodb_data:/data
 
   # The backend, built from server/Dockerfile: the REST API plus its two
   # background jobs (job-board sync and email sending) in one container.
   # For day-to-day development, run `npm run dev:server` on the host
   # instead; this is the containerized path, and Docker restarts it if it
-  # crashes. DATABASE_URL uses the "db" service name: that's the database's
-  # address inside Docker's network, not localhost. The server refuses to
-  # start without CLERK_SECRET_KEY. Its metrics port (9091) isn't published:
-  # only Prometheus, inside Docker's network, reads it.
+  # crashes. DYNAMODB_ENDPOINT uses the "dynamodb" service name: that's the
+  # database's address inside Docker's network, not localhost. The server
+  # refuses to start without CLERK_SECRET_KEY. Its metrics port (9091) isn't
+  # published: only Prometheus, inside Docker's network, reads it.
   api:
     build: ./server
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - dynamodb
     environment:
-      DATABASE_URL: "postgresql://db:5432/jobdrop"
-      DATABASE_USERNAME: jobdrop
-      DATABASE_PASSWORD: jobdrop
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      DYNAMODB_TABLE: jobdrop
       PORT: 4000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
@@ -84,6 +80,6 @@ services:
       - "3001:3000"
 
 volumes:
-  jobdrop_db_data:
+  jobdrop_dynamodb_data:
   prometheus_data:
   grafana_data:

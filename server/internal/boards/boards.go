@@ -33,7 +33,7 @@ var ErrNotModified = errors.New("the board hasn't changed")
 
 // All returns each platform's board. client makes the calls to the boards'
 // public APIs; db holds the test companies' published jobs.
-func All(client *http.Client, db store.DB) map[model.Platform]Board {
+func All(client *http.Client, db *store.DB) map[model.Platform]Board {
 	return map[model.Platform]Board{
 		model.PlatformGreenhouse: Greenhouse{client, "https://boards-api.greenhouse.io"},
 		model.PlatformLever:      Lever{client, "https://api.lever.co"},

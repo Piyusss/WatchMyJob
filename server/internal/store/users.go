@@ -2,61 +2,100 @@ package store
 
 import (
 	"context"
+	"strings"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"jobdrop/internal/model"
 )
 
-const userColumns = `u.id, u.clerk_user_id, u.name, u.email, u.email_verified, u.notifications_paused,
-	u.unsubscribe_token, u.created_at`
-
-func userFields(u *model.User) []any {
-	return []any{&u.ID, &u.ClerkUserID, &u.Name, &u.Email, &u.EmailVerified, &u.NotificationsPaused,
-		&u.UnsubscribeToken, &u.CreatedAt}
+type userItem struct {
+	PK, SK string
+	// The unsubscribe token, for finding the user by it: see keys.go.
+	GSI1PK, GSI1SK      string
+	Name                string    `dynamodbav:"name"`
+	Email               string    `dynamodbav:"email"`
+	EmailVerified       bool      `dynamodbav:"emailVerified"`
+	NotificationsPaused bool      `dynamodbav:"notificationsPaused"`
+	UnsubscribeToken    string    `dynamodbav:"unsubscribeToken"`
+	CreatedAt           time.Time `dynamodbav:"createdAt"`
 }
 
-func scanUser(row pgx.CollectableRow) (model.User, error) {
-	var u model.User
-	err := row.Scan(userFields(&u)...)
-	return u, err
+func userItemOf(u model.User) userItem {
+	k := profileKey(u.ID)
+	return userItem{k.PK, k.SK, "UNSUB#" + u.UnsubscribeToken, "USER#" + u.ID, u.Name, u.Email, u.EmailVerified,
+		u.NotificationsPaused, u.UnsubscribeToken, u.CreatedAt}
 }
 
-func UserByClerkID(ctx context.Context, db DB, clerkUserID string) (*model.User, error) {
-	rows, _ := db.Query(ctx, `select `+userColumns+` from users u where u.clerk_user_id = $1`, clerkUserID)
-	return one(rows, scanUser)
+func (i userItem) user() model.User {
+	return model.User{ID: strings.TrimPrefix(i.PK, "USER#"), Name: i.Name, Email: i.Email,
+		EmailVerified: i.EmailVerified, NotificationsPaused: i.NotificationsPaused,
+		UnsubscribeToken: i.UnsubscribeToken, CreatedAt: i.CreatedAt}
 }
 
-func UserByUnsubscribeToken(ctx context.Context, db DB, token string) (*model.User, error) {
-	rows, _ := db.Query(ctx, `select `+userColumns+` from users u where u.unsubscribe_token = $1`, token)
-	return one(rows, scanUser)
+// UserByID finds a user by their Clerk user id, or returns nil.
+func UserByID(ctx context.Context, d *DB, id string) (*model.User, error) {
+	var item userItem
+	found, err := d.get(ctx, profileKey(id), &item)
+	if !found || err != nil {
+		return nil, err
+	}
+	user := item.user()
+	return &user, nil
 }
 
-// CreateUser adds a user's row on their first request. The website sends a
-// few requests at once right after sign-in; if another one already created
-// the row, this insert does nothing and that row is returned instead.
-func CreateUser(ctx context.Context, db DB, clerkUserID, name, email string, emailVerified bool) (model.User, error) {
-	_, err := db.Exec(ctx, `
-		insert into users (id, clerk_user_id, name, email, email_verified, notifications_paused, unsubscribe_token, created_at)
-		values ($1, $2, $3, $4, $5, false, $6, $7)
-		on conflict (clerk_user_id) do nothing`,
-		uuid.NewString(), clerkUserID, name, email, emailVerified, uuid.NewString(), model.Now())
+func UserByUnsubscribeToken(ctx context.Context, d *DB, token string) (*model.User, error) {
+	found, err := query[key](ctx, d, inIndex(gsi1, "UNSUB#"+token))
+	if len(found) == 0 || err != nil {
+		return nil, err
+	}
+	return UserByID(ctx, d, strings.TrimPrefix(found[0].PK, "USER#"))
+}
+
+// CreateUser adds a user's item on their first request. The website sends
+// a few requests at once right after sign-in, so the item is only written
+// if there isn't one yet; if another request just created it, that one is
+// returned instead.
+func CreateUser(ctx context.Context, d *DB, id, name, email string, emailVerified bool) (model.User, error) {
+	user := model.User{ID: id, Name: name, Email: email, EmailVerified: emailVerified,
+		UnsubscribeToken: uuid.NewString(), CreatedAt: model.Now()}
+	err := d.put(ctx, userItemOf(user), "attribute_not_exists(PK)")
+	if !conditionFailed(err) {
+		return user, err
+	}
+	existing, err := UserByID(ctx, d, id)
 	if err != nil {
 		return model.User{}, err
 	}
-	rows, _ := db.Query(ctx, `select `+userColumns+` from users u where u.clerk_user_id = $1`, clerkUserID)
-	return pgx.CollectExactlyOneRow(rows, scanUser)
+	return *existing, nil
 }
 
-func SetNotificationsPaused(ctx context.Context, db DB, userID string, paused bool) error {
-	_, err := db.Exec(ctx, `update users set notifications_paused = $2 where id = $1`, userID, paused)
-	return err
+func SetNotificationsPaused(ctx context.Context, d *DB, userID string, paused bool) error {
+	return d.update(ctx, profileKey(userID), "SET #notificationsPaused = :paused", map[string]any{":paused": paused})
 }
 
-// DeleteUser removes the user and, through the foreign keys' "on delete
-// cascade", everything that belongs to them.
-func DeleteUser(ctx context.Context, db DB, userID string) error {
-	_, err := db.Exec(ctx, `delete from users where id = $1`, userID)
-	return err
+// DeleteUser removes the user and everything that belongs to them: it's
+// all in their partition (see keys.go). The subscriptions go first, so a
+// delete that fails halfway can't leave them still being emailed.
+func DeleteUser(ctx context.Context, d *DB, userID string) error {
+	input := inPartition(userPartition(userID), "")
+	input.ProjectionExpression = aws.String("PK, SK")
+	keys, err := query[key](ctx, d, input)
+	if err != nil {
+		return err
+	}
+	var subscriptions, rest []key
+	for _, k := range keys {
+		if strings.HasPrefix(k.SK, "SUB#") {
+			subscriptions = append(subscriptions, k)
+		} else {
+			rest = append(rest, k)
+		}
+	}
+	if err := d.batchDelete(ctx, subscriptions); err != nil {
+		return err
+	}
+	return d.batchDelete(ctx, rest)
 }

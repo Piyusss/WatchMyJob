@@ -19,19 +19,16 @@ type companyListItem struct {
 	OpenRoles int     `json:"openRoles"`
 }
 
-// listCompanies (public): every company users can watch, with its number of open roles.
+// listCompanies (public): every company users can watch, with its number
+// of open roles. (A company's id is its slug.)
 func (s *Server) listCompanies(w http.ResponseWriter, r *http.Request) error {
 	companies, err := store.SelectableCompanies(r.Context(), s.db)
 	if err != nil {
 		return err
 	}
-	openRoles, err := store.OpenJobCounts(r.Context(), s.db)
-	if err != nil {
-		return err
-	}
 	items := make([]companyListItem, len(companies))
 	for i, c := range companies {
-		items[i] = companyListItem{c.ID, c.Name, c.Slug, c.Domain, openRoles[c.ID]}
+		items[i] = companyListItem{c.Slug, c.Name, c.Slug, c.Domain, c.OpenJobs}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"companies": items})
 	return nil
@@ -76,11 +73,11 @@ func (s *Server) companyDetail(w http.ResponseWriter, r *http.Request, user mode
 	if company == nil || !company.Selectable() {
 		return notFound("Company not found")
 	}
-	open, err := store.OpenJobsOfCompany(r.Context(), s.db, company.ID)
+	open, err := store.OpenJobsOfCompany(r.Context(), s.db, *company)
 	if err != nil {
 		return err
 	}
-	watching, err := store.IsWatching(r.Context(), s.db, user.ID, company.ID)
+	watching, err := store.IsWatching(r.Context(), s.db, user.ID, company.Slug)
 	if err != nil {
 		return err
 	}
@@ -110,7 +107,7 @@ func (s *Server) companyDetail(w http.ResponseWriter, r *http.Request, user mode
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"company": companyDetail{
-		ID:           company.ID,
+		ID:           company.Slug,
 		Name:         company.Name,
 		Slug:         company.Slug,
 		Status:       company.Status(),

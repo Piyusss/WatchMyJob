@@ -24,8 +24,9 @@ func TestMain(m *testing.M) {
 	testdb.Run(m)
 }
 
-// fakeClerk takes the token "<Clerk user id>" as a valid one for that user,
-// and knows the profiles the tests give it.
+// fakeClerk takes the token "<Clerk user id>" as a valid one for that user
+// (a user's id is their Clerk user id), and knows the profiles the tests
+// give it.
 type fakeClerk map[string]clerk.Profile
 
 func (f fakeClerk) VerifyToken(_ context.Context, token string) (string, error) {
@@ -49,7 +50,7 @@ var clerkUsers = fakeClerk{}
 // newAPI is the app's API on the test database. The website is at
 // localhost:3000, and admin@example.com is an admin.
 func newAPI() http.Handler {
-	return New(testdb.Pool, clerkUsers, syncer.New(testdb.Pool, boards.All(nil, testdb.Pool), nil), config.Config{
+	return New(testdb.DB, clerkUsers, syncer.New(testdb.DB, boards.All(nil, testdb.DB), nil), config.Config{
 		FrontendURL: "http://localhost:3000",
 		AdminEmails: []string{"admin@example.com"},
 	})
@@ -129,14 +130,14 @@ func TestANewUsersFirstRequestCreatesThemFromTheirClerkProfile(t *testing.T) {
 func TestBadPreferencesAreRejectedFieldByField(t *testing.T) {
 	user := testdb.User(t, testdb.Unique("picky")+"@example.com")
 
-	status, body := call(t, "PUT", "/api/preferences", user.ClerkUserID, `{"roleLevel":"Wizard","yearsExperience":99}`)
+	status, body := call(t, "PUT", "/api/preferences", user.ID, `{"roleLevel":"Wizard","yearsExperience":99}`)
 	expect(t, "status", status, 400)
 	expect(t, "error", field(body, "error"), "Invalid input")
 	expect(t, "roleLevel problem", field(body, "details", "roleLevel", 0),
 		`must match "Intern|Associate|Senior|Lead|Staff|Principal"`)
 	expect(t, "yearsExperience problem", field(body, "details", "yearsExperience", 0), "must be less than or equal to 60")
 
-	status, body = call(t, "PUT", "/api/preferences", user.ClerkUserID, `{"locations":[{"countryCode":"XX"}]}`)
+	status, body = call(t, "PUT", "/api/preferences", user.ID, `{"locations":[{"countryCode":"XX"}]}`)
 	expect(t, "status", status, 400)
 	expect(t, "locations problem", field(body, "details", "locations", 0), "Unknown country")
 }
@@ -147,30 +148,30 @@ func TestTheFeedShowsMatchingJobsAtWatchedCompaniesAndDismissingHidesOne(t *test
 	match := testdb.OpenJob(t, company, "Backend Engineer")
 	testdb.OpenJob(t, company, "Product Designer")
 
-	status, _ := call(t, "POST", "/api/subscriptions", user.ClerkUserID, `{"companySlug":"`+company.Slug+`"}`)
+	status, _ := call(t, "POST", "/api/subscriptions", user.ID, `{"companySlug":"`+company.Slug+`"}`)
 	expect(t, "watch status", status, 201)
-	status, body := call(t, "PUT", "/api/preferences", user.ClerkUserID, `{"roleFamily":"Backend Engineer"}`)
+	status, body := call(t, "PUT", "/api/preferences", user.ID, `{"roleFamily":"Backend Engineer"}`)
 	expect(t, "preferences status", status, 200)
 	expect(t, "saved role", field(body, "preferences", "roleFamily"), "Backend Engineer")
 
-	_, body = call(t, "GET", "/api/jobs", user.ClerkUserID, "")
+	_, body = call(t, "GET", "/api/jobs", user.ID, "")
 	expect(t, "unfilteredTotal", field(body, "unfilteredTotal"), 2.0)
 	expect(t, "total", field(body, "total"), 1.0)
 	expect(t, "filtered", field(body, "filtered"), true)
 	expect(t, "first title", field(body, "jobs", 0, "title"), "Backend Engineer")
 	expect(t, "overallMatch", field(body, "jobs", 0, "matchExplanation", "overallMatch"), true)
 
-	_, body = call(t, "PUT", "/api/jobs/"+match.ID+"/state", user.ClerkUserID, `{"state":"DISMISSED"}`)
+	_, body = call(t, "PUT", "/api/jobs/"+match.ID+"/state", user.ID, `{"state":"DISMISSED"}`)
 	expect(t, "state", field(body, "state"), "DISMISSED")
-	_, body = call(t, "GET", "/api/jobs", user.ClerkUserID, "")
+	_, body = call(t, "GET", "/api/jobs", user.ID, "")
 	expect(t, "total after dismissing", field(body, "total"), 0.0)
-	_, body = call(t, "GET", "/api/jobs?state=DISMISSED", user.ClerkUserID, "")
+	_, body = call(t, "GET", "/api/jobs?state=DISMISSED", user.ID, "")
 	expect(t, "dismissed job", field(body, "jobs", 0, "id"), match.ID)
 }
 
 func TestAdminPagesAreForAdminsOnly(t *testing.T) {
 	user := testdb.User(t, testdb.Unique("not-admin")+"@example.com")
-	status, body := call(t, "GET", "/api/admin/test-companies", user.ClerkUserID, "")
+	status, body := call(t, "GET", "/api/admin/test-companies", user.ID, "")
 	expect(t, "status", status, 403)
 	expect(t, "error", field(body, "error"), "Admin access required")
 }
@@ -180,23 +181,23 @@ func TestPublishingATestJobQueuesAnEmailForAMatchingWatcher(t *testing.T) {
 	fan := testdb.User(t, testdb.Unique("fan")+"@example.com")
 	testdb.OpenJob(t, testdb.WatchableCompany(t), "Data Engineer") // a role must exist on a real open job to be picked
 
-	status, body := call(t, "POST", "/api/admin/test-companies", admin.ClerkUserID, `{"name":"`+testdb.Unique("Demo Corp")+`"}`)
+	status, body := call(t, "POST", "/api/admin/test-companies", admin.ID, `{"name":"`+testdb.Unique("Demo Corp")+`"}`)
 	expect(t, "create status", status, 201)
 	slug, _ := field(body, "company", "slug").(string)
 
-	status, _ = call(t, "POST", "/api/subscriptions", fan.ClerkUserID, `{"companySlug":"`+slug+`"}`)
+	status, _ = call(t, "POST", "/api/subscriptions", fan.ID, `{"companySlug":"`+slug+`"}`)
 	expect(t, "watch status", status, 201)
-	status, _ = call(t, "PUT", "/api/preferences", fan.ClerkUserID, `{"roleFamily":"Data Engineer"}`)
+	status, _ = call(t, "PUT", "/api/preferences", fan.ID, `{"roleFamily":"Data Engineer"}`)
 	expect(t, "preferences status", status, 200)
 
-	status, body = call(t, "POST", "/api/admin/test-companies/"+slug+"/jobs", admin.ClerkUserID,
+	status, body = call(t, "POST", "/api/admin/test-companies/"+slug+"/jobs", admin.ID,
 		`{"title":"Data Engineer","roleFamily":"Data Engineer","applicationUrl":"https://example.com/apply",
 		  "locations":[{"countryCode":"IN","stateCode":"KA","cityName":"Bangalore"}]}`)
 	expect(t, "test job status", status, 201)
 	expect(t, "published", field(body, "job", "published"), false)
 	testJobID, _ := field(body, "job", "id").(string)
 
-	status, body = call(t, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ClerkUserID, "")
+	status, body = call(t, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ID, "")
 	expect(t, "publish status", status, 200)
 	expect(t, "created", field(body, "result", "created"), 1.0)
 	expect(t, "queued", field(body, "result", "queued"), 1.0)
@@ -222,8 +223,8 @@ func (m *recordingMailer) Send(_ context.Context, to string, email notify.Email)
 // shows it as sent. Publishing it again emails nobody.
 func TestTheDemoFromPublishingToTheEmailAndTheAlertsPage(t *testing.T) {
 	mailer := &recordingMailer{}
-	sender := notify.NewSender(testdb.Pool, mailer, "http://localhost:3000")
-	api := New(testdb.Pool, clerkUsers, syncer.New(testdb.Pool, boards.All(nil, testdb.Pool), sender.Wake), config.Config{
+	sender := notify.NewSender(testdb.DB, mailer, "http://localhost:3000")
+	api := New(testdb.DB, clerkUsers, syncer.New(testdb.DB, boards.All(nil, testdb.DB), sender.Wake), config.Config{
 		FrontendURL: "http://localhost:3000",
 		AdminEmails: []string{"admin@example.com"},
 	})
@@ -239,15 +240,15 @@ func TestTheDemoFromPublishingToTheEmailAndTheAlertsPage(t *testing.T) {
 	fan := testdb.User(t, testdb.Unique("fan")+"@example.com")
 	testdb.OpenJob(t, testdb.WatchableCompany(t), "Data Engineer") // a role must exist on a real open job
 	company := testdb.Unique("Demo Corp")
-	_, body := callWith(t, api, "POST", "/api/admin/test-companies", admin.ClerkUserID, `{"name":"`+company+`"}`)
+	_, body := callWith(t, api, "POST", "/api/admin/test-companies", admin.ID, `{"name":"`+company+`"}`)
 	slug, _ := field(body, "company", "slug").(string)
-	callWith(t, api, "POST", "/api/subscriptions", fan.ClerkUserID, `{"companySlug":"`+slug+`"}`)
-	callWith(t, api, "PUT", "/api/preferences", fan.ClerkUserID, `{"roleFamily":"Data Engineer"}`)
-	_, body = callWith(t, api, "POST", "/api/admin/test-companies/"+slug+"/jobs", admin.ClerkUserID,
+	callWith(t, api, "POST", "/api/subscriptions", fan.ID, `{"companySlug":"`+slug+`"}`)
+	callWith(t, api, "PUT", "/api/preferences", fan.ID, `{"roleFamily":"Data Engineer"}`)
+	_, body = callWith(t, api, "POST", "/api/admin/test-companies/"+slug+"/jobs", admin.ID,
 		`{"title":"Data Engineer","roleFamily":"Data Engineer","applicationUrl":"https://example.com/apply"}`)
 	testJobID, _ := field(body, "job", "id").(string)
 
-	_, body = callWith(t, api, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ClerkUserID, "")
+	_, body = callWith(t, api, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ID, "")
 	expect(t, "queued", field(body, "result", "queued"), 1.0)
 	send()
 	sentTo := -1
@@ -267,11 +268,11 @@ func TestTheDemoFromPublishingToTheEmailAndTheAlertsPage(t *testing.T) {
 		}
 	}
 
-	_, body = callWith(t, api, "GET", "/api/notifications", fan.ClerkUserID, "")
+	_, body = callWith(t, api, "GET", "/api/notifications", fan.ID, "")
 	expect(t, "alert status", field(body, "notifications", 0, "status"), "PROVIDER_ACCEPTED")
 	expect(t, "alert job", field(body, "notifications", 0, "job", "title"), "Data Engineer")
 
-	_, body = callWith(t, api, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ClerkUserID, "")
+	_, body = callWith(t, api, "POST", "/api/admin/test-jobs/"+testJobID+"/publish", admin.ID, "")
 	expect(t, "created again", field(body, "result", "created"), 0.0)
 	expect(t, "queued again", field(body, "result", "queued"), 0.0)
 }
@@ -286,12 +287,12 @@ func TestEmptyListsAreEmptyArraysNotNull(t *testing.T) {
 		"/api/notifications":  "notifications",
 		"/api/account/export": "subscriptions",
 	} {
-		_, body := call(t, "GET", path, user.ClerkUserID, "")
+		_, body := call(t, "GET", path, user.ID, "")
 		if list, ok := field(body, key).([]any); !ok || len(list) != 0 {
 			t.Errorf("%s: %s is %v, want []", path, key, field(body, key))
 		}
 	}
-	_, body := call(t, "PUT", "/api/preferences", user.ClerkUserID, `{}`)
+	_, body := call(t, "PUT", "/api/preferences", user.ID, `{}`)
 	for _, key := range []string{"locations", "workMode", "opportunityTypes"} {
 		if list, ok := field(body, "preferences", key).([]any); !ok || len(list) != 0 {
 			t.Errorf("preferences.%s is %v, want []", key, field(body, "preferences", key))
@@ -308,14 +309,15 @@ func TestErrorsKeepTheJSONShape(t *testing.T) {
 	}{
 		{"GET", "/api/no-such-thing", "", 404, "Not found"},
 		{"POST", "/api/companies", "", 404, "Not found"}, // a known route, another method
-		{"GET", "/api/jobs/not-a-uuid", "", 400, "Invalid input"},
-		{"GET", "/api/jobs/00000000-0000-0000-0000-000000000000", "", 404, "Job not found"},
+		// A job id is "<company slug>.<external id>".
+		{"GET", "/api/jobs/not-a-job-id", "", 400, "Invalid input"},
+		{"GET", "/api/jobs/no-such-company.12345", "", 404, "Job not found"},
 		{"PUT", "/api/preferences", "{not json", 400, "Invalid input"},
 		{"PUT", "/api/preferences", `{"workMode":["ON_THE_MOON"]}`, 400, "Invalid input"},
 		{"POST", "/api/subscriptions", `{"companySlug":"no-such-company"}`, 404, "No such company"},
 	}
 	for _, c := range cases {
-		status, body := call(t, c.method, c.path, user.ClerkUserID, c.body)
+		status, body := call(t, c.method, c.path, user.ID, c.body)
 		if status != c.status || field(body, "error") != c.message {
 			t.Errorf("%s %s: got %d %v, want %d %q", c.method, c.path, status, body, c.status, c.message)
 		}
@@ -327,10 +329,10 @@ func TestAJobPageHasNoDescriptionAndNamesItsCompany(t *testing.T) {
 	company := testdb.WatchableCompany(t)
 	job := testdb.OpenJob(t, company, "Backend Engineer")
 
-	status, body := call(t, "GET", "/api/jobs/"+job.ID, user.ClerkUserID, "")
+	status, body := call(t, "GET", "/api/jobs/"+job.ID, user.ID, "")
 	expect(t, "status", status, 200)
 	expect(t, "description", field(body, "job", "description"), "")
-	expect(t, "company id", field(body, "job", "company", "id"), company.ID)
+	expect(t, "company id", field(body, "job", "company", "id"), company.Slug)
 	expect(t, "user state", field(body, "job", "userState"), nil)
 	expect(t, "experience status", field(body, "job", "experienceStatus"), "UNKNOWN")
 }
@@ -338,7 +340,7 @@ func TestAJobPageHasNoDescriptionAndNamesItsCompany(t *testing.T) {
 // /metrics is on the public port only when METRICS_TOKEN is set, and only
 // for a caller with that token (Grafana Cloud).
 func TestMetricsAreOnlyPublicWithTheToken(t *testing.T) {
-	withToken := New(testdb.Pool, clerkUsers, syncer.New(testdb.Pool, boards.All(nil, testdb.Pool), nil), config.Config{
+	withToken := New(testdb.DB, clerkUsers, syncer.New(testdb.DB, boards.All(nil, testdb.DB), nil), config.Config{
 		FrontendURL: "http://localhost:3000", MetricsToken: "s3cret",
 	})
 	for _, c := range []struct {

@@ -29,9 +29,9 @@ type testCompanyItem struct {
 	TotalTestJobs int       `json:"totalTestJobs"`
 }
 
-func (s *Server) testCompanyItem(ctx context.Context, c model.Company, openJobs int) (testCompanyItem, error) {
-	total, err := store.CountTestJobs(ctx, s.db, c.ID)
-	return testCompanyItem{c.ID, c.Name, c.Slug, c.Status(), c.Domain, c.CreatedAt, openJobs, total}, err
+func (s *Server) testCompanyItem(ctx context.Context, c model.Company) (testCompanyItem, error) {
+	total, err := store.CountTestJobs(ctx, s.db, c.Slug)
+	return testCompanyItem{c.Slug, c.Name, c.Slug, c.Status(), c.Domain, c.CreatedAt, c.OpenJobs, total}, err
 }
 
 func (s *Server) listTestCompanies(w http.ResponseWriter, r *http.Request, _ model.User) error {
@@ -39,13 +39,9 @@ func (s *Server) listTestCompanies(w http.ResponseWriter, r *http.Request, _ mod
 	if err != nil {
 		return err
 	}
-	openJobs, err := store.OpenJobCounts(r.Context(), s.db)
-	if err != nil {
-		return err
-	}
 	items := make([]testCompanyItem, len(companies))
 	for i, c := range companies {
-		if items[i], err = s.testCompanyItem(r.Context(), c, openJobs[c.ID]); err != nil {
+		if items[i], err = s.testCompanyItem(r.Context(), c); err != nil {
 			return err
 		}
 	}
@@ -89,7 +85,6 @@ func (s *Server) createTestCompany(w http.ResponseWriter, r *http.Request, _ mod
 
 	now := model.Now()
 	company := model.Company{
-		ID:       uuid.NewString(),
 		Slug:     slug,
 		Name:     strings.TrimSpace(*body.Name),
 		Domain:   domain,
@@ -108,7 +103,7 @@ func (s *Server) createTestCompany(w http.ResponseWriter, r *http.Request, _ mod
 	if !created {
 		return &apiError{status: http.StatusConflict, message: fmt.Sprintf("A company with slug %q already exists", slug)}
 	}
-	item, err := s.testCompanyItem(r.Context(), company, 0)
+	item, err := s.testCompanyItem(r.Context(), company)
 	if err != nil {
 		return err
 	}
@@ -149,20 +144,16 @@ func (s *Server) setTestCompanyStatus(w http.ResponseWriter, r *http.Request, _ 
 		return err
 	}
 	company.Active = *body.Status == "ACTIVE"
-	if err := store.SetCompanyActive(r.Context(), s.db, company.ID, company.Active); err != nil {
+	if err := store.SetCompanyActive(r.Context(), s.db, company.Slug, company.Active); err != nil {
 		return err
 	}
 	unwatched := 0
 	if !company.Active {
-		if unwatched, err = store.UnwatchAll(r.Context(), s.db, company.ID); err != nil {
+		if unwatched, err = store.UnwatchAll(r.Context(), s.db, company.Slug); err != nil {
 			return err
 		}
 	}
-	openJobs, err := store.OpenJobCounts(r.Context(), s.db)
-	if err != nil {
-		return err
-	}
-	item, err := s.testCompanyItem(r.Context(), *company, openJobs[company.ID])
+	item, err := s.testCompanyItem(r.Context(), *company)
 	if err != nil {
 		return err
 	}
@@ -209,7 +200,7 @@ func (s *Server) testCompanyDetail(w http.ResponseWriter, r *http.Request, _ mod
 	if err != nil {
 		return err
 	}
-	jobs, err := store.JobsOfCompany(r.Context(), s.db, company.ID)
+	jobs, err := store.JobsOfCompany(r.Context(), s.db, *company)
 	if err != nil {
 		return err
 	}
@@ -218,7 +209,7 @@ func (s *Server) testCompanyDetail(w http.ResponseWriter, r *http.Request, _ mod
 	for i := range jobs {
 		published[jobs[i].ExternalID] = &jobs[i]
 	}
-	testJobs, err := store.TestJobsOfCompany(r.Context(), s.db, company.ID)
+	testJobs, err := store.TestJobsOfCompany(r.Context(), s.db, company.Slug)
 	if err != nil {
 		return err
 	}
@@ -228,7 +219,7 @@ func (s *Server) testCompanyDetail(w http.ResponseWriter, r *http.Request, _ mod
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"company": map[string]any{
-			"id": company.ID, "name": company.Name, "slug": company.Slug, "status": company.Status(),
+			"id": company.Slug, "name": company.Name, "slug": company.Slug, "status": company.Status(),
 			"domain": company.Domain, "selectable": company.Selectable(),
 		},
 		"jobs": views,
@@ -311,7 +302,7 @@ func (s *Server) createTestJob(w http.ResponseWriter, r *http.Request, _ model.U
 	if err != nil {
 		return err
 	}
-	testJob := model.TestJob{ID: uuid.NewString(), CompanyID: company.ID, CreatedAt: model.Now()}
+	testJob := model.TestJob{ID: uuid.NewString(), CompanySlug: company.Slug, CreatedAt: model.Now()}
 	if err := s.applyTestJob(r, &testJob, in); err != nil {
 		return err
 	}
@@ -347,7 +338,7 @@ func (s *Server) updateTestJob(w http.ResponseWriter, r *http.Request, _ model.U
 	if err := store.SaveTestJob(r.Context(), s.db, *testJob); err != nil {
 		return err
 	}
-	job, err := store.JobByExternalID(r.Context(), s.db, testJob.CompanyID, testJob.ID)
+	job, err := store.JobByExternalID(r.Context(), s.db, testJob.CompanySlug, testJob.ID)
 	if err != nil {
 		return err
 	}
@@ -386,14 +377,17 @@ func (s *Server) publishTestJob(w http.ResponseWriter, r *http.Request, _ model.
 	if testJob == nil {
 		return notFound("No such test job")
 	}
-	company, err := store.CompanyByID(r.Context(), s.db, testJob.CompanyID)
+	company, err := store.CompanyBySlug(r.Context(), s.db, testJob.CompanySlug)
 	if err != nil {
 		return err
+	}
+	if company == nil {
+		return notFound("No such test company")
 	}
 	if !company.Active {
 		return &apiError{status: http.StatusBadRequest, message: company.Name + " is disabled. Reactivate it first"}
 	}
-	if err := store.PublishTestJob(r.Context(), s.db, id, model.Now()); err != nil {
+	if err := store.PublishTestJob(r.Context(), s.db, *testJob, model.Now()); err != nil {
 		return err
 	}
 
@@ -401,14 +395,14 @@ func (s *Server) publishTestJob(w http.ResponseWriter, r *http.Request, _ model.
 	if err != nil {
 		return err
 	}
-	job, err := store.JobByExternalID(r.Context(), s.db, company.ID, id)
+	job, err := store.JobByExternalID(r.Context(), s.db, company.Slug, id)
 	if err != nil {
 		return err
 	}
 	byStatus := map[string]int{}
 	var published map[string]any
 	if job != nil {
-		if byStatus, err = store.NotificationCountsOf(r.Context(), s.db, job.ID); err != nil {
+		if byStatus, err = store.NotificationCountsOf(r.Context(), s.db, *job); err != nil {
 			return err
 		}
 		published = map[string]any{"id": job.ID, "status": job.Status, "title": job.Title}
