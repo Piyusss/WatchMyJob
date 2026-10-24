@@ -25,7 +25,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
           <span className="grid size-7 place-items-center rounded-md bg-brand text-[0.75rem] font-bold text-white">
             W
           </span>
-          WatchmyJob.co
+          WatchmyJob
         </Link>
 
         {children}

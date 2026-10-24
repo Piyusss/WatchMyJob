@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Check, CheckCheck, Plus, Search, X, Building2 } from "lucide-react";
+import { AlertCircle, Search, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
 import CompanyLogo from "@/components/CompanyLogo";
+import Pagination from "@/components/Pagination";
+import WatchButton from "@/components/WatchButton";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { apiFetch, bulkSetWatching, type Company, type Subscription } from "@/lib/api";
+import { apiFetch, type Company, type Subscription } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+// Seven rows of the two-column grid, so a page never ends half empty.
+const PAGE_SIZE = 14;
 
 export default function CompaniesClient() {
   const { user, loading: userLoading, error: userError } = useCurrentUser();
@@ -28,7 +33,8 @@ export default function CompaniesClient() {
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [bulkPending, setBulkPending] = useState<"watch" | "unwatch" | null>(null);
+  const [page, setPage] = useState(1);
+  const listTop = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -79,48 +85,6 @@ export default function CompaniesClient() {
     return companies.filter((c) => c.name.toLowerCase().includes(q));
   }, [companies, query]);
 
-  // Bulk actions act on what's on screen, not silently on the whole
-  // catalogue: with a search active, "Watch all" means the results the user
-  // is looking at. The button labels say which, so the scope is never a
-  // guess.
-  const visibleWatched = visible.filter((c) => watchedSlugs.has(c.slug)).length;
-  const canWatchAll = visibleWatched < visible.length;
-  const canUnwatchAll = visibleWatched > 0;
-
-  async function bulkUpdate(action: "watch" | "unwatch") {
-    setError(null);
-    setBulkPending(action);
-    const slugs = visible.map((c) => c.slug);
-    try {
-      const { changed } = await bulkSetWatching(action, slugs);
-
-      setWatchedSlugs((prev) => {
-        const next = new Set(prev);
-        for (const slug of slugs) {
-          if (action === "watch") next.add(slug);
-          else next.delete(slug);
-        }
-        return next;
-      });
-
-      const scope = query.trim() ? "matching companies" : "companies";
-      toast.success(
-        action === "watch"
-          ? changed > 0
-            ? `Now watching ${changed} more ${scope === "companies" ? (changed === 1 ? "company" : "companies") : scope}`
-            : "You were already watching all of these"
-          : changed > 0
-            ? `Stopped watching ${changed} ${changed === 1 ? "company" : "companies"}`
-            : "You weren't watching any of these",
-      );
-    } catch {
-      setError("Something went wrong updating your watchlist. Please try again.");
-      toast.error("Something went wrong updating your watchlist. Please try again.");
-    } finally {
-      setBulkPending(null);
-    }
-  }
-
   if (userError) {
     return (
       <>
@@ -148,6 +112,16 @@ export default function CompaniesClient() {
   }
 
   const watchedCount = watchedSlugs.size;
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  // A search can leave fewer pages than the number showing.
+  const currentPage = Math.min(page, pageCount);
+  const onPage = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Back up to the start of the list, or the new page would begin out of view.
+  function goToPage(next: number) {
+    setPage(next);
+    listTop.current?.scrollIntoView({ block: "start" });
+  }
 
   return (
     <>
@@ -159,7 +133,7 @@ export default function CompaniesClient() {
                 preferences wizard: see TOTAL_ONBOARDING_STEPS there. */}
             <p className="eyebrow">Step 6 of 6</p>
             <h1 className="mt-2.5 text-[1.6rem] font-semibold tracking-tight text-ink">
-              Which companies should WatchmyJob.co watch?
+              Which companies should WatchmyJob watch?
             </h1>
             <p className="mt-2 max-w-xl text-[0.9rem] leading-relaxed text-ink-muted">
               Watching starts monitoring from right now. Roles already open won&apos;t email you, only ones that
@@ -185,47 +159,19 @@ export default function CompaniesClient() {
         )}
 
         {companies.length > 6 && (
-          <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-faint" />
-              <Input
-                className="h-8 bg-surface pl-8"
-                type="search"
-                placeholder="Find a company…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Find a company"
-              />
-            </div>
-
-            {/* Each button is disabled once it would do nothing, so the pair
-                doubles as a readout of where the visible list already
-                stands. The count is in the label because with a search
-                active these act on the results, not all companies. */}
-            {visible.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canWatchAll || bulkPending !== null}
-                  onClick={() => bulkUpdate("watch")}
-                  className="gap-1.5"
-                >
-                  <CheckCheck className="size-3.5" />
-                  {bulkPending === "watch" ? "Watching…" : `Watch all ${visible.length}`}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canUnwatchAll || bulkPending !== null}
-                  onClick={() => bulkUpdate("unwatch")}
-                  className="gap-1.5 text-ink-muted"
-                >
-                  <X className="size-3.5" />
-                  {bulkPending === "unwatch" ? "Removing…" : "Watch none"}
-                </Button>
-              </div>
-            )}
+          <div className="relative mt-7 w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-faint" />
+            <Input
+              className="h-8 bg-surface pl-8"
+              type="search"
+              placeholder="Find a company…"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Find a company"
+            />
           </div>
         )}
 
@@ -234,7 +180,7 @@ export default function CompaniesClient() {
             <EmptyState
               icon={Building2}
               title="No companies available yet"
-              body="WatchmyJob.co isn't monitoring any company boards right now. Check back shortly."
+              body="WatchmyJob isn't monitoring any company boards right now. Check back shortly."
             />
           </div>
         ) : visible.length === 0 ? (
@@ -242,62 +188,52 @@ export default function CompaniesClient() {
             <EmptyState icon={Search} title="No companies match" body={`Nothing matched “${query.trim()}”.`} />
           </div>
         ) : (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            {visible.map((c) => {
-              const watching = watchedSlugs.has(c.slug);
-              const isPending = pending.has(c.slug);
-              return (
-                <div
-                  key={c.id}
-                  className={cn(
-                    "group flex items-center gap-4 rounded-2xl border bg-surface px-6 py-5 transition-all duration-150",
-                    watching ? "border-brand/35 bg-brand-tint/25" : "border-line hover:border-line-strong hover:shadow-sm",
-                  )}
-                >
-                  <CompanyLogo name={c.name} domain={c.domain} size={48} />
-
-                  {/* Only the name block navigates: the Watch button is the
-                      primary action on this screen and must stay a plain
-                      sibling, not a control nested inside a link. */}
-                  <Link href={`/companies/${c.slug}`} className="min-w-0 flex-1">
-                    <div className="truncate text-[1.02rem] font-medium text-ink transition-colors hover:text-brand-ink">
-                      {c.name}
-                    </div>
-                    <div className="mt-1 text-[0.82rem] text-ink-muted">
-                      {c.openRoles.toLocaleString()} open {c.openRoles === 1 ? "role" : "roles"}
-                      {/* brand-ink in dark: --brand stays a fill colour there
-                          and is only 3.9:1 on the dark canvas, short of AA
-                          for text this small. */}
-                      {watching && <span className="text-brand dark:text-brand-ink"> · Watching</span>}
-                    </div>
-                  </Link>
-
-                  <Button
-                    size="default"
-                    variant={watching ? "outline" : "default"}
-                    disabled={isPending}
-                    onClick={() => toggleWatch(c.slug, watching)}
-                    aria-label={watching ? `Stop watching ${c.name}` : `Watch ${c.name}`}
-                    className={cn("min-w-[6.5rem] gap-1.5", watching && "border-brand/40 text-brand-ink")}
-                  >
-                    {isPending ? (
-                      "…"
-                    ) : watching ? (
-                      <>
-                        <Check className="size-3.5" />
-                        Watching
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="size-3.5" />
-                        Watch
-                      </>
+          <>
+            <div ref={listTop} className="mt-6 grid scroll-mt-24 gap-5 sm:grid-cols-2">
+              {onPage.map((c) => {
+                const watching = watchedSlugs.has(c.slug);
+                const isPending = pending.has(c.slug);
+                return (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      "group flex items-center gap-4 rounded-2xl border bg-surface px-6 py-5 transition-all duration-150",
+                      watching ? "border-line-strong bg-ink/[0.025]" : "border-line hover:border-line-strong hover:shadow-sm",
                     )}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+                  >
+                    <CompanyLogo name={c.name} domain={c.domain} size={48} />
+
+                    {/* Only the name block navigates: the Watch button is the
+                        primary action on this screen and must stay a plain
+                        sibling, not a control nested inside a link. */}
+                    <Link href={`/companies/${c.slug}`} className="min-w-0 flex-1">
+                      <div className="truncate text-[1.02rem] font-medium text-ink transition-colors hover:text-brand-ink">
+                        {c.name}
+                      </div>
+                      <div className="mt-1 text-[0.82rem] text-ink-muted">
+                        {c.openRoles.toLocaleString()} open {c.openRoles === 1 ? "role" : "roles"}
+                        {watching && <span className="text-ink-secondary"> · Watching</span>}
+                      </div>
+                    </Link>
+
+                    <WatchButton
+                      name={c.name}
+                      watching={watching}
+                      pending={isPending}
+                      onClick={() => toggleWatch(c.slug, watching)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <Pagination
+              page={currentPage}
+              pageCount={pageCount}
+              pageSize={PAGE_SIZE}
+              total={visible.length}
+              onChange={goToPage}
+            />
+          </>
         )}
 
         {isOnboarding && (

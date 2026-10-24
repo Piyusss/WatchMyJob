@@ -2,18 +2,23 @@
 
 import { useState } from "react";
 import SampleLogo from "@/components/SampleLogo";
+import { COMPANY_LOGOS } from "@/lib/companyLogos";
 import { cn } from "@/lib/utils";
 
-// Routed through our own handler rather than straight at the icon provider.
-// The provider answers an unknown domain with a 404 that still carries a
-// valid grey-placeholder PNG, and browsers happily render an image served
-// with a 404, so onError never fired and made-up domains showed the grey
-// square instead of the mark below. api/company-logo collapses that into an
-// empty 404 that does fire onError (see the comment in that file).
+// A followed company's logo is a sharp 192px copy of the best icon its own
+// website publishes (scripts/company-logos.mjs). Any other domain (a test
+// company, one added since the script last ran) goes through our own
+// handler rather than straight at a favicon provider. The provider answers
+// an unknown domain with a 404 that still carries a valid grey-placeholder
+// PNG, and browsers happily render an image served with a 404, so onError
+// never fired and made-up domains showed the grey square instead of the mark
+// below. api/company-logo collapses that into an empty 404 that does fire
+// onError (see the comment in that file).
 //
 // Deliberately not stored as a URL on the company: keeping only the domain
-// lets the provider change again later without a migration or a backfill.
+// lets the source change again later without a migration or a backfill.
 function logoUrl(domain: string): string {
+  if (COMPANY_LOGOS.has(domain)) return `/logos/companies/${domain}.png`;
   return `/api/company-logo?domain=${encodeURIComponent(domain)}`;
 }
 

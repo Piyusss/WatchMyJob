@@ -21,7 +21,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "WatchmyJob.co",
+  title: "WatchmyJob",
   description:
     "Get email alerts when a new job matching your preferences goes live so you can apply early before the crowd.",
 };
@@ -41,7 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             flash before hydration. Nothing else may run before this. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body>
+      {/* suppressHydrationWarning for the same reason, from outside: browser
+          extensions (custom cursors, Grammarly) add attributes to <body>
+          before React hydrates. It covers this element's attributes only. */}
+      <body suppressHydrationWarning>
         <ClerkProvider
           appearance={{
             variables: { colorPrimary: "var(--brand)", fontFamily: "var(--font-sans)" },

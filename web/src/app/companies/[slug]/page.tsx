@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Briefcase, ChevronRight, Check, Plus } from "lucide-react";
+import { ArrowLeft, Briefcase, ChevronRight } from "lucide-react";
 import { apiFetch, ApiError, type CompanyDetail } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import AuthNav from "@/components/AuthNav";
 import AccountLoadError from "@/components/AccountLoadError";
 import EmptyState from "@/components/EmptyState";
 import CompanyLogo from "@/components/CompanyLogo";
-import { Button } from "@/components/ui/button";
+import WatchButton from "@/components/WatchButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { OPPORTUNITY_LABEL } from "@/lib/jobDisplay";
@@ -132,19 +132,7 @@ export default function CompanyDetailPage() {
             </div>
           </div>
 
-          <Button variant={company.watching ? "outline" : "default"} onClick={toggleWatch} disabled={toggling}>
-            {company.watching ? (
-              <>
-                <Check className="size-4" />
-                Watching
-              </>
-            ) : (
-              <>
-                <Plus className="size-4" />
-                Watch
-              </>
-            )}
-          </Button>
+          <WatchButton name={company.name} watching={company.watching} pending={toggling} onClick={toggleWatch} />
         </header>
 
         <section className="mt-8">
@@ -154,7 +142,7 @@ export default function CompanyDetailPage() {
               <EmptyState
                 icon={Briefcase}
                 title="No open roles right now"
-                body={`WatchmyJob.co is watching ${company.name}. New openings will appear here as they're posted.`}
+                body={`WatchmyJob is watching ${company.name}. New openings will appear here as they're posted.`}
               />
             ) : (
               <div className="space-y-px">

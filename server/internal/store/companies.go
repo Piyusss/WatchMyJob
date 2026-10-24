@@ -104,20 +104,6 @@ func SelectableCompanies(ctx context.Context, d *DB) ([]model.Company, error) {
 	return filterCompanies(ctx, d, model.Company.Selectable)
 }
 
-func SelectableCompaniesBySlug(ctx context.Context, d *DB, slugs []string) ([]model.Company, error) {
-	found, err := companiesBySlug(ctx, d, slugs)
-	if err != nil {
-		return nil, err
-	}
-	var companies []model.Company
-	for _, company := range found {
-		if company.Selectable() {
-			companies = append(companies, company)
-		}
-	}
-	return companies, nil
-}
-
 // TestCompanies are the admin-made ones, newest first.
 func TestCompanies(ctx context.Context, d *DB) ([]model.Company, error) {
 	companies, err := filterCompanies(ctx, d, func(c model.Company) bool { return c.Platform == model.PlatformTest })

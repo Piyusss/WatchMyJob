@@ -59,7 +59,7 @@ func Load() (Config, error) {
 		ClerkSecretKey:    strings.TrimSpace(os.Getenv("CLERK_SECRET_KEY")),
 		BrevoAPIKey:       strings.TrimSpace(os.Getenv("BREVO_API_KEY")),
 		BrevoFromEmail:    strings.TrimSpace(os.Getenv("BREVO_FROM_EMAIL")),
-		BrevoFromName:     env("BREVO_FROM_NAME", "WatchmyJob.co"),
+		BrevoFromName:     env("BREVO_FROM_NAME", "WatchmyJob"),
 		SchedulingEnabled: env("SCHEDULING_ENABLED", "true") != "false",
 		KeepAwakeURL:      strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/"),
 		MetricsToken:      strings.TrimSpace(os.Getenv("METRICS_TOKEN")),

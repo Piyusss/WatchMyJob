@@ -75,9 +75,9 @@ export default function JobCard({
           contrast. */}
       <div className="pointer-events-none hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
         {rightMeta && <span className="text-[0.78rem] text-ink-secondary">{rightMeta}</span>}
-        {/* Same reason as the Watching label on the companies page: --brand
-            is a fill tone, so small text switches to brand-ink once the
-            canvas goes dark. */}
+        {/* --brand is a fill tone, only 3.9:1 on the dark canvas (short of
+            AA for text this small), so small text switches to brand-ink
+            once the canvas goes dark. */}
         {(expLabel || !job.discoveredInInitialSync) && (
           <span className={cn("text-[0.72rem]", showAsNew ? "text-brand dark:text-brand-ink" : "text-ink-faint")}>
             {[expLabel, job.discoveredInInitialSync ? null : recency.label].filter(Boolean).join(" · ")}

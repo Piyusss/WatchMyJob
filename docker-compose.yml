@@ -36,7 +36,7 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-}
-      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-WatchmyJob.co}
+      BREVO_FROM_NAME: ${BREVO_FROM_NAME:-WatchmyJob}
     ports:
       - "4000:4000"
 

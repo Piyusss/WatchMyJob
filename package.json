@@ -10,6 +10,7 @@
     "build:server": "node scripts/server.mjs build",
     "dev:server": "node scripts/server.mjs dev",
     "dev:web": "npm run dev -w web",
+    "logos": "node scripts/company-logos.mjs",
     "db:up": "docker compose up -d dynamodb",
     "db:down": "docker compose down",
     "monitoring:up": "docker compose --profile monitoring up -d prometheus grafana",

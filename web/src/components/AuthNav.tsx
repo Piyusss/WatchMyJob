@@ -51,7 +51,7 @@ export default function AuthNav() {
       <div className="container-app flex h-14 items-center gap-3">
         <Link
           href="/dashboard"
-          aria-label="WatchmyJob.co home"
+          aria-label="WatchmyJob home"
           className="flex shrink-0 items-center gap-2 text-[0.95rem] font-bold tracking-tight text-ink"
         >
           <span className="grid size-6 place-items-center rounded-md bg-brand text-[0.7rem] font-bold text-white">
@@ -60,7 +60,7 @@ export default function AuthNav() {
           {/* The wordmark is the first thing to go on a narrow screen: the
               mark alone still identifies the app, and the space it frees is
               what keeps the nav on one row at 375px. */}
-          <span className="hidden sm:inline">WatchmyJob.co</span>
+          <span className="hidden sm:inline">WatchmyJob</span>
         </Link>
 
         {/* min-w-0 is load-bearing: without it this flex child refuses to

@@ -198,7 +198,7 @@ export default function SettingsPage() {
           <SettingsGroup title="Data">
             <SettingRow
               title="Export your data"
-              description="Everything WatchmyJob.co holds about you (profile, preferences and watchlist) as a JSON file."
+              description="Everything WatchmyJob holds about you (profile, preferences and watchlist) as a JSON file."
               control={
                 <Button variant="outline" size="sm" onClick={downloadExport} disabled={exporting}>
                   {exporting ? "Preparing…" : "Download"}

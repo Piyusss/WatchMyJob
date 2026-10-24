@@ -77,7 +77,7 @@ func JobAlert(user model.User, job model.Job, unsubscribeURL string) (Email, err
 	}
 
 	text := strings.Builder{}
-	text.WriteString("WatchmyJob.co\n\nNew Job Match\n\n")
+	text.WriteString("WatchmyJob\n\nNew Job Match\n\n")
 	for _, d := range details {
 		text.WriteString(d.Label + ": " + d.Value + "\n")
 	}

@@ -118,18 +118,6 @@ export function clearJobState(jobId: string) {
   return apiFetch<{ jobId: string; state: null }>(`/api/jobs/${jobId}/state`, { method: "DELETE" });
 }
 
-// Watch or unwatch a set of companies in one request. The slugs are always
-// sent explicitly rather than the server inferring "all", so a filtered
-// list acts on exactly what the user was looking at. `changed` counts rows
-// the call actually altered, which is why it can be lower than the number
-// of slugs sent (already-watching companies are a no-op).
-export function bulkSetWatching(action: "watch" | "unwatch", companySlugs: string[]) {
-  return apiFetch<{ changed: number }>("/api/subscriptions/bulk", {
-    method: "POST",
-    body: JSON.stringify({ action, companySlugs }),
-  });
-}
-
 // A small, fixed vocabulary: kept in sync by hand with the backend's own
 // list (levels, in internal/api/preferences.go), the same pattern already used for
 // WorkMode/OpportunityType across this file and the server's enums.

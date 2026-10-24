@@ -43,7 +43,7 @@ export default function UnsubscribeClient() {
       title={status === "success" ? "Unsubscribed" : "Unsubscribe"}
       message={message}
       actionHref="/login"
-      actionLabel="Back to WatchmyJob.co"
+      actionLabel="Back to WatchmyJob"
     />
   );
 }
