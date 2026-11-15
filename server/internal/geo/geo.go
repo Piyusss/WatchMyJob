@@ -3,7 +3,8 @@
 // tech-hiring cities in each. The website gets the whole tree in one
 // response for its location picker. City-sized countries (Singapore) have
 // one region named after themselves, so every country is exactly three
-// levels deep.
+// levels deep. read.go reads a job's location text into places of the
+// same list, for the matcher.
 package geo
 
 import (

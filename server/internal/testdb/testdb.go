@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
@@ -139,13 +140,14 @@ func WantsRole(t *testing.T, user model.User, roleFamily string) {
 	must(t, store.SavePreferences(context.Background(), DB, prefs))
 }
 
-// EmptyQueue marks every queued email as skipped, so a test's sender
-// round sends only what the test queues after.
+// EmptyQueue marks every queued email as skipped, retries waiting for
+// later included, so a test's sender round sends only what the test
+// queues after.
 func EmptyQueue(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
 	for {
-		queued, err := store.QueuedNotifications(ctx, DB, 100)
+		queued, err := store.DueNotifications(ctx, DB, model.Now().Add(48*time.Hour), 100)
 		must(t, err)
 		if len(queued) == 0 {
 			return

@@ -105,7 +105,7 @@ func run() error {
 		// Ten seconds after startup, then SYNC_INTERVAL (five minutes unless
 		// set) after each round ends.
 		every(ctx, &jobs, "Job sync", 10*time.Second, cfg.SyncInterval, jobSync.SyncAll)
-		// Every 15 seconds: send whatever was queued, oldest first.
+		// Every 15 seconds: send whatever is due, longest-waiting first.
 		every(ctx, &jobs, "Email sending", 15*time.Second, 15*time.Second, sender.SendQueued)
 		// On Render: request our own public address every 10 minutes, so the
 		// free plan never stops the service (see config.KeepAwakeURL).

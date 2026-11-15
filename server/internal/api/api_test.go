@@ -205,6 +205,21 @@ func TestPublishingATestJobQueuesAnEmailForAMatchingWatcher(t *testing.T) {
 	expect(t, "queued notifications", field(body, "notificationsByStatus", "QUEUED"), 1.0)
 }
 
+// Switching a test company off unwatches it and closes its jobs at once:
+// nothing reads its board any more.
+func TestSwitchingATestCompanyOffClosesItsJobs(t *testing.T) {
+	admin := testdb.User(t, "admin@example.com")
+	company := testdb.WatchableCompany(t)
+	job := testdb.OpenJob(t, company, "Backend Engineer")
+
+	status, body := call(t, "PATCH", "/api/admin/test-companies/"+company.Slug, admin.ID, `{"status":"INACTIVE"}`)
+	expect(t, "status", status, 200)
+	expect(t, "company status", field(body, "company", "status"), "INACTIVE")
+	expect(t, "open jobs", field(body, "company", "openJobs"), 0.0)
+	_, body = call(t, "GET", "/api/jobs/"+job.ID, admin.ID, "")
+	expect(t, "job status", field(body, "job", "status"), "CLOSED")
+}
+
 // recordingMailer keeps the emails it's asked to send.
 type recordingMailer struct {
 	to   []string

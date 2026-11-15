@@ -26,18 +26,19 @@ type companyItem struct {
 	CreatedAt        time.Time      `dynamodbav:"createdAt"`
 	BoardFingerprint string         `dynamodbav:"boardFingerprint,omitempty"`
 	OpenJobs         int            `dynamodbav:"openJobs"`
+	EmptySince       *time.Time     `dynamodbav:"emptySince,omitempty"`
 }
 
 func companyItemOf(c model.Company) companyItem {
 	k := companyKey(c.Slug)
 	return companyItem{k.PK, k.SK, c.Name, c.Domain, c.Platform, c.BoardID, c.Active, c.InitialSyncDone,
-		c.LastSyncedAt, c.CreatedAt, c.BoardFingerprint, c.OpenJobs}
+		c.LastSyncedAt, c.CreatedAt, c.BoardFingerprint, c.OpenJobs, c.EmptySince}
 }
 
 func (i companyItem) company() model.Company {
 	return model.Company{Slug: i.SK, Name: i.Name, Domain: i.Domain, Platform: i.Platform, BoardID: i.BoardID,
 		Active: i.Active, InitialSyncDone: i.InitialSyncDone, LastSyncedAt: i.LastSyncedAt, CreatedAt: i.CreatedAt,
-		BoardFingerprint: i.BoardFingerprint, OpenJobs: i.OpenJobs}
+		BoardFingerprint: i.BoardFingerprint, OpenJobs: i.OpenJobs, EmptySince: i.EmptySince}
 }
 
 // A company's role families, in an item of their own (see keys.go).
@@ -92,11 +93,6 @@ func companiesBySlug(ctx context.Context, d *DB, slugs []string) (map[string]mod
 		companies[item.SK] = item.company()
 	}
 	return companies, nil
-}
-
-// ActiveCompanies are the ones the sync reads, in name order.
-func ActiveCompanies(ctx context.Context, d *DB) ([]model.Company, error) {
-	return filterCompanies(ctx, d, func(c model.Company) bool { return c.Active })
 }
 
 // SelectableCompanies are the ones users can watch, in name order.
@@ -183,16 +179,25 @@ func SetCompanyActive(ctx context.Context, d *DB, slug string, active bool) erro
 }
 
 // MarkCompanyChecked records that the sync looked at the company's board
-// and found it as last saved.
+// and found it as last saved, which also means it isn't empty.
 func MarkCompanyChecked(ctx context.Context, d *DB, slug string, now time.Time) error {
-	return d.update(ctx, companyKey(slug), "SET #lastSyncedAt = :now", map[string]any{":now": now})
+	return d.update(ctx, companyKey(slug), "SET #lastSyncedAt = :now REMOVE #emptySince", map[string]any{":now": now})
+}
+
+// MarkBoardEmpty records that the sync looked at the company's board and
+// found no jobs (or no board): from now, unless an earlier sync already did.
+func MarkBoardEmpty(ctx context.Context, d *DB, slug string, now time.Time) error {
+	return d.update(ctx, companyKey(slug), "SET #lastSyncedAt = :now, #emptySince = if_not_exists(#emptySince, :now)",
+		map[string]any{":now": now})
 }
 
 // MarkCompanySynced records a finished sync, which is also the end of the
 // baseline if this was the company's first: what the company's jobs, all
 // of them as now saved, add up to, and the board's fingerprint. The
 // company item is written last, so a fingerprint is only saved once all
-// the rest is. It also hands the cache the company's open jobs (see cache.go).
+// the rest is. Whatever the board said has now been saved, so its empty
+// time, if any, is over (see model.Company.EmptySince). It also hands the
+// cache the company's open jobs (see cache.go).
 func MarkCompanySynced(ctx context.Context, d *DB, slug string, now time.Time, fingerprint string, jobs []model.Job) error {
 	var open []jobItem
 	seen := map[string]bool{}
@@ -214,7 +219,7 @@ func MarkCompanySynced(ctx context.Context, d *DB, slug string, now time.Time, f
 	err := d.put(ctx, roleFamiliesItem{k.PK, k.SK, families}, "")
 	if err == nil {
 		err = d.update(ctx, companyKey(slug), `SET #initialSyncDone = :true, #lastSyncedAt = :now,
-			#boardFingerprint = :fingerprint, #openJobs = :open`,
+			#boardFingerprint = :fingerprint, #openJobs = :open REMOVE #emptySince`,
 			map[string]any{":true": true, ":now": now, ":fingerprint": fingerprint, ":open": len(open)})
 	}
 	if err != nil {
@@ -236,9 +241,9 @@ type CompanyEntry struct {
 
 // SeedCompanies brings the companies in line with companies.json, at every
 // startup: new entries are added, changed ones updated, and real companies
-// no longer listed are switched off (test companies come from the admin
-// pages, never from the file). To follow a new company, add a line to the
-// file and restart.
+// no longer listed are switched off, which closes their jobs in the next
+// sync round (test companies come from the admin pages, never from the
+// file). To follow a new company, add a line to the file and restart.
 func SeedCompanies(ctx context.Context, d *DB, entries []CompanyEntry) error {
 	slugs := make([]string, len(entries))
 	for i, e := range entries {

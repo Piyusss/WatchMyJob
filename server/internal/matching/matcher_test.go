@@ -65,21 +65,79 @@ func TestAJobWithoutALevelStillMatchesALevelPreference(t *testing.T) {
 	}
 }
 
-func TestAnyOfTheChosenPlacesMatchesItsMostSpecificName(t *testing.T) {
-	places := wants(model.Settings{Locations: []model.Location{
-		place("IN", ptr("KA"), ptr("Bangalore")),
-		place("US", nil, nil),
-	}})
-	for location, want := range map[string]bool{"Bangalore, India": true, "Remote - United States": true, "London": false} {
+// in is someone who wants jobs in any of those places, and nothing else.
+func in(places ...model.Location) model.Preferences {
+	return wants(model.Settings{Locations: places})
+}
+
+// locationCases checks, for each job location, whether it matches prefs.
+func locationCases(t *testing.T, prefs model.Preferences, cases map[string]bool) {
+	t.Helper()
+	for location, want := range cases {
 		job := openJob("Engineer")
 		job.Location = &location
-		if got := Matches(job, places); got != want {
+		if got := Matches(job, prefs); got != want {
 			t.Errorf("%q: got %v, want %v", location, got, want)
 		}
 	}
-	if !Matches(openJob("Engineer"), places) {
+}
+
+var (
+	india     = place("IN", nil, nil)
+	bangalore = place("IN", ptr("KA"), ptr("Bangalore"))
+)
+
+func TestAnyOfTheChosenPlacesMatchesWhereverItIsNamed(t *testing.T) {
+	locationCases(t, in(bangalore, place("US", nil, nil)), map[string]bool{
+		"Bangalore, India":       true,
+		"Remote - United States": true,
+		"San Francisco, CA":      true, // in the US, without saying so
+		"London":                 false,
+	})
+	if !Matches(openJob("Engineer"), in(bangalore)) {
 		t.Error("a job that doesn't say where it is should match")
 	}
+}
+
+// A job in a city is in its state and its country too, but a job somewhere
+// in a state isn't necessarily in the city someone picked.
+func TestAPlaceIsInsideThePlacesAroundIt(t *testing.T) {
+	locationCases(t, in(india), map[string]bool{"Bengaluru": true, "Pune, Maharashtra": true})
+	locationCases(t, in(place("IN", ptr("KA"), nil)), map[string]bool{"Bangalore": true, "Pune": false})
+	locationCases(t, in(bangalore), map[string]bool{"Karnataka, India": false})
+}
+
+func TestAPlaceIsFoundUnderItsOtherNames(t *testing.T) {
+	locationCases(t, in(bangalore), map[string]bool{"Bengaluru, Karnataka": true})
+	locationCases(t, in(place("US", ptr("NY"), ptr("New York City"))), map[string]bool{"New York, NY": true, "NYC": true})
+	locationCases(t, in(place("US", ptr("DC"), nil)), map[string]bool{"Washington, D.C.": true})
+}
+
+func TestAPlaceIsOnlyFoundAsWholeWords(t *testing.T) {
+	locationCases(t, in(india), map[string]bool{"Indianapolis, IN": false, "Indiana": false})
+}
+
+// Cambridge is in Massachusetts and in England, and Washington is a state
+// and a city: the rest of the text decides which is meant, if it can.
+func TestANameOfTwoPlacesIsSettledByTheRestOfTheText(t *testing.T) {
+	locationCases(t, in(place("GB", ptr("ENG"), ptr("Cambridge"))), map[string]bool{
+		"Cambridge, MA": false, "Cambridge, UK": true, "Cambridge": true,
+	})
+	locationCases(t, in(place("US", ptr("WA"), nil)), map[string]bool{"Washington, DC": false, "Seattle, Washington": true})
+	locationCases(t, in(place("US", ptr("DC"), nil)), map[string]bool{"Washington, DC": true, "Seattle, Washington": false})
+}
+
+// "CA" is California, but also Canada's country code; "IL" is Illinois,
+// and Israel's code.
+func TestAStateCodeCountsUnlessTheJobIsInAnotherCountry(t *testing.T) {
+	locationCases(t, in(place("US", ptr("CA"), nil)), map[string]bool{"Sunnyvale, CA": true, "Toronto, ON, CA": false})
+	locationCases(t, in(place("US", ptr("IL"), nil)), map[string]bool{"Chicago, IL": true, "Tel Aviv, IL": false})
+}
+
+func TestALocationThatNamesNoPlaceMatchesAnyone(t *testing.T) {
+	locationCases(t, in(india), map[string]bool{
+		"Remote": true, "Work from home": true, "Remote - US": false, "Remote - Europe": false,
+	})
 }
 
 func TestWorkModeMustBeOneOfTheChosenOnesWhenTheJobStatesIt(t *testing.T) {
@@ -128,14 +186,46 @@ func TestExperienceRangesMustOverlap(t *testing.T) {
 	}
 }
 
-func TestAnOpenEndedRequirementAlsoNeedsTheLevelToAgree(t *testing.T) {
+// Boards and the form name levels differently ("SDE 1", "Junior", the
+// form's "Associate"); they're compared by their step on one ladder.
+func TestLevelsAreComparedByTheirStepOnOneLadder(t *testing.T) {
+	cases := []struct {
+		wanted, title string
+		want          bool
+	}{
+		{"Associate", "Software Engineer II", true},
+		{"Associate", "SDE 1", true},
+		{"Associate", "Junior Developer", true},
+		{"Associate", "Entry Level Engineer", true},
+		{"Associate", "Senior Engineer", false},
+		{"Senior", "Software Engineer III", true},
+		{"Lead", "Staff Engineer", true},
+		{"Principal", "Staff Engineer", false},
+	}
+	for _, c := range cases {
+		if got := Matches(openJob(c.title), wants(model.Settings{RoleLevel: ptr(c.wanted)})); got != c.want {
+			t.Errorf("%s wanting %q: got %v, want %v", c.wanted, c.title, got, c.want)
+		}
+	}
+}
+
+// An open-ended "2+ years" only needs the top of the user's range to reach
+// 2. A posting that names no level then passes; one that names another
+// step of the ladder is kept away by the level rule.
+func TestAnOpenEndedRequirementOnlyNeedsEnoughYears(t *testing.T) {
 	seniorWithTen := wants(model.Settings{RoleLevel: ptr("Senior"), YearsExperience: ptr(10), ToleranceYears: ptr(0)})
-	for title, want := range map[string]bool{"Senior Engineer": true, "Engineer": false} {
+	for title, want := range map[string]bool{"Senior Engineer": true, "Engineer": true, "Junior Engineer": false} {
 		job := openJob(title)
 		job.ExperienceMin = ptr(2)
 		if got := Matches(job, seniorWithTen); got != want {
 			t.Errorf("%q: got %v, want %v", title, got, want)
 		}
+	}
+	associateWithOne := wants(model.Settings{RoleLevel: ptr("Associate"), YearsExperience: ptr(1), ToleranceYears: ptr(1)})
+	job := openJob("Software Engineer")
+	job.ExperienceMin = ptr(2)
+	if !Matches(job, associateWithOne) {
+		t.Error("a 2+ years posting with no level should reach someone with 1 to 2 years who picked a level")
 	}
 }
 

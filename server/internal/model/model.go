@@ -163,6 +163,10 @@ type Company struct {
 	// count on request.
 	BoardFingerprint string
 	OpenJobs         int
+	// Since when the board has answered with no jobs at all, or said it
+	// doesn't exist; nil while it lists jobs. Its jobs close once that has
+	// lasted long enough to believe (see package syncer).
+	EmptySince *time.Time
 }
 
 // Selectable reports whether users can watch it: it's active and has its baseline.
@@ -294,17 +298,6 @@ type Location struct {
 	CityName    *string `json:"cityName"`
 }
 
-// MostSpecificName is the narrowest part that was picked, which is what gets matched.
-func (l Location) MostSpecificName() string {
-	if l.CityName != nil {
-		return *l.CityName
-	}
-	if l.StateName != nil {
-		return *l.StateName
-	}
-	return l.CountryName
-}
-
 // Label is how a test job's location reads, e.g. "Bangalore, Karnataka, India".
 func (l Location) Label() string {
 	var parts []string
@@ -373,7 +366,17 @@ type Subscription struct {
 }
 
 // MaxAttempts is how often an email is tried before it's marked FAILED.
-const MaxAttempts = 3
+// With retryDelay's waits in between, the last try comes about a day
+// after the first.
+const MaxAttempts = 7
+
+// retryDelay is the wait after an email's attempts-th failed try: 1
+// minute, then four times longer each time (4 and 16 minutes, then about
+// 1, 4 and 17 hours). An outage at the email provider, or a used-up daily
+// quota, then delays an alert rather than losing it.
+func retryDelay(attempts int) time.Duration {
+	return time.Minute << (2 * (attempts - 1))
+}
 
 // Notification is one "a new job matches you" email for one user. It's
 // queued when the job is found and sent a few seconds later (package
@@ -384,9 +387,12 @@ type Notification struct {
 	Attempts  int
 	LastError *string
 	CreatedAt time.Time
-	SentAt    *time.Time
-	User      User
-	Job       Job
+	// While it's QUEUED, when it's next due: at once when queued, and after
+	// a failed try, retryDelay later.
+	NextAttemptAt time.Time
+	SentAt        *time.Time
+	User          User
+	Job           Job
 }
 
 func (n *Notification) MarkSent(now time.Time) {
@@ -401,13 +407,23 @@ func (n *Notification) MarkSkipped(reason string) {
 	n.LastError = &reason
 }
 
-// MarkFailedAttempt leaves it QUEUED, so the next round tries again, until MaxAttempts.
-func (n *Notification) MarkFailedAttempt(err string) {
+// MarkFailedAttempt leaves it QUEUED, due again retryDelay after now,
+// until its MaxAttempts-th failed try marks it FAILED.
+func (n *Notification) MarkFailedAttempt(err string, now time.Time) {
 	n.Attempts++
 	n.LastError = &err
 	if n.Attempts >= MaxAttempts {
 		n.Status = Failed
+		return
 	}
+	n.NextAttemptAt = now.Add(retryDelay(n.Attempts))
+}
+
+// MarkUndeliverable: it could never be sent (see notify's send), so it's
+// FAILED without being tried.
+func (n *Notification) MarkUndeliverable(reason string) {
+	n.Status = Failed
+	n.LastError = &reason
 }
 
 // TestJob is a fake opening an admin writes for a TEST company. Once

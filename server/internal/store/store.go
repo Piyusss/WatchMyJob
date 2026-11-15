@@ -317,8 +317,10 @@ func values(vals map[string]any) map[string]types.AttributeValue {
 // fixed width: time.RFC3339Nano drops trailing zeros, and "05.1Z" would
 // sort after "05.12Z".
 func sortTime(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000000Z")
+	return t.UTC().Format(sortTimeLayout)
 }
+
+const sortTimeLayout = "2006-01-02T15:04:05.000000Z"
 
 // orEmpty turns a missing list into an empty one, which the website reads as [].
 func orEmpty[T any](items []T) []T {

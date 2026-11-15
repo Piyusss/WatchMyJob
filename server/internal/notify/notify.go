@@ -1,13 +1,15 @@
 // Package notify turns new jobs into emails, in two steps. QueueForNewJob
 // (called by the sync) records who should hear about a job; a Sender (on a
 // timer) sends those emails. The queue means a slow or failing email
-// provider never holds up the sync, and failed sends can be retried.
+// provider never holds up the sync, and failed sends are retried later.
 package notify
 
 import (
 	"context"
 	"log/slog"
-	"sync/atomic"
+	"net/mail"
+	"sync"
+	"time"
 
 	"jobdrop/internal/matching"
 	"jobdrop/internal/metrics"
@@ -45,63 +47,82 @@ type Sender struct {
 	db          *store.DB
 	mailer      Mailer
 	frontendURL string
-	// Whether anything may be waiting to be sent: set at startup (for
-	// whatever was queued before a restart), by Wake, and while a failed
-	// send waits for its retry. While it's unset, a round doesn't ask the
+	now         func() time.Time // the clock: model.Now, which tests move forward
+
+	// When the next round should look at the queue. The zero time means at
+	// once: at startup (for whatever was queued before a restart) and after
+	// Wake. With nothing queued it's never, and with only retries waiting
+	// it's when the first falls due. Until then a round doesn't ask the
 	// database at all, which spares the table's read capacity.
-	pending atomic.Bool
+	mu       sync.Mutex
+	nextLook time.Time
 }
 
+// never is a time no round reaches: the sender waits for Wake.
+var never = time.Date(9999, time.January, 1, 0, 0, 0, 0, time.UTC)
+
 func NewSender(db *store.DB, mailer Mailer, frontendURL string) *Sender {
-	s := &Sender{db: db, mailer: mailer, frontendURL: frontendURL}
-	s.pending.Store(true)
-	return s
+	return &Sender{db: db, mailer: mailer, frontendURL: frontendURL, now: model.Now}
 }
 
 // Wake tells the sender that emails were just queued; the next round sends them.
 func (s *Sender) Wake() {
-	s.pending.Store(true)
+	s.lookBy(time.Time{})
 }
 
-// SendQueued sends what is queued, oldest first: one round, run every 15
-// seconds by main.go.
-func (s *Sender) SendQueued(ctx context.Context) error {
-	if !s.pending.Swap(false) {
-		return nil // nothing was queued since the last round
+// lookBy brings the next look forward to t, if that's sooner: it never
+// puts one off, so a Wake during a round isn't lost.
+func (s *Sender) lookBy(t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if t.Before(s.nextLook) {
+		s.nextLook = t
 	}
-	// Look again next round unless this one leaves the queue empty (more
-	// than a batch, or a failed send waiting for its retry, or an error).
-	again := true
-	defer func() {
-		if again {
-			s.pending.Store(true)
-		}
-	}()
+}
 
-	queue, err := store.QueuedNotifications(ctx, s.db, batchSize)
+// SendQueued sends the queued emails that are due, the longest-waiting
+// first: one round, run every 15 seconds by main.go.
+func (s *Sender) SendQueued(ctx context.Context) error {
+	now := s.now()
+	s.mu.Lock()
+	if now.Before(s.nextLook) {
+		s.mu.Unlock()
+		return nil // nothing has fallen due or been queued since the last look
+	}
+	s.nextLook = never
+	s.mu.Unlock()
+	// Unless this round finds out when the queue next needs a look, look
+	// again next round (after an error, say).
+	next := time.Time{}
+	defer func() { s.lookBy(next) }()
+
+	queue, err := store.DueNotifications(ctx, s.db, now, batchSize)
 	if err != nil {
 		return err
 	}
 	for _, n := range queue {
-		if err := s.send(ctx, &n); err != nil {
+		if err := s.send(ctx, &n, now); err != nil {
 			return err
 		}
 		if err := store.SaveNotification(ctx, s.db, n); err != nil {
 			return err
 		}
 	}
-	waiting, err := store.CountQueuedNotifications(ctx, s.db)
+	waiting, firstDue, err := store.QueueStatus(ctx, s.db)
 	if err != nil {
 		return err
 	}
 	metrics.EmailQueueDepth.Set(float64(waiting))
-	again = waiting > 0
+	next = firstDue // already past if more than a batch was due
+	if waiting == 0 {
+		next = never
+	}
 	return nil
 }
 
 // send tries one email and records the outcome on n. Only a database
 // error is returned; a failed send is part of the outcome.
-func (s *Sender) send(ctx context.Context, n *model.Notification) error {
+func (s *Sender) send(ctx context.Context, n *model.Notification, now time.Time) error {
 	reason, err := s.reasonNotToSend(ctx, *n)
 	if err != nil {
 		return err
@@ -109,6 +130,16 @@ func (s *Sender) send(ctx context.Context, n *model.Notification) error {
 	if reason != "" {
 		n.MarkSkipped(reason)
 		metrics.Emails.WithLabelValues("skipped").Inc()
+		return nil
+	}
+	// An address that isn't an email address would fail every time, so
+	// it's given up on at once. Every other failure is retried, Brevo's
+	// errors included: its status codes don't tell a problem with this email
+	// apart from one with the account (a sender that isn't verified yet, the
+	// day's quota used up), and those can be fixed or wait out.
+	if _, err := mail.ParseAddress(n.User.Email); err != nil {
+		n.MarkUndeliverable("not a valid email address")
+		metrics.Emails.WithLabelValues("failed").Inc()
 		return nil
 	}
 
@@ -119,7 +150,7 @@ func (s *Sender) send(ctx context.Context, n *model.Notification) error {
 	}
 	if err != nil {
 		slog.Warn("Email failed", "to", n.User.Email, "error", err)
-		n.MarkFailedAttempt(err.Error())
+		n.MarkFailedAttempt(err.Error(), now)
 		if n.Status == model.Failed {
 			metrics.Emails.WithLabelValues("failed").Inc()
 		} else {

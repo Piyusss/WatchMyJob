@@ -52,8 +52,8 @@ package store
 //
 //	GSI2 (all fields)  GSI2PK            GSI2SK
 //	job, while open    OPEN#<slug>       <first seen>#<external id>    a company's open jobs
-//	email, while       QUEUED            <created>#<notification id>   the emails waiting to be
-//	  queued                                                             sent, oldest first
+//	email, while       QUEUED            <next try>#<notification id>  the emails waiting to be
+//	  queued                                                             sent, by when each is due
 //
 // DynamoDB updates an index a moment after the table, so a read from one
 // may not see a write that just finished. Reads from an index are only

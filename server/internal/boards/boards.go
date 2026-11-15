@@ -31,6 +31,11 @@ type Board interface {
 // tag it was given: the board said "304 Not Modified" and sent no body.
 var ErrNotModified = errors.New("the board hasn't changed")
 
+// ErrNoBoard is in Fetch's error for a board that says it doesn't exist
+// ("404 Not Found", "410 Gone"): the company left the platform, or renamed
+// its board. The syncer counts that as a board with no jobs.
+var ErrNoBoard = errors.New("the board doesn't exist")
+
 // All returns each platform's board. client makes the calls to the boards'
 // public APIs; db holds the test companies' published jobs.
 func All(client *http.Client, db *store.DB) map[model.Platform]Board {
@@ -47,7 +52,8 @@ func All(client *http.Client, db *store.DB) map[model.Platform]Board {
 // board then answers "304 Not Modified", with no body, if nothing changed
 // (ErrNotModified). That spares downloading and reading the whole board,
 // which is most of a sync's work. Any other answer outside 2xx is an
-// error, which fails that company's sync.
+// error, which fails that company's sync, except that one saying there's
+// no such board carries ErrNoBoard.
 func getJSON(ctx context.Context, client *http.Client, url, etag string, result any) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -64,6 +70,9 @@ func getJSON(ctx context.Context, client *http.Client, url, etag string, result 
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusNotModified {
 		return "", ErrNotModified
+	}
+	if response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusGone {
+		return "", fmt.Errorf("GET %s: %s: %w", url, response.Status, ErrNoBoard)
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 200))

@@ -92,13 +92,18 @@ func TestAshby(t *testing.T) {
 	check(t, "work mode of job 7", *jobs[7].WorkMode, model.OnSite)     // "OnSite"
 }
 
+// Any answer outside 2xx is an error; one saying there's no such board
+// (404, 410) also says so, as the syncer counts that as an empty board.
 func TestABoardThatAnswersWithAnErrorFailsTheSync(t *testing.T) {
-	server := httptest.NewServer(http.NotFoundHandler())
-	t.Cleanup(server.Close)
-
-	_, _, err := Greenhouse{server.Client(), server.URL}.Fetch(context.Background(), model.Company{BoardID: "gone"}, "")
-	if err == nil {
-		t.Error("a 404 should be an error")
+	for status, gone := range map[int]bool{http.StatusNotFound: true, http.StatusGone: true, http.StatusInternalServerError: false} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(status)
+		}))
+		_, _, err := Greenhouse{server.Client(), server.URL}.Fetch(context.Background(), model.Company{BoardID: "acme"}, "")
+		server.Close()
+		if err == nil || errors.Is(err, ErrNoBoard) != gone {
+			t.Errorf("%d: got %v, want an error that says no board: %v", status, err, gone)
+		}
 	}
 }
 

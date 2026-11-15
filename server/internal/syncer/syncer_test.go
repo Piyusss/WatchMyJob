@@ -111,6 +111,111 @@ func TestJobsTakenOffTheBoardCloseButAnEmptyAnswerClosesNothing(t *testing.T) {
 	if err != nil || job == nil || job.Status != model.Active {
 		t.Errorf("the job should still be open: %+v, %v", job, err)
 	}
+	if saved := companyNow(t, company); saved.EmptySince == nil {
+		t.Error("the board's empty time should have started")
+	}
+}
+
+// A board that stays empty for emptyFor is believed: its jobs close. When
+// they come back on the board, they reopen, even if the board answers just
+// as it did before it emptied (so "not modified" mustn't be trusted then).
+func TestABoardThatStaysEmptyHasItsJobsClosedUntilTheyComeBack(t *testing.T) {
+	ctx := context.Background()
+	posting := model.Posting{ExternalID: "1", Title: "Backend Engineer", URL: "https://example.com/1",
+		Classification: model.Classification{OpportunityType: model.FullTime}}
+	board := &fakeBoard{etag: `W/"v1"`, postings: []model.Posting{posting}}
+	s, company := withFakeBoard(t, board)
+	syncNow(t, s, company)
+
+	board.postings, board.etag = nil, `W/"v2"` // the board empties out...
+	// ...and has been empty for longer than emptyFor already.
+	if err := store.MarkBoardEmpty(ctx, testdb.DB, company.Slug, model.Now().Add(-emptyFor-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if result := syncNow(t, s, company); result.Closed != 1 {
+		t.Fatalf("got %+v, want 1 closed", result)
+	}
+
+	board.postings, board.etag = []model.Posting{posting}, `W/"v1"` // back as it was
+	if result := syncNow(t, s, company); result.Reopened != 1 {
+		t.Errorf("got %+v, want 1 reopened", result)
+	}
+	if saved := companyNow(t, company); saved.EmptySince != nil {
+		t.Error("a board that lists jobs again shouldn't count as empty")
+	}
+}
+
+// A board that says it doesn't exist (404) is an empty board, not a failed
+// sync: its empty time starts, and its jobs stay open for now.
+func TestABoardThatIsGoneCountsAsEmpty(t *testing.T) {
+	board := &fakeBoard{postings: []model.Posting{{ExternalID: "1", Title: "Backend Engineer",
+		URL: "https://example.com/1", Classification: model.Classification{OpportunityType: model.FullTime}}}}
+	s, company := withFakeBoard(t, board)
+	syncNow(t, s, company)
+
+	board.gone = true
+	if result := syncNow(t, s, company); result.Closed != 0 {
+		t.Errorf("got %+v, want nothing closed yet", result)
+	}
+	if saved := companyNow(t, company); saved.EmptySince == nil {
+		t.Error("the board's empty time should have started")
+	}
+}
+
+// A company switched off (dropped from companies.json, or by an admin) is
+// no longer followed: the next round closes its jobs and drops its role
+// families, and a sync of it saves nothing, whatever its board says.
+func TestASwitchedOffCompanysJobsCloseInTheNextRound(t *testing.T) {
+	ctx := context.Background()
+	// Only the TEST board: the round also reaches the other tests'
+	// companies, and the real boards would need the network.
+	s := New(testdb.DB, map[model.Platform]boards.Board{model.PlatformTest: boards.All(nil, testdb.DB)[model.PlatformTest]}, nil)
+	company := testdb.WatchableCompany(t)
+	role := testdb.Unique("Platform Engineer")
+	testdb.PublishedTestJob(t, company, role)
+	syncNow(t, s, company)
+	if err := store.SetCompanyActive(ctx, testdb.DB, company.Slug, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SyncAll(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if job := jobsOf(t, company)[0]; job.Status != model.Closed {
+		t.Errorf("the job is %s, want CLOSED", job.Status)
+	}
+	if open, err := store.IsOpenRoleFamily(ctx, testdb.DB, role); err != nil || open {
+		t.Errorf("its role family should be gone from the choices (open %v, %v)", open, err)
+	}
+	if saved := companyNow(t, company); saved.OpenJobs != 0 {
+		t.Errorf("%d open jobs counted, want 0", saved.OpenJobs)
+	}
+	if result := syncNow(t, s, company); result.Created+result.Reopened != 0 || jobsOf(t, company)[0].Status != model.Closed {
+		t.Errorf("a sync of a switched-off company saved %+v", result)
+	}
+}
+
+// withFakeBoard is a syncer whose Greenhouse is the given board, and a new
+// Greenhouse company to sync with it.
+func withFakeBoard(t *testing.T, board *fakeBoard) (*Syncer, model.Company) {
+	t.Helper()
+	s := New(testdb.DB, map[model.Platform]boards.Board{model.PlatformGreenhouse: board}, nil)
+	company := model.Company{Slug: testdb.Unique("board-co"), Name: "Board Co", Platform: model.PlatformGreenhouse,
+		BoardID: "board-co", Active: true, CreatedAt: model.Now()}
+	if _, err := store.CreateCompany(context.Background(), testdb.DB, company); err != nil {
+		t.Fatal(err)
+	}
+	return s, company
+}
+
+// companyNow is the company as now saved.
+func companyNow(t *testing.T, company model.Company) model.Company {
+	t.Helper()
+	saved, err := store.CompanyBySlug(context.Background(), testdb.DB, company.Slug)
+	if err != nil || saved == nil {
+		t.Fatalf("no company %s: %v", company.Slug, err)
+	}
+	return *saved
 }
 
 func TestSyncingAgainWithNothingNewChangesNothing(t *testing.T) {
@@ -143,16 +248,21 @@ func TestTheSenderIsWokenWhenASyncQueuesEmails(t *testing.T) {
 }
 
 // fakeBoard answers with the postings and tag the test gives it, or "not
-// modified" when asked with that tag, and records the tags it was asked with.
+// modified" when asked with that tag, or that there's no such board when
+// it's gone, and records the tags it was asked with.
 type fakeBoard struct {
 	postings  []model.Posting
 	etag      string
+	gone      bool
 	askedWith []string
 }
 
 func (f *fakeBoard) Fetch(_ context.Context, _ model.Company, etag string) ([]model.Posting, string, error) {
 	f.askedWith = append(f.askedWith, etag)
-	if etag != "" && etag == f.etag {
+	switch {
+	case f.gone:
+		return nil, "", boards.ErrNoBoard
+	case etag != "" && etag == f.etag:
 		return nil, "", boards.ErrNotModified
 	}
 	return f.postings, f.etag, nil
@@ -161,12 +271,7 @@ func (f *fakeBoard) Fetch(_ context.Context, _ model.Company, etag string) ([]mo
 func TestABoardThatHasNotChangedIsOnlyMarkedAsChecked(t *testing.T) {
 	board := &fakeBoard{etag: `W/"v1"`, postings: []model.Posting{{ExternalID: "1", Title: "Backend Engineer",
 		URL: "https://example.com/1", Classification: model.Classification{OpportunityType: model.FullTime}}}}
-	s := New(testdb.DB, map[model.Platform]boards.Board{model.PlatformGreenhouse: board}, nil)
-	company := model.Company{Slug: testdb.Unique("board-co"), Name: "Board Co", Platform: model.PlatformGreenhouse,
-		BoardID: "board-co", Active: true, CreatedAt: model.Now()}
-	if _, err := store.CreateCompany(context.Background(), testdb.DB, company); err != nil {
-		t.Fatal(err)
-	}
+	s, company := withFakeBoard(t, board)
 
 	if first := syncNow(t, s, company); first.Created != 1 {
 		t.Fatalf("first sync: got %+v", first)
@@ -238,9 +343,9 @@ func TestASyncThatStoppedHalfwayIsFinishedByTheNext(t *testing.T) {
 
 func lastSynced(t *testing.T, company model.Company) time.Time {
 	t.Helper()
-	saved, err := store.CompanyBySlug(context.Background(), testdb.DB, company.Slug)
-	if err != nil || saved == nil || saved.LastSyncedAt == nil {
-		t.Fatalf("no last sync time: %+v, %v", saved, err)
+	saved := companyNow(t, company)
+	if saved.LastSyncedAt == nil {
+		t.Fatalf("no last sync time: %+v", saved)
 	}
 	return *saved.LastSyncedAt
 }

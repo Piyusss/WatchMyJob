@@ -220,9 +220,11 @@ export interface JobDetail extends JobListing {
 
 export type JobsSort = "newest" | "updated";
 
-// QUEUED: waiting to be sent (the history leaves these out). PROVIDER_ACCEPTED:
-// Brevo took it. FAILED: three attempts failed, given up. SKIPPED: not sent,
-// because by sending time the job had closed or the user had paused alerts.
+// QUEUED: waiting to be sent, or for a retry (the history leaves these out).
+// PROVIDER_ACCEPTED: Brevo took it. FAILED: given up, after about a day of
+// retries, or at once for an address that can't receive email. SKIPPED: not
+// sent, because by sending time the job had closed or the user had paused
+// alerts.
 export type NotificationStatus = "QUEUED" | "PROVIDER_ACCEPTED" | "FAILED" | "SKIPPED";
 
 export interface NotificationHistoryItem {

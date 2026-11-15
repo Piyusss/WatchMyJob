@@ -10,7 +10,8 @@ import (
 	"net/http"
 )
 
-// Mailer sends one email.
+// Mailer sends one email. An error is a failed try, which the sender
+// retries later (see Sender.send).
 type Mailer interface {
 	Send(ctx context.Context, to string, email Email) error
 }

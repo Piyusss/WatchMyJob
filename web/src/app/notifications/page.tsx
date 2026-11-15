@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 
 // Every status the backend uses (see NotificationStatus). PROVIDER_ACCEPTED
 // reads as "Sent": the email provider has it, which is as far as we can see.
-// FAILED is final: the backend gave up after three attempts.
+// FAILED is final: the backend gave up after about a day of retries, or at
+// once for an address that can't receive email.
 const STATUS_LABEL: Record<NotificationStatus, { label: string; tone: "ok" | "warn" | "bad" | "muted" }> = {
   QUEUED: { label: "Sending", tone: "muted" },
   PROVIDER_ACCEPTED: { label: "Sent", tone: "ok" },

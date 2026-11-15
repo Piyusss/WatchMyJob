@@ -3,7 +3,9 @@
 // we stored: new postings are added, changed ones updated, and ones gone
 // from the board closed. A company's first sync is its baseline and emails
 // nobody; after that, each new job is matched against the people watching
-// the company.
+// the company. A board that answers with no jobs at all is only believed
+// once it has stayed that way for emptyFor, and a company that's switched
+// off has its jobs closed, as nobody reads its board any more.
 package syncer
 
 import (
@@ -33,8 +35,9 @@ type Syncer struct {
 	queued func()
 	// Syncs of the same company take turns: the timer and the admin
 	// "Publish" button can both sync a test company, and two syncs reading
-	// the board at different moments could undo each other's work.
-	// Different companies don't wait for each other. company slug → *sync.Mutex.
+	// the board at different moments could undo each other's work. So does
+	// StopFollowing. Different companies don't wait for each other.
+	// company slug → *sync.Mutex.
 	locks sync.Map
 	// Each board's ETag from its last saved sync: company slug → string.
 	etags sync.Map
@@ -42,6 +45,23 @@ type Syncer struct {
 
 func New(db *store.DB, boards map[model.Platform]boards.Board, queued func()) *Syncer {
 	return &Syncer{db: db, boards: boards, queued: queued}
+}
+
+// emptyFor is how long a board must keep answering with no jobs, or saying
+// it doesn't exist, before that's believed and its jobs close. A broken
+// reply can look empty, but a board doesn't stay empty for hours by mistake.
+const emptyFor = 6 * time.Hour
+
+// errSwitchedOff: the company was switched off after this sync began, so
+// the sync saves nothing (see StopFollowing).
+var errSwitchedOff = errors.New("the company was switched off")
+
+// lock waits for the company's turn (see Syncer.locks) and returns the
+// function that ends it.
+func (s *Syncer) lock(slug string) (unlock func()) {
+	mu, _ := s.locks.LoadOrStore(slug, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
 }
 
 // Result counts what one company's sync did. Unchanged means the board
@@ -76,18 +96,32 @@ func (r Result) Summary() string {
 
 // SyncAll syncs every active company: one round, run by main.go ten
 // seconds after startup, then five minutes after each round ends. One
-// company failing (its board is down, say) doesn't stop the others.
+// company failing (its board is down, say) doesn't stop the others. A
+// company switched off since (dropped from companies.json, or by an admin)
+// that still counts open jobs has them closed.
 func (s *Syncer) SyncAll(ctx context.Context) error {
 	start := time.Now()
-	companies, err := store.ActiveCompanies(ctx, s.db)
+	companies, err := store.Companies(ctx, s.db)
 	if err != nil {
 		return err
 	}
-	failed, unchanged := 0, 0
+	active, failed, unchanged := 0, 0, 0
 	for _, company := range companies {
 		if ctx.Err() != nil {
 			return ctx.Err() // shutting down
 		}
+		if !company.Active {
+			if company.OpenJobs > 0 {
+				closed, err := s.StopFollowing(ctx, company)
+				if err != nil {
+					slog.Warn(company.Name+": closing the jobs of a switched-off company failed", "error", err)
+				} else {
+					slog.Info(fmt.Sprintf("%s: switched off, %d job(s) closed", company.Name, closed))
+				}
+			}
+			continue
+		}
+		active++
 		result, err := s.Sync(ctx, company)
 		if err != nil {
 			failed++
@@ -102,7 +136,7 @@ func (s *Syncer) SyncAll(ctx context.Context) error {
 			slog.Info(company.Name + ": " + result.Summary())
 		}
 	}
-	slog.Info(fmt.Sprintf("Synced %d companies (%d unchanged, %d failed)", len(companies), unchanged, failed))
+	slog.Info(fmt.Sprintf("Synced %d companies (%d unchanged, %d failed)", active, unchanged, failed))
 
 	metrics.SyncRoundDuration.Observe(time.Since(start).Seconds())
 	metrics.SyncLastSuccess.SetToCurrentTime()
@@ -114,9 +148,8 @@ func (s *Syncer) SyncAll(ctx context.Context) error {
 
 // Sync syncs one company: it reads the board, then saves the differences.
 func (s *Syncer) Sync(ctx context.Context, company model.Company) (Result, error) {
-	lock, _ := s.locks.LoadOrStore(company.Slug, &sync.Mutex{})
-	lock.(*sync.Mutex).Lock()
-	defer lock.(*sync.Mutex).Unlock()
+	unlock := s.lock(company.Slug)
+	defer unlock()
 
 	board, ok := s.boards[company.Platform]
 	if !ok {
@@ -126,23 +159,38 @@ func (s *Syncer) Sync(ctx context.Context, company model.Company) (Result, error
 	start := time.Now()
 	posted, etag, err := board.Fetch(ctx, company, stringOrEmpty(lastETag))
 	metrics.BoardFetchDuration.WithLabelValues(string(company.Platform)).Observe(time.Since(start).Seconds())
-	if errors.Is(err, boards.ErrNotModified) {
+	switch {
+	case errors.Is(err, boards.ErrNotModified):
 		// The board is as we saved it last time: only note that we looked
 		// (the website shows when a company was last checked).
 		return Result{Unchanged: true}, store.MarkCompanyChecked(ctx, s.db, company.Slug, model.Now())
-	}
-	if err != nil {
+	case errors.Is(err, boards.ErrNoBoard):
+		// A board that isn't there lists no jobs: saved as an empty board,
+		// whose jobs close once it has lasted (see save). Someone should
+		// look, though, so it's logged and counted as a failure too.
+		slog.Warn(company.Name+": the board wasn't found; it counts as empty", "error", err)
+		metrics.BoardFetchFailures.WithLabelValues(company.Slug).Inc()
+		posted, etag = nil, ""
+	case err != nil:
 		return Result{}, err
 	}
 
 	result, err := save(ctx, s.db, company.Slug, posted)
+	if errors.Is(err, errSwitchedOff) {
+		return Result{}, nil
+	}
 	if err != nil {
 		return Result{}, err
 	}
 	// Only now, with this version of the board saved, is its tag worth
-	// sending next time. (An empty answer isn't saved as a baseline, so its
-	// tag isn't kept either.)
-	if etag != "" && len(posted) > 0 {
+	// sending next time. An empty answer's tag isn't kept, and neither is
+	// the one before it: that version's jobs may close while the board is
+	// empty, and if the board then came back as it was, "304 Not Modified"
+	// would keep them closed.
+	switch {
+	case len(posted) == 0:
+		s.etags.Delete(company.Slug)
+	case etag != "":
 		s.etags.Store(company.Slug, etag)
 	}
 	if result.Queued > 0 && s.queued != nil {
@@ -182,15 +230,30 @@ func save(ctx context.Context, db *store.DB, slug string, posted []model.Posting
 	if company == nil {
 		return Result{}, fmt.Errorf("company %q not found", slug)
 	}
+	if !company.Active {
+		return Result{}, errSwitchedOff
+	}
 	baseline := !company.InitialSyncDone
 	now := model.Now()
 
-	// A board that answers with no jobs on its very first sync is more
-	// likely broken than empty. Recording that as the baseline would make
-	// every job after it look new, so wait for a real answer. (Test
-	// companies start out baselined: see the admin API's createTestCompany.)
-	if baseline && len(posted) == 0 {
-		return Result{}, nil
+	if len(posted) == 0 {
+		// A board that answers with no jobs on its very first sync is more
+		// likely broken than empty. Recording that as the baseline would
+		// make every job after it look new, so wait for a real answer.
+		// (Test companies start out baselined: see the admin API's
+		// createTestCompany.)
+		if baseline {
+			return Result{}, nil
+		}
+		// Later, it may be broken too, or the company may really have
+		// stopped hiring, or left the platform. Its jobs close only once
+		// the board has stayed empty for emptyFor.
+		if company.EmptySince == nil || now.Sub(*company.EmptySince) < emptyFor {
+			if company.EmptySince == nil {
+				slog.Info(company.Name + ": the board lists no jobs; they close if it stays empty for " + emptyFor.String())
+			}
+			return Result{}, store.MarkBoardEmpty(ctx, db, slug, now)
+		}
 	}
 
 	posted = onlyFirst(posted)
@@ -244,11 +307,10 @@ func save(ctx context.Context, db *store.DB, slug string, posted []model.Posting
 		saved = append(saved, job)
 	}
 
-	// Whatever is left in "stored" is no longer on the board. An empty reply
-	// is never trusted to close everything: a board doesn't empty out in
-	// five minutes, but a broken reply can look empty.
+	// Whatever is left in "stored" is no longer on the board. (An empty
+	// board only gets this far once it has stayed empty for emptyFor.)
 	for _, gone := range stored {
-		if gone.Status == model.Active && len(posted) > 0 {
+		if gone.Status == model.Active {
 			gone.Close(now)
 			changed = append(changed, gone)
 			result.Closed++
@@ -280,6 +342,36 @@ func save(ctx context.Context, db *store.DB, slug string, posted []model.Posting
 	}
 	result.Discovered = len(posted)
 	return result, nil
+}
+
+// StopFollowing closes a switched-off company's open jobs, and returns how
+// many there were: nobody reads its board any more, so nothing on it can
+// be shown as open. Its role families and open-job count go with them. It
+// also forgets the board's fingerprint and ETag, so that if the company is
+// ever switched back on, its next sync compares the board in full, and
+// reopens (without emailing anyone) what's still there.
+func (s *Syncer) StopFollowing(ctx context.Context, company model.Company) (int, error) {
+	unlock := s.lock(company.Slug)
+	defer unlock()
+
+	s.etags.Delete(company.Slug)
+	jobs, err := store.JobsOfCompany(ctx, s.db, company)
+	if err != nil {
+		return 0, err
+	}
+	now := model.Now()
+	var closed []model.Job
+	for i := range jobs {
+		if jobs[i].Status == model.Active {
+			jobs[i].Close(now)
+			closed = append(closed, jobs[i])
+		}
+	}
+	if err := store.SaveJobs(ctx, s.db, nil, closed); err != nil {
+		return 0, err
+	}
+	// Recorded like a sync that found these jobs, all closed, with no fingerprint.
+	return len(closed), store.MarkCompanySynced(ctx, s.db, company.Slug, now, "", jobs)
 }
 
 // onlyFirst drops postings listed twice on the board, keeping the first.

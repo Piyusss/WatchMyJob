@@ -65,7 +65,7 @@ var (
 
 	Emails = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "jobdrop_emails_total",
-		Help: "Job alert emails by outcome: queued, sent, failed_attempt, failed or skipped.",
+		Help: "Job alert emails by outcome: queued, sent, failed_attempt (retried later), failed (given up) or skipped.",
 	}, []string{"outcome"})
 
 	EmailQueueDepth = promauto.NewGauge(prometheus.GaugeOpts{

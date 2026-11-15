@@ -125,7 +125,8 @@ func slugify(text string) string {
 }
 
 // setTestCompanyStatus switches a company on or off. Off also unwatches it
-// for everyone.
+// for everyone and closes its jobs (should that fail, the next sync round
+// closes them).
 func (s *Server) setTestCompanyStatus(w http.ResponseWriter, r *http.Request, _ model.User) error {
 	var body struct {
 		Status *string `json:"status"`
@@ -152,6 +153,10 @@ func (s *Server) setTestCompanyStatus(w http.ResponseWriter, r *http.Request, _ 
 		if unwatched, err = store.UnwatchAll(r.Context(), s.db, company.Slug); err != nil {
 			return err
 		}
+		if _, err := s.syncer.StopFollowing(r.Context(), *company); err != nil {
+			return err
+		}
+		company.OpenJobs = 0
 	}
 	item, err := s.testCompanyItem(r.Context(), *company)
 	if err != nil {

@@ -398,7 +398,7 @@
     {
       "type": "stat",
       "title": "Emails failed, last 24 hours",
-      "description": "Emails given up on after 3 failed attempts, in the past 24 hours.",
+      "description": "Emails given up on (after about a day of retries, or at once for an address that can't receive email), in the past 24 hours.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
