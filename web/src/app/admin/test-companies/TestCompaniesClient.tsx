@@ -159,13 +159,13 @@ export default function TestCompaniesClient() {
           <form onSubmit={onCreate} className="mt-3 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name">Company name</Label>
-              <Input id="name" required placeholder="TestCorp" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input id="name" required placeholder="Test Company" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="domain">Website domain (optional)</Label>
               <Input
                 id="domain"
-                placeholder="testcorp.com"
+                placeholder="testcompany.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
               />
